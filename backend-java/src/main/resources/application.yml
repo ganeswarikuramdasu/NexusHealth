@@ -1,0 +1,70 @@
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  application:
+    name: nexushealth-backend
+
+  datasource:
+    # Defaults match this project's existing .env (root/.env) so `mvn
+    # spring-boot:run` works immediately without extra setup - same as the
+    # old Node backend connected to. Override via env vars (MYSQL_HOST etc.)
+    # on any machine where these don't apply.
+    url: jdbc:mysql://${MYSQL_HOST:127.0.0.1}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:nexushealth}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    username: ${MYSQL_USER:root}
+    password: ${MYSQL_PASSWORD:Ganeswari@2006}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      # 'update' lets Hibernate ADD any columns/tables new entities need
+      # (e.g. the JSON `extra` column on doctors/hospitals added in Phase 2)
+      # without touching data in existing columns. It won't rename or drop
+      # anything. If you ever see it trying to MODIFY a column that's
+      # locked by a foreign key (harmless warning, not an error - the table
+      # already has the right structure from the Node schema), that's
+      # normal and safe to ignore.
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.MySQLDialect
+
+  mail:
+    # Defaults match this project's existing .env so OTP email works
+    # immediately without extra setup - override via env vars elsewhere.
+    host: ${SMTP_HOST:smtp.gmail.com}
+    port: ${SMTP_PORT:587}
+    username: ${SMTP_USER:ganeswarikuramdasu@gmail.com}
+    password: ${SMTP_PASS:lnyi gwph mzee zakh}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+  jackson:
+    default-property-inclusion: non_null
+
+  mvc:
+    throw-exception-if-no-handler-found: true
+  web:
+    resources:
+      add-mappings: false
+
+nexushealth:
+  super-admin:
+    email: ${SUPER_ADMIN_EMAIL:ganeswarikuramdasu@gmail.com}
+    password: ${SUPER_ADMIN_PASSWORD:Admin@Nexus2026!}
+  cors:
+    allowed-origins: ${CORS_ORIGINS:http://localhost:5173,http://localhost:3000}
+  gemini:
+    api-key: ${GEMINI_API_KEY:}
+  email:
+    from: ${SMTP_FROM:NexusHealth Identity <ganeswarikuramdasu@gmail.com>}
+
+logging:
+  level:
+    com.nexushealth: INFO

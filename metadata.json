@@ -1,0 +1,6 @@
+{
+  "name": "NexusHealth National Health Stack",
+  "description": "Global Digital Health Identity Platform with Global Health ID, Emergency Break-Glass Access, AI Medical Reports, Appointments & Consent Management",
+  "requestFramePermissions": ["camera", "microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

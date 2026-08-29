@@ -1,0 +1,10 @@
+**/target/
+**/dist/
+**/node_modules/
+*.log
+.env
+.git
+.idea/
+*.iml
+.vscode/
+.PS1
