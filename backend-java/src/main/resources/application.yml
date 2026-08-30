@@ -1,5 +1,7 @@
 server:
-  port: ${SERVER_PORT:8080}
+  # Railway injects PORT (the platform's convention). Render injects
+  # SERVER_PORT. If neither is set, default to 8080 for local dev.
+  port: ${PORT:${SERVER_PORT:8080}}
 
 spring:
   application:

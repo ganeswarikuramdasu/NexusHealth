@@ -6,7 +6,7 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "https://nexushealth-backend.onrender.com/api/$1"
+      "destination": "http://YOUR_EC2_PUBLIC_DNS:8080/api/$1"
     },
     {
       "source": "/(.*)",

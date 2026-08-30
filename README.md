@@ -50,7 +50,7 @@ A full-stack final-year project that gives every citizen a unique **Global Healt
 | **Backend** | Java 17 · Spring Boot 3.3 · Spring Data JPA · Hibernate |
 | **Database** | MySQL 8 |
 | **AI** | Google Gemini API (optional) |
-| **Deploy** | Vercel (frontend) · Render (backend) · Docker |
+| **Deploy** | Vercel (frontend) · AWS EC2 (backend) · Docker |
 
 ---
 
@@ -70,7 +70,7 @@ nexushealth/
 │       ├── dto/            # Request/response objects
 │       └── common/         # ApiResponse, exceptions, validation
 ├── Dockerfile              # Backend container image
-├── render.yaml             # Render blueprint (backend)
+├── deploy/ec2-setup.sh     # AWS EC2 one-time setup (backend)
 ├── vercel.json             # Vercel config (frontend + API proxy)
 └── .env.example            # Sample environment variables
 ```
@@ -158,31 +158,76 @@ All responses are wrapped in the standard `ApiResponse` envelope.
 
 ---
 
-## 🌐 Deployment
+## ☁️ Deployment (AWS EC2 Free Tier + Vercel)
 
-### Backend → Render
-1. Push this repo to GitHub.
-2. In [Render](https://render.com), **New → Blueprint** and connect the repo.
-3. Render reads **`render.yaml`** and creates a Docker web service (`nexushealth-backend`).
-4. Add a hosted MySQL (e.g. **Aiven**, **Clever Cloud**, **Railway**, or **DigitalOcean** managed MySQL).
-5. Set the database env vars in Render's dashboard (`MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_DATABASE`, `MYSQL_USER`, `MYSQL_PASSWORD`) plus `SERVER_PORT=8080` and any SMTP / `GEMINI_API_KEY`.
-6. Deploy. You'll get a URL like `https://nexushealth-backend.onrender.com`.
+This deploys the Spring Boot backend on **AWS EC2 (12-month free tier)** and the frontend on **Vercel (free)**. You'll need an AWS account with a card on file (card is only used for verification — no charge while you stay within the free tier and stop the instance when done).
 
-### Frontend → Vercel
-1. In [Vercel](https://vercel.com), **Import Project** from the same GitHub repo.
+### ⚙️ 1. Backend → AWS EC2 (Free Tier)
+
+1. Build the backend jar locally:
+   ```bash
+   mvn -f backend-java/pom.xml clean package -DskipTests
+   ```
+   → produces `backend-java/target/nexushealth-backend.jar`.
+
+2. In the **AWS Console** → **EC2** → **Launch Instance**:
+   - Name: `nexushealth-backend`
+   - AMI: **Amazon Linux 2023** (free tier eligible)
+   - Instance type: **`t2.micro`** (or `t3.micro`) — free tier eligible
+   - Key pair: create/download your `.pem`
+   - **Security Group** → add a rule: **Type = Custom TCP, Port `8080`, Source `0.0.0.0/0`**
+   - Launch the instance.
+
+3. Copy your jar + the deploy script up to the instance:
+   ```bash
+   scp -i yourkey.pem backend-java/target/nexushealth-backend.jar ec2-user@YOUR_PUBLIC_DNS:~/
+   scp -i yourkey.pem deploy/ec2-setup.sh ec2-user@YOUR_PUBLIC_DNS:~/
+   ```
+
+4. SSH in and run the one-time setup:
+   ```bash
+   ssh -i yourkey.pem ec2-user@YOUR_PUBLIC_DNS
+   chmod +x ec2-setup.sh
+   ./ec2-setup.sh
+   ```
+
+5. Fill in your secrets, then start:
+   ```bash
+   sudo nano /opt/nexushealth/.env     # DB, super-admin, CORS, APP_URL
+   sudo systemctl start nexushealth
+   sudo systemctl status nexushealth
+   curl http://localhost:8080/api/health
+   ```
+   The backend is a **systemd service**, so it auto-starts on reboot and restarts on crash.
+
+### 🗄️ 1b. Hosted MySQL (RDS or Aiven free)
+
+For a deployed backend you need a reachable MySQL. Easiest free options:
+- **Aiven free MySQL** (managed, free tier, web dashboard): create a MySQL service, enable **public access**, and use the host/port/db/user/password in `/opt/nexushealth/.env`.
+- Or **AWS RDS MySQL** (free tier for `db.t3.micro`), if you manage it via AWS.
+
+> ⚠️ EC2 can't reach `localhost` on your own machine — the DB must be reachable over the internet.
+
+### 🖥️ 2. Frontend → Vercel (free)
+
+1. In [Vercel](https://vercel.com), **Add New → Project** → import the GitHub repo.
 2. Framework preset **Vite**, build `vite build`, output `dist`.
-3. Set the API proxy in **`vercel.json`** to your Render URL:
+3. Point the API proxy in **`vercel.json`** at your EC2 backend. Because your EC2 backend is served over `http://` (no TLS yet), set the rewrite to your public DNS:
    ```json
    {
      "rewrites": [
-       { "source": "/api/(.*)", "destination": "https://<YOUR-RENDER-URL>/api/$1" },
+       { "source": "/api/(.*)", "destination": "http://<YOUR_EC2_PUBLIC_DNS>:8080/api/$1" },
        { "source": "/(.*)", "destination": "/index.html" }
      ]
    }
    ```
-4. Deploy. Vercel hosts the SPA and rewrites `/api/*` to Render.
+4. Deploy. Vercel hosts the SPA and proxies `/api/*` to EC2.
+5. In `/opt/nexushealth/.env` on EC2 set `CORS_ORIGINS` to include your Vercel domain, then `sudo systemctl restart nexushealth`.
 
-> **Tip:** In `CORS_ORIGINS` add your Vercel domain.
+> **Note on mixed content:** Vercel serves `https://` but your EC2 backend is `http://`. Browsers block this. Two fixes:
+> - Put the EC2 backend behind an HTTPS proxy (e.g. set up a free **Let's Encrypt** cert via Apache/Nginx, or an **AWS Load Balancer** with a cert), **or**
+> - For a demo, serve the frontend directly from EC2 on `http://` too (both over http = no mixed content), **or**
+> - Point the frontend's `fetch` calls at the full EC2 URL directly.
 
 ---
 
@@ -203,15 +248,16 @@ Key tables the app creates:
 | `audit_logs` | Access / activity audit trail |
 | `record_access_logs` | Per-record access history |
 
-**On Render / production** — the hosted MySQL provider gives you a connection string and a web dashboard (Aiven console, Render's own PostgreSQL/MySQL dashboard if used, etc.) to inspect the same tables.
+**In production on AWS** — if you used **Aiven**, open the Aiven console → your MySQL service → **Service Overview** for the connection string, and **Query Editor / CLI** to inspect the same tables. If you used **AWS RDS**, check the **MySQL client / RDS console** with the endpoint and credentials from `/opt/nexushealth/.env`.
 
 ---
 
 ## 🛠️ Troubleshooting
 
-- **CORS errors on deployment** → ensure your Vercel domain is in `CORS_ORIGINS`.
-- **Backend won't connect to DB** → verify `MYSQL_*` env vars and that the host is reachable (Render can't reach `localhost` on your machine).
-- **`application.yml` holds local dev secrets** → override everything via env vars on Render; rotate/secrets-scrub before making the repo public.
+- **CORS errors on deployment** → ensure your Vercel domain is in `CORS_ORIGINS` and restart the backend.
+- **Backend can't reach the DB** → verify `MYSQL_*` in `/opt/nexushealth/.env`, the DB host must be internet-reachable, and your DB user/IP allowlist must permit EC2's IP.
+- **Mixed-content (`https` page calling `http` API)** → put the backend behind HTTPS or serve the frontend over `http` for the demo.
+- **`application.yml` holds local dev secrets** → override everything via the `.env` on EC2; rotate/scrub before making the repo public.
 
 ---
 
