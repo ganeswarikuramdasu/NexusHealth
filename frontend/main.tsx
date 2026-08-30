@@ -2,6 +2,11 @@ import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
+import {installApiBase} from './utils/apiBase.ts';
+
+// Point all relative "/api/..." calls at the backend. No-op when
+// VITE_API_BASE_URL is not set (local dev / Vercel proxy handle it).
+installApiBase();
 
 // Prevent benign Vite HMR WebSocket connection errors from producing unhandled rejections
 if (typeof window !== 'undefined') {
