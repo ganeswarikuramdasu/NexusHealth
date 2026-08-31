@@ -422,6 +422,7 @@ public class AppointmentService {
         String slotTime = formatTime(a.getAppointmentTime());
         int hour = a.getAppointmentTime().getHour();
         String shiftName = hour >= 17 ? "Evening Shift" : (hour >= 12 ? "Afternoon Shift" : "Morning Shift");
+        Map<String, Object> aExtra = a.getExtra() != null ? a.getExtra() : new LinkedHashMap<>();
 
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("id", a.getId());
@@ -445,17 +446,17 @@ public class AppointmentService {
         out.put("appointmentType", a.getAppointmentType());
         out.put("reason", a.getReason() != null ? a.getReason() : "");
         out.put("symptoms", a.getReason() != null ? a.getReason() : "");
-        out.put("priority", a.getExtra().getOrDefault("priority", "NORMAL"));
+        out.put("priority", aExtra.getOrDefault("priority", "NORMAL"));
         out.put("status", a.getStatus());
         out.put("vitals", Map.of());
         out.put("doctorNotes", a.getDoctorNotes() != null ? a.getDoctorNotes() : "");
         out.put("cancellationReason", a.getCancellationReason() != null ? a.getCancellationReason() : "");
-        out.put("queueType", a.getExtra().getOrDefault("queueType", "NONE"));
-        out.put("checkInTime", a.getExtra().get("checkInTime"));
-        out.put("consultationStartTime", a.getExtra().get("consultationStartTime"));
-        out.put("consultationEndTime", a.getExtra().get("consultationEndTime"));
-        out.put("investigationTests", a.getExtra().getOrDefault("investigationTests", List.of()));
-        out.put("prescription", a.getExtra().get("prescription"));
+        out.put("queueType", aExtra.getOrDefault("queueType", "NONE"));
+        out.put("checkInTime", aExtra.get("checkInTime"));
+        out.put("consultationStartTime", aExtra.get("consultationStartTime"));
+        out.put("consultationEndTime", aExtra.get("consultationEndTime"));
+        out.put("investigationTests", aExtra.getOrDefault("investigationTests", List.of()));
+        out.put("prescription", aExtra.get("prescription"));
         out.put("createdAt", a.getCreatedAt().toString());
         out.put("updatedAt", a.getUpdatedAt().toString());
         return out;

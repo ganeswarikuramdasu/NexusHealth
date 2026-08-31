@@ -37,13 +37,13 @@ export const Navbar: React.FC<NavbarProps> = ({
   const getRoleBadge = (role: UserRole) => {
     switch (role) {
       case "PATIENT":
-        return { label: "PATIENT", color: "bg-sky-500/10 text-sky-400 border-sky-500/30", icon: User };
+        return { label: "PATIENT", color: "bg-[#17C964]/10 text-[#17C964] border-[#17C964]/30", icon: User };
       case "DOCTOR":
-        return { label: "PHYSICIAN", color: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30", icon: Stethoscope };
+        return { label: "PHYSICIAN", color: "bg-[#17C964]/10 text-[#17C964] border-[#17C964]/30", icon: Stethoscope };
       case "HOSPITAL_ADMIN":
-        return { label: "HOSPITAL ADMIN", color: "bg-indigo-500/10 text-indigo-400 border-indigo-500/30", icon: Building2 };
+        return { label: "HOSPITAL ADMIN", color: "bg-[#17C964]/10 text-[#17C964] border-[#17C964]/30", icon: Building2 };
       case "SUPER_ADMIN":
-        return { label: "SUPER ADMIN", color: "bg-purple-500/10 text-purple-400 border-purple-500/30", icon: ShieldCheck };
+        return { label: "SUPER ADMIN", color: "bg-[#17C964]/10 text-[#17C964] border-[#17C964]/30", icon: ShieldCheck };
     }
   };
 
@@ -52,7 +52,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const initial = currentUser.name ? currentUser.name.charAt(0).toUpperCase() : "U";
 
   return (
-    <header className="bg-[#0B0F19]/90 backdrop-blur-md border-b border-slate-800/80 sticky top-0 z-40 text-slate-100">
+    <header className="bg-[#FFFFFF]/90 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-40 text-slate-900">
       <div className="w-full px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
         
         {/* Left: Brand Logo & Title */}
@@ -62,19 +62,19 @@ export const Navbar: React.FC<NavbarProps> = ({
             className="flex items-center space-x-3 cursor-pointer group"
             title="NexusHealth AI Gateway"
           >
-            <div className="w-10 h-10 bg-gradient-to-tr from-purple-600 via-indigo-600 to-cyan-500 rounded-2xl flex items-center justify-center shadow-lg shadow-purple-600/20 group-hover:scale-105 transition-transform border border-purple-400/30">
+            <div className="w-10 h-10 bg-[#17C964] rounded-2xl flex items-center justify-center shadow-lg shadow-[#17C964]/20 group-hover:scale-105 transition-transform border border-[#17C964]/30">
               <Activity className="w-5 h-5 text-white" />
             </div>
             <div>
               <div className="flex items-center space-x-1.5">
-                <span className="text-base font-black tracking-tight text-white group-hover:text-purple-400 transition-colors">
+                <span className="text-base font-black tracking-tight text-slate-900 group-hover:text-[#17C964] transition-colors">
                   NexusHealth
                 </span>
-                <span className="px-1.5 py-0.2 bg-purple-500/20 text-purple-300 text-[9px] font-mono font-bold rounded-md border border-purple-500/30">
+                <span className="px-1.5 py-0.2 bg-[#17C964]/10 text-[#17C964] text-[9px] font-mono font-bold rounded-md border border-[#17C964]/30">
                   AI
                 </span>
               </div>
-              <span className="block text-[9px] font-mono text-cyan-400 font-bold tracking-widest uppercase">
+              <span className="block text-[9px] font-mono text-[#17C964] font-bold tracking-widest uppercase">
                 PRECISION HEALTHCARE
               </span>
             </div>
@@ -88,9 +88,9 @@ export const Navbar: React.FC<NavbarProps> = ({
           {currentUser.role === "PATIENT" && (
             <button
               onClick={onOpenCard}
-              className="flex items-center space-x-1.5 px-3 py-1.5 bg-cyan-950/60 hover:bg-cyan-900/60 border border-cyan-500/30 rounded-xl text-xs font-bold text-cyan-300 transition shadow-xs cursor-pointer"
+              className="flex items-center space-x-1.5 px-3 py-1.5 bg-[#E9FBF1] hover:bg-slate-100 border border-[#17C964]/30 rounded-xl text-xs font-bold text-[#17C964] transition shadow-xs cursor-pointer"
             >
-              <CreditCard className="w-3.5 h-3.5 text-cyan-400" />
+              <CreditCard className="w-3.5 h-3.5 text-[#17C964]" />
               <span className="hidden sm:inline">Health ID Card</span>
             </button>
           )}
@@ -98,16 +98,16 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* User Capsule Pill */}
 
           {/* User Capsule Pill (Exact like screenshot "G gani") */}
-          <div className="flex items-center space-x-2 pl-2 border-l border-slate-800">
-            <div className="flex items-center space-x-2 bg-[#13192B] border border-slate-800 rounded-xl p-1 pr-3">
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-purple-600 to-indigo-600 flex items-center justify-center font-bold text-white text-xs shadow-sm">
+          <div className="flex items-center space-x-2 pl-2 border-l border-slate-200">
+            <div className="flex items-center space-x-2 bg-[#FFFFFF] border border-slate-200 rounded-xl p-1 pr-3">
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#17C964] to-[#0f172a] flex items-center justify-center font-bold text-white text-xs shadow-sm">
                 {initial}
               </div>
               <div className="hidden lg:block text-left">
-                <span className="block text-xs font-bold text-white leading-tight truncate max-w-[100px]">
+                <span className="block text-xs font-bold text-slate-900 leading-tight truncate max-w-[100px]">
                   {currentUser.name}
                 </span>
-                <span className="block text-[9px] font-mono text-purple-400 leading-none">
+                <span className="block text-[9px] font-mono text-[#17C964] leading-none">
                   {currentUser.role.replace("_", " ")}
                 </span>
               </div>
@@ -117,7 +117,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 onClick={onGoToHome}
                 title="Return to Main Landing Page"
-                className="p-2 text-slate-400 hover:text-cyan-400 hover:bg-slate-800 rounded-xl transition border border-slate-800"
+                className="p-2 text-slate-500 hover:text-[#17C964] hover:bg-slate-100 rounded-xl transition border border-slate-200"
               >
                 <Sparkles className="w-4 h-4" />
               </button>
@@ -126,7 +126,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               onClick={onLogout}
               title="Logout"
-              className="p-2 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-xl transition border border-slate-800"
+              className="p-2 text-slate-500 hover:text-[#E23A2E] hover:bg-slate-100 rounded-xl transition border border-slate-200"
             >
               <LogOut className="w-4 h-4" />
             </button>

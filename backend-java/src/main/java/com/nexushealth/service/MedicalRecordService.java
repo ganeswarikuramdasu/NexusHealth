@@ -250,7 +250,7 @@ public class MedicalRecordService {
         if (resolvedHealthId == null || resolvedHealthId.isBlank()) {
             resolvedHealthId = pRes.containsKey("globalHealthId") ? (String) pRes.get("globalHealthId") : "NH-IND-2026-00000000";
         }
-        String patientName = pRes.containsKey("name") ? (String) pRes.get("name") : "Ananya Sharma";
+        String patientName = pRes.containsKey("name") ? (String) pRes.get("name") : "";
 
         String displayTitle = req.getTestName() != null ? req.getTestName()
                 : (req.getTitle() != null ? req.getTitle() : "Laboratory & Diagnostic Report");

@@ -115,35 +115,35 @@ export const DietPlanModule: React.FC<DietPlanModuleProps> = ({ profile, patient
   return (
     <div className="space-y-6">
       {/* Header & AI Generator Toolbar */}
-      <div className="bg-gradient-to-r from-emerald-950/80 via-indigo-950/60 to-slate-950 border border-emerald-500/30 rounded-3xl p-6 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+      <div className="bg-gradient-to-r from-[#0f172a] via-[#1F3D55] to-[#0f172a] border border-[#17C964]/40 rounded-3xl p-6 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
         <div className="space-y-2">
-          <div className="inline-flex items-center space-x-1.5 px-3 py-1 bg-emerald-500/20 border border-emerald-500/40 rounded-full text-xs font-mono font-bold text-emerald-300">
+          <div className="inline-flex items-center space-x-1.5 px-3 py-1 bg-[#17C964]/30 border border-[#17C964]/60 rounded-full text-xs font-mono font-bold text-[#3CE584]">
             <Utensils className="w-3.5 h-3.5" />
             <span>Prescribed & Clinical Nutrition</span>
           </div>
           <h2 className="text-xl sm:text-2xl font-black text-white">Diet & Meal Recommendations</h2>
           <p className="text-xs text-slate-300 max-w-xl">
-            Diets prescribed by attending physicians or customized by Gemini 3.6 Flash based on blood group (<strong className="text-rose-400">{profile.bloodGroup}</strong>) & health profile.
+            Diets prescribed by attending physicians or customized by Gemini 3.6 Flash based on blood group (<strong className="text-[#F2603C]">{profile.bloodGroup}</strong>) & health profile.
           </p>
         </div>
 
-        <div className="bg-[#13192B] border border-slate-800 p-4 rounded-2xl space-y-3 shrink-0 w-full md:w-80">
-          <label className="block text-xs font-bold text-slate-300">Select Nutrition Focus Goal</label>
+        <div className="bg-[#FFFFFF] border border-slate-200 p-4 rounded-2xl space-y-3 shrink-0 w-full md:w-80">
+          <label className="block text-xs font-bold text-slate-700">Select Nutrition Focus Goal</label>
           <select
             value={goal}
             onChange={(e) => setGoal(e.target.value)}
-            className="w-full bg-[#0D121F] border border-slate-800 rounded-xl px-3 py-2 text-xs text-white"
+            className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900"
           >
-            <option value="Heart & Vascular Wellness">❤️ Heart & Vascular Wellness</option>
-            <option value="Respiratory & Allergy Care">🫁 Respiratory & Allergy Care</option>
-            <option value="Diabetic Glucose Control">🩸 Diabetic Glucose Control</option>
-            <option value="Weight & Lean Muscle Balance">🏋️ Weight & Lean Muscle Balance</option>
+            <option value="Heart & Vascular Wellness">🩺 Heart & Vascular Wellness</option>
+            <option value="Respiratory & Allergy Care">🩺 Respiratory & Allergy Care</option>
+            <option value="Diabetic Glucose Control">🩺 Diabetic Glucose Control</option>
+            <option value="Weight & Lean Muscle Balance">🩺 Weight & Lean Muscle Balance</option>
           </select>
 
           <button
             onClick={handleGenerateAiDiet}
             disabled={isGenerating}
-            className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs transition shadow-lg shadow-emerald-600/30 flex items-center justify-center space-x-2"
+            className="w-full py-2.5 bg-[#17C964] hover:bg-[#0EA653] text-white font-bold rounded-xl text-xs transition shadow-lg shadow-[#17C964]/30 flex items-center justify-center space-x-2"
           >
             {isGenerating ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4 text-amber-300" />}
             <span>{isGenerating ? "Generating Plan..." : "Generate Gemini AI Diet Plan"}</span>
@@ -154,97 +154,97 @@ export const DietPlanModule: React.FC<DietPlanModuleProps> = ({ profile, patient
       {/* Active Diet Plans Feed */}
       <div className="space-y-6">
         {dietPlans.map((plan) => (
-          <div key={plan.id} className="bg-[#13192B] border border-slate-800 rounded-3xl p-6 space-y-5 shadow-xl relative overflow-hidden">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-800 pb-4">
+          <div key={plan.id} className="bg-[#FFFFFF] border border-slate-200 rounded-3xl p-6 space-y-5 shadow-xl relative overflow-hidden">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-200 pb-4">
               <div>
-                <span className="px-2.5 py-1 bg-emerald-950 border border-emerald-500/40 text-emerald-300 text-[10px] font-mono font-bold rounded-lg uppercase">
+                <span className="px-2.5 py-1 bg-[#E9FBF1] border border-[#17C964]/40 text-[#17C964] text-[10px] font-mono font-bold rounded-lg uppercase">
                   {plan.category}
                 </span>
-                <h3 className="text-lg font-bold text-white mt-1">{plan.title}</h3>
-                <p className="text-xs text-slate-400 font-mono">
-                  Prescribed By: <strong className="text-purple-400">{plan.doctorName}</strong> ({plan.hospitalName || "Health System"}) • Date: {plan.createdDate}
+                <h3 className="text-lg font-bold text-slate-900 mt-1">{plan.title}</h3>
+                <p className="text-xs text-slate-500 font-mono">
+                  Prescribed By: <strong className="text-[#17C964]">{plan.doctorName}</strong> ({plan.hospitalName || "Health System"}) • Date: {plan.createdDate}
                 </p>
               </div>
 
               <div className="flex items-center space-x-3 shrink-0">
-                <div className="bg-[#0D121F] px-3.5 py-2 rounded-xl border border-slate-800 text-center font-mono">
-                  <div className="text-[10px] text-slate-400 uppercase font-bold">Daily Target</div>
-                  <div className="text-sm font-black text-amber-400">{plan.dailyCaloriesTarget}</div>
+                <div className="bg-[#EDF1F5] px-3.5 py-2 rounded-xl border border-slate-200 text-center font-mono">
+                  <div className="text-[10px] text-slate-500 uppercase font-bold">Daily Target</div>
+                  <div className="text-sm font-black text-amber-600">{plan.dailyCaloriesTarget}</div>
                 </div>
 
-                <div className="bg-[#0D121F] px-3.5 py-2 rounded-xl border border-slate-800 text-center font-mono">
-                  <div className="text-[10px] text-slate-400 uppercase font-bold">Water Intake</div>
-                  <div className="text-sm font-black text-cyan-400">{plan.waterIntakeLiters} L / day</div>
+                <div className="bg-[#EDF1F5] px-3.5 py-2 rounded-xl border border-slate-200 text-center font-mono">
+                  <div className="text-[10px] text-slate-500 uppercase font-bold">Water Intake</div>
+                  <div className="text-sm font-black text-[#17C964]">{plan.waterIntakeLiters} L / day</div>
                 </div>
               </div>
             </div>
 
             {/* Meal Schedule 4 Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
-              <div className="bg-[#0D121F] border border-slate-800 p-4 rounded-2xl space-y-1.5">
-                <div className="font-bold text-amber-400 uppercase text-[10px] flex items-center space-x-1">
+              <div className="bg-[#EDF1F5] border border-slate-200 p-4 rounded-2xl space-y-1.5">
+                <div className="font-bold text-amber-600 uppercase text-[10px] flex items-center space-x-1">
                   <span>🍳 Breakfast</span>
                 </div>
-                <p className="text-slate-200 leading-relaxed">{plan.meals.breakfast}</p>
+                <p className="text-slate-800 leading-relaxed">{plan.meals.breakfast}</p>
               </div>
 
-              <div className="bg-[#0D121F] border border-slate-800 p-4 rounded-2xl space-y-1.5">
-                <div className="font-bold text-emerald-400 uppercase text-[10px] flex items-center space-x-1">
-                  <span>🥗 Lunch</span>
+              <div className="bg-[#EDF1F5] border border-slate-200 p-4 rounded-2xl space-y-1.5">
+                <div className="font-bold text-[#17C964] uppercase text-[10px] flex items-center space-x-1">
+                  <span>🍽️ Lunch</span>
                 </div>
-                <p className="text-slate-200 leading-relaxed">{plan.meals.lunch}</p>
+                <p className="text-slate-800 leading-relaxed">{plan.meals.lunch}</p>
               </div>
 
-              <div className="bg-[#0D121F] border border-slate-800 p-4 rounded-2xl space-y-1.5">
-                <div className="font-bold text-purple-400 uppercase text-[10px] flex items-center space-x-1">
-                  <span>🍵 Evening Snack</span>
+              <div className="bg-[#EDF1F5] border border-slate-200 p-4 rounded-2xl space-y-1.5">
+                <div className="font-bold text-[#17C964] uppercase text-[10px] flex items-center space-x-1">
+                  <span>🍎 Evening Snack</span>
                 </div>
-                <p className="text-slate-200 leading-relaxed">{plan.meals.eveningSnack}</p>
+                <p className="text-slate-800 leading-relaxed">{plan.meals.eveningSnack}</p>
               </div>
 
-              <div className="bg-[#0D121F] border border-slate-800 p-4 rounded-2xl space-y-1.5">
-                <div className="font-bold text-indigo-400 uppercase text-[10px] flex items-center space-x-1">
+              <div className="bg-[#EDF1F5] border border-slate-200 p-4 rounded-2xl space-y-1.5">
+                <div className="font-bold text-[#17C964] uppercase text-[10px] flex items-center space-x-1">
                   <span>🍲 Dinner</span>
                 </div>
-                <p className="text-slate-200 leading-relaxed">{plan.meals.dinner}</p>
+                <p className="text-slate-800 leading-relaxed">{plan.meals.dinner}</p>
               </div>
             </div>
 
             {/* Food Lists & Clinical Advice */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 text-xs pt-2">
-              <div className="bg-emerald-950/30 border border-emerald-500/30 p-4 rounded-2xl space-y-2">
-                <span className="font-bold text-emerald-400 uppercase text-[10px] flex items-center space-x-1">
+              <div className="bg-[#E9FBF1] border border-[#17C964]/30 p-4 rounded-2xl space-y-2">
+                <span className="font-bold text-[#17C964] uppercase text-[10px] flex items-center space-x-1">
                   <Apple className="w-3.5 h-3.5" />
                   <span>Recommended Foods</span>
                 </span>
-                <ul className="space-y-1 text-slate-300">
+                <ul className="space-y-1 text-slate-700">
                   {plan.recommendedFoods.map((f, i) => (
                     <li key={i} className="flex items-center space-x-1.5">
-                      <span className="text-emerald-400">✓</span>
+                      <span className="text-[#17C964]">✓</span>
                       <span>{f}</span>
                     </li>
                   ))}
                 </ul>
               </div>
 
-              <div className="bg-rose-950/30 border border-rose-500/30 p-4 rounded-2xl space-y-2">
-                <span className="font-bold text-rose-400 uppercase text-[10px] flex items-center space-x-1">
+              <div className="bg-[#FDE9E3] border border-[#F2603C]/30 p-4 rounded-2xl space-y-2">
+                <span className="font-bold text-[#C83E1E] uppercase text-[10px] flex items-center space-x-1">
                   <AlertCircle className="w-3.5 h-3.5" />
                   <span>Restricted Foods</span>
                 </span>
-                <ul className="space-y-1 text-slate-300">
+                <ul className="space-y-1 text-slate-700">
                   {plan.restrictedFoods.map((f, i) => (
                     <li key={i} className="flex items-center space-x-1.5">
-                      <span className="text-rose-400">✗</span>
+                      <span className="text-[#C83E1E]">✕</span>
                       <span>{f}</span>
                     </li>
                   ))}
                 </ul>
               </div>
 
-              <div className="bg-purple-950/30 border border-purple-500/30 p-4 rounded-2xl space-y-2">
-                <span className="font-bold text-purple-300 uppercase text-[10px]">Doctor Clinical Advice</span>
-                <p className="text-slate-200 leading-relaxed italic">"{plan.doctorAdvice}"</p>
+              <div className="bg-[#E9FBF1] border border-[#17C964]/30 p-4 rounded-2xl space-y-2">
+                <span className="font-bold text-[#17C964] uppercase text-[10px]">Doctor Clinical Advice</span>
+                <p className="text-slate-800 leading-relaxed italic">"{plan.doctorAdvice}"</p>
               </div>
             </div>
           </div>

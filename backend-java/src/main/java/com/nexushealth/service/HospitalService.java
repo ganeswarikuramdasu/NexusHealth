@@ -113,7 +113,6 @@ public class HospitalService {
                 .status("APPROVED")
                 .extra(extra)
                 .build();
-        hospitalRepository.save(hospital);
 
         User user = User.builder()
                 .id(userId)
@@ -124,6 +123,8 @@ public class HospitalService {
                 .status("ACTIVE")
                 .build();
         userRepository.save(user);
+
+        hospitalRepository.save(hospital);
 
         auditLogService.log("Super Administrator", "SUPER_ADMIN", "HOSPITAL_PROVISIONED", null,
                 "Super Admin provisioned hospital " + hospital.getName() + " (" + cleanEmail + ")");

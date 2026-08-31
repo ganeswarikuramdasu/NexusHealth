@@ -201,17 +201,11 @@ public class EmergencyService {
     }
 
     private ApiResponse identifyByBiometric(String doctorName, String method) {
-        Map<String, Object> prof = resolvePatientByIdentity("u_pat_1");
-        if (prof == null) prof = demoPatientProfile();
-        String targetUserId = "u_pat_1";
+        auditLogService.log(doctorName, "DOCTOR", "FAILED_EMERGENCY_" + method + "_IDENTIFICATION", "N/A",
+                "Emergency " + method + " identification attempt: no registered patient identity resolves.");
 
-        auditLogService.log(doctorName, "DOCTOR", "EMERGENCY_PATIENT_IDENTIFIED_" + method,
-                String.valueOf(prof.get("globalHealthId")),
-                "Patient identity verified via " + method + " Biometric Service boundary.");
-
-        return ApiResponse.ok().with("method", method)
-                .with("patientFound", patientFound(targetUserId, patientName(targetUserId),
-                        String.valueOf(prof.get("globalHealthId")), prof));
+        return ApiResponse.fail("Patient identification or authorization could not be completed.")
+                .with("code", "PATIENT_NOT_FOUND");
     }
 
     // =========================================================================
@@ -234,8 +228,9 @@ public class EmergencyService {
         }
 
         Map<String, Object> prof = findPatientProfileByQuery(req.getPatientHealthId());
-        if (prof == null) prof = resolvePatientByIdentity("u_pat_1");
-        if (prof == null) prof = demoPatientProfile();
+        if (prof == null) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "Patient record not found.");
+        }
         String userId = String.valueOf(prof.get("userId"));
         String healthId = String.valueOf(prof.get("globalHealthId"));
         String patientName = patientName(userId);
@@ -347,7 +342,9 @@ public class EmergencyService {
         }
 
         Map<String, Object> prof = resolvePatientByIdentity(String.valueOf(session.get("patientId")));
-        if (prof == null) prof = demoPatientProfile();
+        if (prof == null) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "Patient record not found.");
+        }
         String patientName = patientName(String.valueOf(prof.get("userId")));
 
         Map<String, Object> emgProfile = resolveEmergencyProfile(String.valueOf(prof.get("userId")), prof, null, session);
@@ -372,7 +369,9 @@ public class EmergencyService {
         }
 
         Map<String, Object> prof = resolvePatientByIdentity(String.valueOf(session.get("patientId")));
-        if (prof == null) prof = demoPatientProfile();
+        if (prof == null) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "Patient record not found.");
+        }
         String userId = String.valueOf(prof.get("userId"));
         String patientName = patientName(userId);
 
@@ -522,7 +521,9 @@ public class EmergencyService {
     // =========================================================================
     public ApiResponse patientProfile(String patientIdOrHealthId) {
         Map<String, Object> prof = resolvePatientByIdentity(patientIdOrHealthId);
-        if (prof == null) prof = demoPatientProfile();
+        if (prof == null) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "Patient record not found.");
+        }
         String userId = String.valueOf(prof.get("userId"));
 
         Map<String, Object> emgProfile = store.getProfile(userId);
@@ -551,7 +552,9 @@ public class EmergencyService {
     @Transactional
     public ApiResponse updatePatientProfile(String patientIdOrHealthId, UpdateProfileRequest req) {
         Map<String, Object> prof = resolvePatientByIdentity(patientIdOrHealthId);
-        if (prof == null) prof = demoPatientProfile();
+        if (prof == null) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "Patient record not found.");
+        }
         String userId = String.valueOf(prof.get("userId"));
 
         Map<String, Object> emgProfile = new LinkedHashMap<>();
@@ -586,7 +589,9 @@ public class EmergencyService {
     // =========================================================================
     public ApiResponse patientHistory(String patientIdOrHealthId) {
         Map<String, Object> prof = resolvePatientByIdentity(patientIdOrHealthId);
-        if (prof == null) prof = demoPatientProfile();
+        if (prof == null) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "Patient record not found.");
+        }
         String userId = String.valueOf(prof.get("userId"));
         String healthId = String.valueOf(prof.get("globalHealthId"));
 
@@ -751,67 +756,48 @@ public class EmergencyService {
 
     private Map<String, Object> toProfileMap(PatientResolver.Resolved r) {
         Map<String, Object> out = new LinkedHashMap<>();
-        String dob = r.user.getDateOfBirth() != null ? r.user.getDateOfBirth().toString() : "1995-04-12";
+        String dob = r.user.getDateOfBirth() != null ? r.user.getDateOfBirth().toString() : "";
         out.put("userId", r.userId);
         out.put("globalHealthId", r.globalHealthId);
         out.put("name", r.name);
         out.put("dob", dob);
-        out.put("gender", r.user.getGender() != null ? r.user.getGender() : "Female");
-        out.put("bloodGroup", r.profile.getBloodGroup() != null ? r.profile.getBloodGroup() : "B+");
-        out.put("heightCm", r.profile.getHeightCm() != null ? r.profile.getHeightCm().intValue() : 165);
-        out.put("weightKg", r.profile.getWeightKg() != null ? r.profile.getWeightKg().intValue() : 58);
-        out.put("organDonor", true);
+        out.put("gender", r.user.getGender() != null ? r.user.getGender() : "");
+        out.put("bloodGroup", r.profile.getBloodGroup() != null ? r.profile.getBloodGroup() : "");
+        out.put("heightCm", r.profile.getHeightCm() != null ? r.profile.getHeightCm().intValue() : 0);
+        out.put("weightKg", r.profile.getWeightKg() != null ? r.profile.getWeightKg().intValue() : 0);
+        out.put("organDonor", false);
         out.put("allergies", List.of());
         out.put("chronicConditions", List.of());
-        out.put("emergencyContactName", "Vikram Sharma");
-        out.put("emergencyContactPhone", "+91 98765 43210");
-        out.put("emergencyContactRelation", "Brother");
+        out.put("emergencyContactName", "");
+        out.put("emergencyContactPhone", "");
+        out.put("emergencyContactRelation", "");
         return out;
     }
 
     private Map<String, Object> defaultPatientProfileFor(User user) {
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("userId", user.getId());
-        out.put("globalHealthId", "NH-IND-2026-88392014");
+        out.put("globalHealthId", "");
         out.put("name", user.getName());
-        out.put("dob", user.getDateOfBirth() != null ? user.getDateOfBirth().toString() : "1995-04-12");
-        out.put("gender", user.getGender() != null ? user.getGender() : "Female");
-        out.put("bloodGroup", "B+");
-        out.put("heightCm", 165);
-        out.put("weightKg", 58);
-        out.put("organDonor", true);
+        out.put("dob", user.getDateOfBirth() != null ? user.getDateOfBirth().toString() : "");
+        out.put("gender", user.getGender() != null ? user.getGender() : "");
+        out.put("bloodGroup", "");
+        out.put("heightCm", 0);
+        out.put("weightKg", 0);
+        out.put("organDonor", false);
         out.put("allergies", List.of());
         out.put("chronicConditions", List.of());
-        out.put("emergencyContactName", "Vikram Sharma");
-        out.put("emergencyContactPhone", "+91 98765 43210");
-        out.put("emergencyContactRelation", "Brother");
-        return out;
-    }
-
-    private Map<String, Object> demoPatientProfile() {
-        Map<String, Object> out = new LinkedHashMap<>();
-        out.put("userId", "u_pat_1");
-        out.put("globalHealthId", "NH-IND-2026-88392014");
-        out.put("name", "Ananya Sharma");
-        out.put("dob", "1995-04-12");
-        out.put("gender", "Female");
-        out.put("bloodGroup", "B+");
-        out.put("heightCm", 165);
-        out.put("weightKg", 58);
-        out.put("organDonor", true);
-        out.put("emergencyContactName", "Vikram Sharma");
-        out.put("emergencyContactPhone", "+91 98765 43210");
-        out.put("emergencyContactRelation", "Brother");
-        out.put("allergies", List.of("Penicillin", "Dust Mites", "NSAIDs (Ibuprofen)"));
-        out.put("chronicConditions", List.of("Mild Allergic Asthma", "Sinusitis"));
+        out.put("emergencyContactName", "");
+        out.put("emergencyContactPhone", "");
+        out.put("emergencyContactRelation", "");
         return out;
     }
 
     private String patientName(String userId) {
-        if (userId == null) return "Ananya Sharma";
+        if (userId == null) return "";
         var resolved = patientResolver.resolve(userId);
         if (resolved.isPresent()) return resolved.get().name;
-        return "Ananya Sharma";
+        return "";
     }
 
     private Map<String, Object> patientFound(String userId, String name, String healthId, Map<String, Object> prof) {
@@ -820,9 +806,9 @@ public class EmergencyService {
         out.put("name", name);
         out.put("globalHealthId", healthId);
         String dob = prof.get("dob") != null ? String.valueOf(prof.get("dob")) : "";
-        out.put("dobMasked", dob.length() >= 4 ? dob.substring(0, 4) + "-**-**" : "1995-**-**");
-        out.put("gender", prof.get("gender") != null ? prof.get("gender") : "Female");
-        out.put("bloodGroup", prof.get("bloodGroup") != null ? prof.get("bloodGroup") : "B+");
+        out.put("dobMasked", dob.length() >= 4 ? dob.substring(0, 4) + "-**-**" : "");
+        out.put("gender", prof.get("gender") != null ? prof.get("gender") : "");
+        out.put("bloodGroup", prof.get("bloodGroup") != null ? prof.get("bloodGroup") : "");
         return out;
     }
 
@@ -833,18 +819,18 @@ public class EmergencyService {
 
         Map<String, Object> out = new LinkedHashMap<>();
         Object allergies = prof.get("allergies") != null && !((List<?>) prof.get("allergies")).isEmpty()
-                ? prof.get("allergies") : List.of("Penicillin");
+                ? prof.get("allergies") : List.of();
         Object criticalConditions = prof.get("chronicConditions") != null && !((List<?>) prof.get("chronicConditions")).isEmpty()
-                ? prof.get("chronicConditions") : List.of("Mild Asthma");
-        String primaryPhysician = "Dr. Rajesh V. Sharma";
+                ? prof.get("chronicConditions") : List.of();
+        String primaryPhysician = "";
         if (session != null) {
             primaryPhysician = session.get("doctorName") + " (" + session.get("hospitalName") + ")";
         }
-        out.put("bloodGroup", prof.get("bloodGroup") != null ? prof.get("bloodGroup") : "B+");
+        out.put("bloodGroup", prof.get("bloodGroup") != null ? prof.get("bloodGroup") : "");
         out.put("allergies", allergies);
         out.put("criticalConditions", criticalConditions);
-        out.put("currentMedications", List.of("Levosalbutamol Inhaler 100mcg"));
-        out.put("emergencyNotes", "Administer bronchodilator nebulization during respiratory distress.");
+        out.put("currentMedications", List.of());
+        out.put("emergencyNotes", "");
         out.put("primaryPhysician", primaryPhysician);
         return out;
     }
@@ -855,8 +841,8 @@ public class EmergencyService {
         Map<String, Object> c = new LinkedHashMap<>();
         c.put("id", "econt_1");
         c.put("patientId", userId);
-        c.put("name", prof.get("emergencyContactName") != null ? prof.get("emergencyContactName") : "Vikram Sharma");
-        c.put("relationship", prof.get("emergencyContactRelation") != null ? prof.get("emergencyContactRelation") : "Brother");
+        c.put("name", prof.get("emergencyContactName") != null ? prof.get("emergencyContactName") : "");
+        c.put("relationship", prof.get("emergencyContactRelation") != null ? prof.get("emergencyContactRelation") : "");
         c.put("phone", prof.get("emergencyContactPhone") != null ? prof.get("emergencyContactPhone") : "+91 98765 43210");
         c.put("priority", 1);
         return List.of(c);
@@ -882,7 +868,7 @@ public class EmergencyService {
         criticalAlerts.put("emergencyNotes",
                 emgProfile.get("emergencyNotes") != null ? emgProfile.get("emergencyNotes") : "No special emergency notes recorded.");
         criticalAlerts.put("primaryPhysician",
-                emgProfile.get("primaryPhysician") != null ? emgProfile.get("primaryPhysician") : "Dr. Rajesh V. Sharma");
+                emgProfile.get("primaryPhysician") != null ? emgProfile.get("primaryPhysician") : "");
 
         Map<String, Object> summary = new LinkedHashMap<>();
         summary.put("patientIdentity", patientIdentity);
@@ -905,7 +891,6 @@ public class EmergencyService {
         List<Object> rawAllergies = listOf(emgProfile.get("allergies"));
         List<Object> rawConditions = listOf(emgProfile.get("criticalConditions"));
         List<Object> rawMeds = listOf(emgProfile.get("currentMedications"));
-        if (rawMeds.isEmpty()) rawMeds = List.of("Levosalbutamol Inhaler 100mcg");
 
         List<Map<String, Object>> allergies = new ArrayList<>();
         for (int i = 0; i < rawAllergies.size(); i++) {

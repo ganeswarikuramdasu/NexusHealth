@@ -170,44 +170,44 @@ export const HierarchicalAuditLogViewer: React.FC<HierarchicalAuditLogViewerProp
     switch (method) {
       case "EMERGENCY":
         return (
-          <span className="px-2.5 py-1 bg-rose-950 border border-rose-500/50 text-rose-300 text-[11px] font-bold rounded-lg flex items-center space-x-1">
-            <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />
+          <span className="px-2.5 py-1 bg-[#FDECE8] border border-[#F2603C]/30 text-[#E23A2E] text-[11px] font-bold rounded-lg flex items-center space-x-1">
+            <AlertTriangle className="w-3.5 h-3.5 text-[#E23A2E]" />
             <span>🚨 ER Emergency</span>
           </span>
         );
       case "ACCESS_CARD":
         return (
-          <span className="px-2.5 py-1 bg-cyan-950 border border-cyan-500/50 text-cyan-300 text-[11px] font-bold rounded-lg flex items-center space-x-1">
-            <CreditCard className="w-3.5 h-3.5 text-cyan-400" />
+          <span className="px-2.5 py-1 bg-[#E9FBF1] border border-[#17C964]/40 text-[#17C964] text-[11px] font-bold rounded-lg flex items-center space-x-1">
+            <CreditCard className="w-3.5 h-3.5 text-[#17C964]" />
             <span>Health Card Scan</span>
           </span>
         );
       case "APPOINTMENT":
         return (
-          <span className="px-2.5 py-1 bg-emerald-950 border border-emerald-500/50 text-emerald-300 text-[11px] font-bold rounded-lg flex items-center space-x-1">
-            <Calendar className="w-3.5 h-3.5 text-emerald-400" />
+          <span className="px-2.5 py-1 bg-[#E9FBF1] border border-[#17C964]/40 text-[#17C964] text-[11px] font-bold rounded-lg flex items-center space-x-1">
+            <Calendar className="w-3.5 h-3.5 text-[#17C964]" />
             <span>Appointment</span>
           </span>
         );
       case "BIOMETRIC":
         return (
-          <span className="px-2.5 py-1 bg-purple-950 border border-purple-500/50 text-purple-300 text-[11px] font-bold rounded-lg flex items-center space-x-1">
-            <Fingerprint className="w-3.5 h-3.5 text-purple-400" />
+          <span className="px-2.5 py-1 bg-[#E9FBF1] border border-[#17C964]/40 text-[#17C964] text-[11px] font-bold rounded-lg flex items-center space-x-1">
+            <Fingerprint className="w-3.5 h-3.5 text-[#17C964]" />
             <span>Fingerprint Touch</span>
           </span>
         );
       case "FACE_SCAN":
         return (
-          <span className="px-2.5 py-1 bg-indigo-950 border border-indigo-500/50 text-indigo-300 text-[11px] font-bold rounded-lg flex items-center space-x-1">
-            <ScanFace className="w-3.5 h-3.5 text-indigo-400" />
+          <span className="px-2.5 py-1 bg-[#E9FBF1] border border-[#17C964]/40 text-[#17C964] text-[11px] font-bold rounded-lg flex items-center space-x-1">
+            <ScanFace className="w-3.5 h-3.5 text-[#17C964]" />
             <span>Face Recognition</span>
           </span>
         );
       case "PATIENT_ID":
       default:
         return (
-          <span className="px-2.5 py-1 bg-slate-900 border border-slate-700 text-slate-300 text-[11px] font-bold rounded-lg flex items-center space-x-1">
-            <User className="w-3.5 h-3.5 text-slate-400" />
+          <span className="px-2.5 py-1 bg-slate-100 border border-slate-300 text-slate-700 text-[11px] font-bold rounded-lg flex items-center space-x-1">
+            <User className="w-3.5 h-3.5 text-slate-500" />
             <span>Direct Health ID</span>
           </span>
         );
@@ -217,15 +217,15 @@ export const HierarchicalAuditLogViewer: React.FC<HierarchicalAuditLogViewerProp
   const renderStatusBadge = (status: RecordAccessStatus) => {
     if (status === "SUCCESS") {
       return (
-        <span className="px-2.5 py-1 bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 text-[11px] font-bold rounded-lg flex items-center space-x-1">
-          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+        <span className="px-2.5 py-1 bg-[#E9FBF1] border border-[#17C964]/30 text-[#17C964] text-[11px] font-bold rounded-lg flex items-center space-x-1">
+          <CheckCircle2 className="w-3.5 h-3.5 text-[#17C964]" />
           <span>GRANTED</span>
         </span>
       );
     }
     return (
-      <span className="px-2.5 py-1 bg-rose-950/90 border border-rose-500/60 text-rose-300 text-[11px] font-bold rounded-lg flex items-center space-x-1 animate-pulse">
-        <XCircle className="w-3.5 h-3.5 text-rose-400" />
+      <span className="px-2.5 py-1 bg-[#FDECE8] border border-[#F2603C]/30 text-[#E23A2E] text-[11px] font-bold rounded-lg flex items-center space-x-1 animate-pulse">
+        <XCircle className="w-3.5 h-3.5 text-[#E23A2E]" />
         <span>DENIED / BLOCKED</span>
       </span>
     );
@@ -234,11 +234,11 @@ export const HierarchicalAuditLogViewer: React.FC<HierarchicalAuditLogViewerProp
   return (
     <div className="space-y-6">
       {/* Header Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-4">
         <div>
           <div className="flex items-center space-x-2">
-            <ShieldCheck className="w-6 h-6 text-emerald-400" />
-            <h2 className="text-xl font-extrabold text-white">
+            <ShieldCheck className="w-6 h-6 text-[#17C964]" />
+            <h2 className="text-xl font-extrabold text-slate-900">
               {viewMode === "SUPER_ADMIN"
                 ? "Global Hierarchical Patient Record Access Audit Tracking System"
                 : viewMode === "PATIENT"
@@ -246,7 +246,7 @@ export const HierarchicalAuditLogViewer: React.FC<HierarchicalAuditLogViewerProp
                 : `${hospitalName} - Patient Record Access Audit Vault`}
             </h2>
           </div>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs text-slate-500 mt-1">
             {viewMode === "SUPER_ADMIN"
               ? "Immutable global audit log tracking physician accesses across all connected national hospitals"
               : viewMode === "PATIENT"
@@ -259,9 +259,9 @@ export const HierarchicalAuditLogViewer: React.FC<HierarchicalAuditLogViewerProp
           <button
             onClick={fetchAuditData}
             disabled={isLoading}
-            className="px-4 py-2 bg-[#13192B] hover:bg-slate-800 border border-slate-700/80 rounded-xl text-slate-200 text-xs font-bold transition flex items-center space-x-2"
+            className="px-4 py-2 bg-[#FFFFFF] hover:bg-slate-100 border border-slate-300/80 rounded-xl text-slate-800 text-xs font-bold transition flex items-center space-x-2"
           >
-            <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin text-purple-400" : ""}`} />
+            <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin text-[#17C964]" : ""}`} />
             <span>Refresh Audit Ledger</span>
           </button>
         </div>
@@ -270,54 +270,54 @@ export const HierarchicalAuditLogViewer: React.FC<HierarchicalAuditLogViewerProp
       {/* Stats Metric Cards Grid */}
       {stats && (
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-          <div className="bg-[#13192B] border border-slate-800 rounded-2xl p-4 space-y-1">
-            <span className="text-[10px] uppercase font-mono text-slate-400 block">Total Accesses</span>
-            <div className="text-2xl font-black text-white">{stats.totalAccesses || 0}</div>
-            <span className="text-[10px] text-emerald-400 font-mono">100% Logged</span>
+          <div className="bg-[#FFFFFF] border border-slate-200 rounded-2xl p-4 space-y-1">
+            <span className="text-[10px] uppercase font-mono text-slate-500 block">Total Accesses</span>
+            <div className="text-2xl font-black text-slate-900">{stats.totalAccesses || 0}</div>
+            <span className="text-[10px] text-[#17C964] font-mono">100% Logged</span>
           </div>
 
-          <div className="bg-[#13192B] border border-slate-800 rounded-2xl p-4 space-y-1">
-            <span className="text-[10px] uppercase font-mono text-slate-400 block">Granted Accesses</span>
-            <div className="text-2xl font-black text-emerald-400">{stats.successfulAccesses || 0}</div>
-            <span className="text-[10px] text-slate-400 font-mono">Authorized EHR</span>
+          <div className="bg-[#FFFFFF] border border-slate-200 rounded-2xl p-4 space-y-1">
+            <span className="text-[10px] uppercase font-mono text-slate-500 block">Granted Accesses</span>
+            <div className="text-2xl font-black text-[#17C964]">{stats.successfulAccesses || 0}</div>
+            <span className="text-[10px] text-slate-500 font-mono">Authorized EHR</span>
           </div>
 
-          <div className="bg-[#13192B] border border-slate-800 rounded-2xl p-4 space-y-1">
-            <span className="text-[10px] uppercase font-mono text-slate-400 block">Denied / Blocked</span>
-            <div className="text-2xl font-black text-rose-400">{stats.deniedAccesses || 0}</div>
-            <span className="text-[10px] text-rose-400 font-mono">Unconsented Block</span>
+          <div className="bg-[#FFFFFF] border border-slate-200 rounded-2xl p-4 space-y-1">
+            <span className="text-[10px] uppercase font-mono text-slate-500 block">Denied / Blocked</span>
+            <div className="text-2xl font-black text-[#E23A2E]">{stats.deniedAccesses || 0}</div>
+            <span className="text-[10px] text-[#E23A2E] font-mono">Unconsented Block</span>
           </div>
 
-          <div className="bg-[#13192B] border border-slate-800 rounded-2xl p-4 space-y-1">
-            <span className="text-[10px] uppercase font-mono text-slate-400 block">ER Emergency</span>
-            <div className="text-2xl font-black text-amber-400">{stats.emergencyAccesses || 0}</div>
-            <span className="text-[10px] text-amber-400 font-mono">Break-Glass Overrides</span>
+          <div className="bg-[#FFFFFF] border border-slate-200 rounded-2xl p-4 space-y-1">
+            <span className="text-[10px] uppercase font-mono text-slate-500 block">ER Emergency</span>
+            <div className="text-2xl font-black text-[#F2603C]">{stats.emergencyAccesses || 0}</div>
+            <span className="text-[10px] text-[#E23A2E] font-mono">Break-Glass Overrides</span>
           </div>
 
-          <div className="bg-[#13192B] border border-slate-800 rounded-2xl p-4 space-y-1">
-            <span className="text-[10px] uppercase font-mono text-slate-400 block">Health Card Scans</span>
-            <div className="text-2xl font-black text-cyan-400">{stats.cardAccesses || 0}</div>
-            <span className="text-[10px] text-cyan-400 font-mono">Physical Token</span>
+          <div className="bg-[#FFFFFF] border border-slate-200 rounded-2xl p-4 space-y-1">
+            <span className="text-[10px] uppercase font-mono text-slate-500 block">Health Card Scans</span>
+            <div className="text-2xl font-black text-[#17C964]">{stats.cardAccesses || 0}</div>
+            <span className="text-[10px] text-[#17C964] font-mono">Physical Token</span>
           </div>
 
-          <div className="bg-[#13192B] border border-slate-800 rounded-2xl p-4 space-y-1">
-            <span className="text-[10px] uppercase font-mono text-slate-400 block">Biometric / Face</span>
-            <div className="text-2xl font-black text-purple-400">
+          <div className="bg-[#FFFFFF] border border-slate-200 rounded-2xl p-4 space-y-1">
+            <span className="text-[10px] uppercase font-mono text-slate-500 block">Biometric / Face</span>
+            <div className="text-2xl font-black text-[#17C964]">
               {(stats.biometricAccesses || 0) + (stats.faceScanAccesses || 0)}
             </div>
-            <span className="text-[10px] text-purple-400 font-mono">Touch & Kiosk Scan</span>
+            <span className="text-[10px] text-[#17C964] font-mono">Touch & Kiosk Scan</span>
           </div>
         </div>
       )}
 
       {/* Tabs Switcher (ALL_LOGS vs DOCTOR_ACTIVITY vs SUSPICIOUS) */}
-      <div className="flex items-center space-x-3 border-b border-slate-800 pb-2">
+      <div className="flex items-center space-x-3 border-b border-slate-200 pb-2">
         <button
           onClick={() => setActiveTab("ALL_LOGS")}
           className={`px-4 py-2 text-xs font-bold rounded-xl transition flex items-center space-x-2 ${
             activeTab === "ALL_LOGS"
-              ? "bg-purple-900/60 text-purple-200 border border-purple-500/50"
-              : "bg-[#13192B] text-slate-400 hover:text-white border border-slate-800"
+              ? "bg-[#17C964] text-white border border-[#17C964]/50"
+              : "bg-[#FFFFFF] text-slate-500 hover:text-slate-900 border border-slate-200"
           }`}
         >
           <FileText className="w-4 h-4" />
@@ -329,8 +329,8 @@ export const HierarchicalAuditLogViewer: React.FC<HierarchicalAuditLogViewerProp
             onClick={() => setActiveTab("DOCTOR_ACTIVITY")}
             className={`px-4 py-2 text-xs font-bold rounded-xl transition flex items-center space-x-2 ${
               activeTab === "DOCTOR_ACTIVITY"
-                ? "bg-cyan-900/60 text-cyan-200 border border-cyan-500/50"
-                : "bg-[#13192B] text-slate-400 hover:text-white border border-slate-800"
+                ? "bg-[#17C964] text-white border border-[#17C964]/50"
+                : "bg-[#FFFFFF] text-slate-500 hover:text-slate-900 border border-slate-200"
             }`}
           >
             <Stethoscope className="w-4 h-4" />
@@ -342,28 +342,28 @@ export const HierarchicalAuditLogViewer: React.FC<HierarchicalAuditLogViewerProp
           onClick={() => setActiveTab("SUSPICIOUS")}
           className={`px-4 py-2 text-xs font-bold rounded-xl transition flex items-center space-x-2 ${
             activeTab === "SUSPICIOUS"
-              ? "bg-rose-900/60 text-rose-200 border border-rose-500/50"
-              : "bg-[#13192B] text-slate-400 hover:text-white border border-slate-800"
+              ? "bg-[#FDECE8] text-[#E23A2E] border border-[#F2603C]/50"
+              : "bg-[#FFFFFF] text-slate-500 hover:text-slate-900 border border-slate-200"
           }`}
         >
-          <ShieldAlert className="w-4 h-4 text-rose-400" />
+          <ShieldAlert className="w-4 h-4 text-[#E23A2E]" />
           <span>Denied Attempts & Emergency Audit ({logs.filter(l => l.accessStatus === "DENIED" || l.emergencyFlag).length})</span>
         </button>
       </div>
 
       {/* Filter Toolbar */}
       {activeTab === "ALL_LOGS" && (
-        <div className="bg-[#13192B] border border-slate-800 rounded-2xl p-4 space-y-3 shadow-lg">
+        <div className="bg-[#FFFFFF] border border-slate-200 rounded-2xl p-4 space-y-3 shadow-lg">
           <div className="flex flex-col lg:flex-row items-center gap-3">
             {/* Search Input */}
             <div className="relative flex-1 w-full">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+              <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
               <input
                 type="text"
                 placeholder="Search logs by Doctor, Patient, Health ID, Hospital, or Reason..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full bg-[#0D121F] border border-slate-800 rounded-xl pl-10 pr-4 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500"
+                className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl pl-10 pr-4 py-2 text-xs text-slate-900 placeholder-slate-500 focus:outline-none focus:border-[#17C964]"
               />
             </div>
 
@@ -373,9 +373,9 @@ export const HierarchicalAuditLogViewer: React.FC<HierarchicalAuditLogViewerProp
                 <select
                   value={selectedHospitalFilter}
                   onChange={(e) => setSelectedHospitalFilter(e.target.value)}
-                  className="bg-[#0D121F] border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 font-medium outline-none focus:border-purple-500"
+                  className="bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 font-medium outline-none focus:border-[#17C964]"
                 >
-                  <option value="ALL">🏢 All Hospitals</option>
+                  <option value="ALL">🔍 All Hospitals</option>
                   <option value="hosp_1">Apollo Multi-Specialty Hospital</option>
                   <option value="hosp_2">Max Super Specialty Hospital</option>
                 </select>
@@ -384,33 +384,33 @@ export const HierarchicalAuditLogViewer: React.FC<HierarchicalAuditLogViewerProp
               <select
                 value={selectedMethodFilter}
                 onChange={(e) => setSelectedMethodFilter(e.target.value)}
-                className="bg-[#0D121F] border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 font-medium outline-none focus:border-purple-500"
+                className="bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 font-medium outline-none focus:border-[#17C964]"
               >
                 <option value="ALL">🔍 All Access Methods</option>
-                <option value="APPOINTMENT">📅 Scheduled Appointment</option>
-                <option value="ACCESS_CARD">💳 Health Access Card</option>
-                <option value="EMERGENCY">🚨 ER Emergency Break-Glass</option>
-                <option value="BIOMETRIC">🖐️ Biometric Fingerprint</option>
-                <option value="FACE_SCAN">📷 Facial Recognition</option>
-                <option value="PATIENT_ID">🆔 Direct Health ID Lookup</option>
+                <option value="APPOINTMENT">🔑 Scheduled Appointment</option>
+                <option value="ACCESS_CARD">🔑 Health Access Card</option>
+                <option value="EMERGENCY">🔑 ER Emergency Break-Glass</option>
+                <option value="BIOMETRIC">🔑 Biometric Fingerprint</option>
+                <option value="FACE_SCAN">🔑 Facial Recognition</option>
+                <option value="PATIENT_ID">🔑 Direct Health ID Lookup</option>
               </select>
 
               <select
                 value={selectedStatusFilter}
                 onChange={(e) => setSelectedStatusFilter(e.target.value)}
-                className="bg-[#0D121F] border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 font-medium outline-none focus:border-purple-500"
+                className="bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 font-medium outline-none focus:border-[#17C964]"
               >
-                <option value="ALL">⚡ All Statuses</option>
-                <option value="SUCCESS">✅ Access Granted</option>
-                <option value="DENIED">🚫 Access Denied / Blocked</option>
+                <option value="ALL">🔍 All Statuses</option>
+                <option value="SUCCESS">🔓 Access Granted</option>
+                <option value="DENIED">🔒 Access Denied / Blocked</option>
               </select>
 
               <button
                 onClick={() => setEmergencyOnly(!emergencyOnly)}
                 className={`px-3 py-2 rounded-xl text-xs font-bold transition flex items-center space-x-1 ${
                   emergencyOnly
-                    ? "bg-rose-950 text-rose-300 border border-rose-500/60"
-                    : "bg-[#0D121F] text-slate-400 border border-slate-800 hover:text-white"
+                    ? "bg-[#FDECE8] text-[#E23A2E] border border-[#F2603C]/60"
+                    : "bg-[#EDF1F5] text-slate-500 border border-slate-200 hover:text-slate-900"
                 }`}
               >
                 <AlertTriangle className="w-3.5 h-3.5" />
@@ -423,11 +423,11 @@ export const HierarchicalAuditLogViewer: React.FC<HierarchicalAuditLogViewerProp
 
       {/* ALL LOGS TABLE */}
       {activeTab === "ALL_LOGS" && (
-        <div className="bg-[#13192B] border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
+        <div className="bg-[#FFFFFF] border border-slate-200 rounded-3xl p-6 shadow-xl space-y-4">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs font-mono">
               <thead>
-                <tr className="border-b border-slate-800 text-slate-400">
+                <tr className="border-b border-slate-200 text-slate-500">
                   <th className="py-3 px-3">Log ID</th>
                   <th className="py-3 px-3">Physician / Hospital</th>
                   <th className="py-3 px-3">Patient Citizen</th>
@@ -437,24 +437,24 @@ export const HierarchicalAuditLogViewer: React.FC<HierarchicalAuditLogViewerProp
                   <th className="py-3 px-3 text-right">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60 text-slate-200">
+              <tbody className="divide-y divide-slate-800/60 text-slate-800">
                 {logs.map((log) => (
-                  <tr key={log.id} className="hover:bg-[#0D121F] transition">
-                    <td className="py-3 px-3 font-bold text-cyan-400">{log.id}</td>
+                  <tr key={log.id} className="hover:bg-[#EDF1F5] transition">
+                    <td className="py-3 px-3 font-bold text-[#17C964]">{log.id}</td>
                     <td className="py-3 px-3">
-                      <div className="font-bold text-white text-sm">{log.doctorName}</div>
-                      <div className="text-[10px] text-purple-300 flex items-center space-x-1">
-                        <Building2 className="w-3 h-3 text-purple-400" />
+                      <div className="font-bold text-slate-900 text-sm">{log.doctorName}</div>
+                      <div className="text-[10px] text-[#17C964] flex items-center space-x-1">
+                        <Building2 className="w-3 h-3 text-[#17C964]" />
                         <span>{log.hospitalName}</span>
                       </div>
                     </td>
                     <td className="py-3 px-3">
-                      <div className="font-bold text-white">{log.patientName}</div>
-                      <div className="text-[10px] text-cyan-300 font-mono">{log.patientHealthId}</div>
+                      <div className="font-bold text-slate-900">{log.patientName}</div>
+                      <div className="text-[10px] text-[#17C964] font-mono">{log.patientHealthId}</div>
                     </td>
                     <td className="py-3 px-3">{renderMethodBadge(log.accessMethod)}</td>
                     <td className="py-3 px-3">{renderStatusBadge(log.accessStatus)}</td>
-                    <td className="py-3 px-3 text-slate-400 text-[11px]">
+                    <td className="py-3 px-3 text-slate-500 text-[11px]">
                       {new Date(log.timestamp).toLocaleString("en-IN", {
                         day: "2-digit",
                         month: "short",
@@ -465,7 +465,7 @@ export const HierarchicalAuditLogViewer: React.FC<HierarchicalAuditLogViewerProp
                     <td className="py-3 px-3 text-right">
                       <button
                         onClick={() => setSelectedLogForTrace(log)}
-                        className="px-3 py-1.5 bg-purple-950/80 hover:bg-purple-900 border border-purple-500/40 text-purple-300 text-xs font-bold rounded-xl transition flex items-center space-x-1 ml-auto"
+                        className="px-3 py-1.5 bg-[#E9FBF1] hover:bg-[#17C964]/10 border border-[#17C964]/40 text-[#17C964] text-xs font-bold rounded-xl transition flex items-center space-x-1 ml-auto"
                       >
                         <Eye className="w-3.5 h-3.5" />
                         <span>Inspect Trace</span>
@@ -491,44 +491,44 @@ export const HierarchicalAuditLogViewer: React.FC<HierarchicalAuditLogViewerProp
       {activeTab === "DOCTOR_ACTIVITY" && viewMode === "HOSPITAL_ADMIN" && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {doctorActivity.map((doc) => (
-            <div key={doc.doctorId} className="bg-[#13192B] border border-slate-800 rounded-3xl p-5 space-y-4 shadow-xl">
-              <div className="flex justify-between items-start border-b border-slate-800 pb-3">
+            <div key={doc.doctorId} className="bg-[#FFFFFF] border border-slate-200 rounded-3xl p-5 space-y-4 shadow-xl">
+              <div className="flex justify-between items-start border-b border-slate-200 pb-3">
                 <div>
-                  <h3 className="font-bold text-white text-base">{doc.doctorName}</h3>
-                  <p className="text-xs text-purple-400">{doc.specialization} ({doc.department})</p>
+                  <h3 className="font-bold text-slate-900 text-base">{doc.doctorName}</h3>
+                  <p className="text-xs text-[#17C964]">{doc.specialization} ({doc.department})</p>
                 </div>
                 <span className={`px-2 py-0.5 text-[10px] font-bold rounded border ${
-                  doc.isActive ? "bg-emerald-950 border-emerald-500/40 text-emerald-400" : "bg-rose-950 border-rose-500/40 text-rose-400"
+                  doc.isActive ? "bg-[#E9FBF1] border-[#17C964]/40 text-[#17C964]" : "bg-[#FDECE8] border-[#F2603C]/40 text-[#E23A2E]"
                 }`}>
                   {doc.isActive ? "ACTIVE" : "INACTIVE"}
                 </span>
               </div>
 
               <div className="grid grid-cols-2 gap-2 text-xs font-mono">
-                <div className="bg-[#0D121F] p-2.5 rounded-xl border border-slate-800">
-                  <span className="text-[10px] text-slate-400 block">Total Accesses</span>
-                  <strong className="text-white text-base">{doc.totalAccesses}</strong>
+                <div className="bg-[#EDF1F5] p-2.5 rounded-xl border border-slate-200">
+                  <span className="text-[10px] text-slate-500 block">Total Accesses</span>
+                  <strong className="text-slate-900 text-base">{doc.totalAccesses}</strong>
                 </div>
-                <div className="bg-[#0D121F] p-2.5 rounded-xl border border-slate-800">
-                  <span className="text-[10px] text-slate-400 block">Appointments</span>
-                  <strong className="text-emerald-400 text-base">{doc.appointmentAccesses}</strong>
+                <div className="bg-[#EDF1F5] p-2.5 rounded-xl border border-slate-200">
+                  <span className="text-[10px] text-slate-500 block">Appointments</span>
+                  <strong className="text-[#17C964] text-base">{doc.appointmentAccesses}</strong>
                 </div>
-                <div className="bg-[#0D121F] p-2.5 rounded-xl border border-slate-800">
-                  <span className="text-[10px] text-slate-400 block">ER Emergency</span>
-                  <strong className="text-amber-400 text-base">{doc.emergencyAccesses}</strong>
+                <div className="bg-[#EDF1F5] p-2.5 rounded-xl border border-slate-200">
+                  <span className="text-[10px] text-slate-500 block">ER Emergency</span>
+                  <strong className="text-[#F2603C] text-base">{doc.emergencyAccesses}</strong>
                 </div>
-                <div className="bg-[#0D121F] p-2.5 rounded-xl border border-slate-800">
-                  <span className="text-[10px] text-slate-400 block">Denied Attempts</span>
-                  <strong className="text-rose-400 text-base">{doc.deniedAttempts}</strong>
+                <div className="bg-[#EDF1F5] p-2.5 rounded-xl border border-slate-200">
+                  <span className="text-[10px] text-slate-500 block">Denied Attempts</span>
+                  <strong className="text-[#E23A2E] text-base">{doc.deniedAttempts}</strong>
                 </div>
               </div>
 
               <div>
-                <span className="text-[10px] uppercase font-mono text-slate-400 block mb-1">Recent Access Activity</span>
+                <span className="text-[10px] uppercase font-mono text-slate-500 block mb-1">Recent Access Activity</span>
                 <div className="space-y-1.5 text-[11px] font-mono">
                   {doc.recentLogs.map((l: any) => (
-                    <div key={l.id} className="p-2 bg-[#0D121F] border border-slate-800 rounded-xl flex items-center justify-between">
-                      <span className="text-white font-bold">{l.patientName}</span>
+                    <div key={l.id} className="p-2 bg-[#EDF1F5] border border-slate-200 rounded-xl flex items-center justify-between">
+                      <span className="text-slate-900 font-bold">{l.patientName}</span>
                       {renderMethodBadge(l.accessMethod)}
                     </div>
                   ))}
@@ -545,19 +545,19 @@ export const HierarchicalAuditLogViewer: React.FC<HierarchicalAuditLogViewerProp
       {/* SUSPICIOUS TAB */}
       {activeTab === "SUSPICIOUS" && (
         <div className="space-y-4">
-          <div className="bg-rose-950/40 border border-rose-500/40 rounded-2xl p-4 text-xs text-rose-200 flex items-center space-x-3">
-            <ShieldAlert className="w-5 h-5 text-rose-400 shrink-0" />
+          <div className="bg-[#FDECE8] border border-[#F2603C]/40 rounded-2xl p-4 text-xs text-[#E23A2E] flex items-center space-x-3">
+            <ShieldAlert className="w-5 h-5 text-[#E23A2E] shrink-0" />
             <div>
-              <strong className="font-bold text-white block">Audit Security Monitor</strong>
+              <strong className="font-bold text-[#E23A2E] block">Audit Security Monitor</strong>
               Displays unconsented direct lookup attempts, invalid PIN entry rejections, and critical emergency break-glass overrides requiring administrator review.
             </div>
           </div>
 
-          <div className="bg-[#13192B] border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
+          <div className="bg-[#FFFFFF] border border-slate-200 rounded-3xl p-6 shadow-xl space-y-4">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs font-mono">
                 <thead>
-                  <tr className="border-b border-slate-800 text-slate-400">
+                  <tr className="border-b border-slate-200 text-slate-500">
                     <th className="py-3 px-3">Log ID</th>
                     <th className="py-3 px-3">Doctor</th>
                     <th className="py-3 px-3">Patient</th>
@@ -566,15 +566,15 @@ export const HierarchicalAuditLogViewer: React.FC<HierarchicalAuditLogViewerProp
                     <th className="py-3 px-3">Status</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800/60 text-slate-200">
+                <tbody className="divide-y divide-slate-800/60 text-slate-800">
                   {logs
                     .filter((l) => l.accessStatus === "DENIED" || l.emergencyFlag)
                     .map((log) => (
-                      <tr key={log.id} className="hover:bg-[#0D121F]">
-                        <td className="py-3 px-3 font-bold text-rose-400">{log.id}</td>
-                        <td className="py-3 px-3 font-bold text-white">{log.doctorName}</td>
-                        <td className="py-3 px-3 text-cyan-300">{log.patientName} ({log.patientHealthId})</td>
-                        <td className="py-3 px-3 text-slate-300">{log.reason}</td>
+                      <tr key={log.id} className="hover:bg-[#EDF1F5]">
+                        <td className="py-3 px-3 font-bold text-[#E23A2E]">{log.id}</td>
+                        <td className="py-3 px-3 font-bold text-slate-900">{log.doctorName}</td>
+                        <td className="py-3 px-3 text-[#17C964]">{log.patientName} ({log.patientHealthId})</td>
+                        <td className="py-3 px-3 text-slate-700">{log.reason}</td>
                         <td className="py-3 px-3">{renderMethodBadge(log.accessMethod)}</td>
                         <td className="py-3 px-3">{renderStatusBadge(log.accessStatus)}</td>
                       </tr>
@@ -589,92 +589,92 @@ export const HierarchicalAuditLogViewer: React.FC<HierarchicalAuditLogViewerProp
       {/* AUDIT LOG RELATIONSHIP TRACE MODAL */}
       {selectedLogForTrace && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#13192B] border border-slate-800 rounded-3xl w-full max-w-2xl p-6 shadow-2xl space-y-6 text-slate-100 relative">
+          <div className="bg-[#FFFFFF] border border-slate-200 rounded-3xl w-full max-w-2xl p-6 shadow-2xl space-y-6 text-slate-900 relative">
             <button
               onClick={() => setSelectedLogForTrace(null)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-white p-1.5 rounded-xl bg-[#0D121F]"
+              className="absolute top-4 right-4 text-slate-500 hover:text-slate-900 p-1.5 rounded-xl bg-[#EDF1F5]"
             >
               <X className="w-5 h-5" />
             </button>
 
-            <div className="flex items-center space-x-3 text-emerald-400 border-b border-slate-800 pb-3">
-              <ShieldCheck className="w-6 h-6 text-emerald-400" />
+            <div className="flex items-center space-x-3 text-[#17C964] border-b border-slate-200 pb-3">
+              <ShieldCheck className="w-6 h-6 text-[#17C964]" />
               <div>
-                <h3 className="font-bold text-white text-base">Hierarchical Access Relationship Trace</h3>
-                <p className="text-xs text-slate-400">Cryptographically immutable audit node log #{selectedLogForTrace.id}</p>
+                <h3 className="font-bold text-slate-900 text-base">Hierarchical Access Relationship Trace</h3>
+                <p className="text-xs text-slate-500">Cryptographically immutable audit node log #{selectedLogForTrace.id}</p>
               </div>
             </div>
 
             {/* Hierarchical Relationship Tree Trace View */}
-            <div className="bg-[#0D121F] border border-slate-800 p-4 rounded-2xl space-y-3">
-              <div className="text-xs font-mono text-purple-400 font-bold uppercase tracking-wider">Access Authorization Flow Tree</div>
+            <div className="bg-[#EDF1F5] border border-slate-200 p-4 rounded-2xl space-y-3">
+              <div className="text-xs font-mono text-[#17C964] font-bold uppercase tracking-wider">Access Authorization Flow Tree</div>
               
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-center text-xs font-mono">
                 {/* Doctor Node */}
-                <div className="bg-[#13192B] border border-purple-500/40 p-3 rounded-xl space-y-1">
-                  <div className="text-[10px] text-purple-400 font-bold flex items-center space-x-1">
+                <div className="bg-[#FFFFFF] border border-[#17C964]/40 p-3 rounded-xl space-y-1">
+                  <div className="text-[10px] text-[#17C964] font-bold flex items-center space-x-1">
                     <Stethoscope className="w-3.5 h-3.5" />
                     <span>PHYSICIAN NODE</span>
                   </div>
-                  <div className="font-bold text-white text-sm">{selectedLogForTrace.doctorName}</div>
-                  <div className="text-[10px] text-slate-400">ID: {selectedLogForTrace.doctorId}</div>
+                  <div className="font-bold text-slate-900 text-sm">{selectedLogForTrace.doctorName}</div>
+                  <div className="text-[10px] text-slate-500">ID: {selectedLogForTrace.doctorId}</div>
                 </div>
 
                 {/* Arrow -> Hospital */}
-                <div className="bg-[#13192B] border border-cyan-500/40 p-3 rounded-xl space-y-1">
-                  <div className="text-[10px] text-cyan-400 font-bold flex items-center space-x-1">
+                <div className="bg-[#FFFFFF] border border-[#17C964]/40 p-3 rounded-xl space-y-1">
+                  <div className="text-[10px] text-[#17C964] font-bold flex items-center space-x-1">
                     <Building2 className="w-3.5 h-3.5" />
                     <span>HOSPITAL FACILITY</span>
                   </div>
-                  <div className="font-bold text-white text-sm">{selectedLogForTrace.hospitalName}</div>
-                  <div className="text-[10px] text-slate-400">ID: {selectedLogForTrace.hospitalId}</div>
+                  <div className="font-bold text-slate-900 text-sm">{selectedLogForTrace.hospitalName}</div>
+                  <div className="text-[10px] text-slate-500">ID: {selectedLogForTrace.hospitalId}</div>
                 </div>
 
                 {/* Arrow -> Patient */}
-                <div className="bg-[#13192B] border border-emerald-500/40 p-3 rounded-xl space-y-1">
-                  <div className="text-[10px] text-emerald-400 font-bold flex items-center space-x-1">
+                <div className="bg-[#FFFFFF] border border-[#17C964]/40 p-3 rounded-xl space-y-1">
+                  <div className="text-[10px] text-[#17C964] font-bold flex items-center space-x-1">
                     <User className="w-3.5 h-3.5" />
                     <span>PATIENT CITIZEN</span>
                   </div>
-                  <div className="font-bold text-white text-sm">{selectedLogForTrace.patientName}</div>
-                  <div className="text-[10px] text-cyan-300">{selectedLogForTrace.patientHealthId}</div>
+                  <div className="font-bold text-slate-900 text-sm">{selectedLogForTrace.patientName}</div>
+                  <div className="text-[10px] text-[#17C964]">{selectedLogForTrace.patientHealthId}</div>
                 </div>
               </div>
             </div>
 
             {/* Complete Metadata Details Grid */}
             <div className="grid grid-cols-2 gap-3 text-xs font-mono">
-              <div className="bg-[#0D121F] p-3 rounded-xl border border-slate-800">
+              <div className="bg-[#EDF1F5] p-3 rounded-xl border border-slate-200">
                 <span className="text-slate-500 text-[10px] block">ACCESS METHOD</span>
                 <div className="mt-1">{renderMethodBadge(selectedLogForTrace.accessMethod)}</div>
               </div>
 
-              <div className="bg-[#0D121F] p-3 rounded-xl border border-slate-800">
+              <div className="bg-[#EDF1F5] p-3 rounded-xl border border-slate-200">
                 <span className="text-slate-500 text-[10px] block">AUTHORIZATION STATUS</span>
                 <div className="mt-1">{renderStatusBadge(selectedLogForTrace.accessStatus)}</div>
               </div>
 
-              <div className="bg-[#0D121F] p-3 rounded-xl border border-slate-800">
+              <div className="bg-[#EDF1F5] p-3 rounded-xl border border-slate-200">
                 <span className="text-slate-500 text-[10px] block">VERIFICATION METHOD</span>
-                <strong className="text-cyan-300 font-bold">{selectedLogForTrace.verificationMethod || "N/A"}</strong>
+                <strong className="text-[#17C964] font-bold">{selectedLogForTrace.verificationMethod || "N/A"}</strong>
               </div>
 
-              <div className="bg-[#0D121F] p-3 rounded-xl border border-slate-800">
+              <div className="bg-[#EDF1F5] p-3 rounded-xl border border-slate-200">
                 <span className="text-slate-500 text-[10px] block">TIMESTAMP</span>
-                <strong className="text-white">{new Date(selectedLogForTrace.timestamp).toLocaleString("en-IN")}</strong>
+                <strong className="text-slate-900">{new Date(selectedLogForTrace.timestamp).toLocaleString("en-IN")}</strong>
               </div>
 
-              <div className="col-span-2 bg-[#0D121F] p-3 rounded-xl border border-slate-800 space-y-1">
+              <div className="col-span-2 bg-[#EDF1F5] p-3 rounded-xl border border-slate-200 space-y-1">
                 <span className="text-slate-500 text-[10px] block">ACCESS REASON / CLINICAL JUSTIFICATION</span>
-                <p className="text-white font-bold">{selectedLogForTrace.reason}</p>
+                <p className="text-slate-900 font-bold">{selectedLogForTrace.reason}</p>
               </div>
 
-              <div className="col-span-2 bg-[#0D121F] p-3 rounded-xl border border-slate-800 space-y-1">
+              <div className="col-span-2 bg-[#EDF1F5] p-3 rounded-xl border border-slate-200 space-y-1">
                 <span className="text-slate-500 text-[10px] block">RECORDS ACCESSED</span>
                 <div className="flex flex-wrap gap-1.5 pt-1">
                   {selectedLogForTrace.recordsAccessed && selectedLogForTrace.recordsAccessed.length > 0 ? (
                     selectedLogForTrace.recordsAccessed.map((rec, i) => (
-                      <span key={i} className="px-2 py-0.5 bg-purple-950 border border-purple-500/30 text-purple-300 text-[10px] rounded">
+                      <span key={i} className="px-2 py-0.5 bg-[#E9FBF1] border border-[#17C964]/30 text-[#17C964] text-[10px] rounded">
                         {rec}
                       </span>
                     ))
@@ -684,21 +684,21 @@ export const HierarchicalAuditLogViewer: React.FC<HierarchicalAuditLogViewerProp
                 </div>
               </div>
 
-              <div className="bg-[#0D121F] p-3 rounded-xl border border-slate-800">
+              <div className="bg-[#EDF1F5] p-3 rounded-xl border border-slate-200">
                 <span className="text-slate-500 text-[10px] block">TERMINAL IP ADDRESS</span>
-                <strong className="text-amber-300">{selectedLogForTrace.ipAddress || "127.0.0.1"}</strong>
+                <strong className="text-[#E23A2E]">{selectedLogForTrace.ipAddress || "127.0.0.1"}</strong>
               </div>
 
-              <div className="bg-[#0D121F] p-3 rounded-xl border border-slate-800">
+              <div className="bg-[#EDF1F5] p-3 rounded-xl border border-slate-200">
                 <span className="text-slate-500 text-[10px] block">TERMINAL DEVICE ID</span>
-                <strong className="text-slate-300">{selectedLogForTrace.deviceId || "DEV-DESK-OPD-01"}</strong>
+                <strong className="text-slate-700">{selectedLogForTrace.deviceId || "DEV-DESK-OPD-01"}</strong>
               </div>
             </div>
 
-            <div className="flex justify-end pt-2 border-t border-slate-800">
+            <div className="flex justify-end pt-2 border-t border-slate-200">
               <button
                 onClick={() => setSelectedLogForTrace(null)}
-                className="px-5 py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl transition"
+                className="px-5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-900 font-bold text-xs rounded-xl transition"
               >
                 Close Audit Inspection
               </button>

@@ -21,7 +21,7 @@ interface MobileCameraBridgeModalProps {
 }
 
 export const MobileCameraBridgeModal: React.FC<MobileCameraBridgeModalProps> = ({
-  doctorName = "Dr. Rajesh V. Sharma",
+  doctorName = "",
   hospitalName = "Apollo Multi-Specialty Hospital",
   onClose,
   onPayloadReceived,
@@ -94,88 +94,88 @@ export const MobileCameraBridgeModal: React.FC<MobileCameraBridgeModalProps> = (
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-in fade-in">
-      <div className="w-full max-w-lg bg-[#0F1524] border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-6 text-xs text-slate-200 relative overflow-hidden">
+      <div className="w-full max-w-lg bg-[#FFFFFF] border border-slate-200 rounded-3xl p-6 shadow-2xl space-y-6 text-xs text-slate-800 relative overflow-hidden">
         {/* Glow Header */}
-        <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+        <div className="flex items-center justify-between border-b border-slate-200 pb-4">
           <div className="flex items-center space-x-3">
-            <div className="p-3 bg-purple-950 border border-purple-500/40 rounded-2xl text-purple-300">
+            <div className="p-3 bg-[#E9FBF1] border border-[#17C964]/40 rounded-2xl text-[#17C964]">
               <Smartphone className="w-6 h-6 animate-pulse" />
             </div>
             <div>
-              <h3 className="text-base font-extrabold text-white">Mobile Camera Remote Bridge</h3>
-              <p className="text-[11px] text-purple-300 font-mono">
+              <h3 className="text-base font-extrabold text-slate-900">Mobile Camera Remote Bridge</h3>
+              <p className="text-[11px] text-[#17C964] font-mono">
                 Use your phone camera as a wireless hardware scanner
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white rounded-xl transition"
+            className="p-2 bg-slate-100 hover:bg-slate-100 text-slate-500 hover:text-slate-900 rounded-xl transition"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {isInitializing ? (
-          <div className="p-12 text-center text-slate-400 space-y-3">
-            <RefreshCw className="w-8 h-8 text-purple-400 animate-spin mx-auto" />
-            <p className="font-bold text-white">Initializing Mobile Camera Bridge Session...</p>
+          <div className="p-12 text-center text-slate-500 space-y-3">
+            <RefreshCw className="w-8 h-8 text-[#17C964] animate-spin mx-auto" />
+            <p className="font-bold text-slate-900">Initializing Mobile Camera Bridge Session...</p>
           </div>
         ) : receivedPayload ? (
           /* Success Transmitted View */
-          <div className="p-8 bg-emerald-950/40 border border-emerald-500/40 rounded-3xl text-center space-y-4 animate-in zoom-in-95">
-            <div className="w-16 h-16 bg-emerald-500/20 border-2 border-emerald-500 rounded-full flex items-center justify-center mx-auto text-emerald-400">
+          <div className="p-8 bg-[#E9FBF1] border border-[#17C964]/30 rounded-3xl text-center space-y-4 animate-in zoom-in-95">
+            <div className="w-16 h-16 bg-[#E9FBF1] border-2 border-[#17C964] rounded-full flex items-center justify-center mx-auto text-[#17C964]">
               <CheckCircle2 className="w-10 h-10 animate-bounce" />
             </div>
             <div>
-              <h4 className="text-lg font-extrabold text-white">Scan Transmitted from Mobile Camera!</h4>
-              <p className="text-xs text-emerald-300 font-mono mt-1">
+              <h4 className="text-lg font-extrabold text-slate-900">Scan Transmitted from Mobile Camera!</h4>
+              <p className="text-xs text-[#17C964] font-mono mt-1">
                 Token Payload: {receivedPayload.scannedCode}
               </p>
             </div>
-            <div className="pt-2 text-slate-400 text-[11px]">
+            <div className="pt-2 text-slate-500 text-[11px]">
               Verifying patient record & opening clinical chart...
             </div>
           </div>
         ) : (
           /* Pairing QR Code & Instructions View */
           <div className="space-y-5">
-            <div className="bg-[#090D18] border border-slate-800/80 rounded-2xl p-5 text-center space-y-4">
-              <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wider block">
+            <div className="bg-[#EDF1F5] border border-slate-200/80 rounded-2xl p-5 text-center space-y-4">
+              <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
                 Point Phone Camera at QR Code Below
               </span>
 
               {/* QR Code Canvas */}
-              <div className="p-4 bg-white rounded-2xl inline-block shadow-xl border-4 border-purple-500/30">
+              <div className="p-4 bg-white rounded-2xl inline-block shadow-xl border-4 border-[#17C964]/30">
                 <QRCode value={mobileScanUrl} size={180} level="M" />
               </div>
 
-              <div className="flex items-center justify-center space-x-2 text-[11px] text-purple-300">
-                <Zap className="w-3.5 h-3.5 text-amber-400 animate-bounce" />
+              <div className="flex items-center justify-center space-x-2 text-[11px] text-[#17C964]">
+                <Zap className="w-3.5 h-3.5 text-[#17C964] animate-bounce" />
                 <span>No app download or mobile login needed</span>
               </div>
             </div>
 
             {/* Direct Link & PIN option */}
-            <div className="p-4 bg-slate-900/90 border border-slate-800 rounded-2xl space-y-2 text-center">
-              <div className="text-[10px] text-slate-400 font-bold uppercase">
+            <div className="p-4 bg-slate-100/90 border border-slate-200 rounded-2xl space-y-2 text-center">
+              <div className="text-[10px] text-slate-500 font-bold uppercase">
                 Session Sync PIN:
               </div>
-              <div className="font-mono text-2xl font-black text-amber-400 tracking-widest">
+              <div className="font-mono text-2xl font-black text-[#17C964] tracking-widest">
                 {pairingPin || "882041"}
               </div>
-              <div className="text-[10px] text-slate-400">
-                Or visit on mobile browser: <strong className="text-purple-300 font-mono underline cursor-pointer" onClick={() => window.open(mobileScanUrl, "_blank")}>{mobileScanUrl}</strong>
+              <div className="text-[10px] text-slate-500">
+                Or visit on mobile browser: <strong className="text-[#17C964] font-mono underline cursor-pointer" onClick={() => window.open(mobileScanUrl, "_blank")}>{mobileScanUrl}</strong>
               </div>
             </div>
 
             {/* Live Polling Loader Status */}
-            <div className="p-3 bg-purple-950/40 border border-purple-500/30 rounded-xl flex items-center justify-between text-[11px]">
-              <div className="flex items-center space-x-2 text-purple-200 font-mono">
-                <RefreshCw className="w-3.5 h-3.5 text-purple-400 animate-spin" />
+            <div className="p-3 bg-[#E9FBF1] border border-[#17C964]/30 rounded-xl flex items-center justify-between text-[11px]">
+              <div className="flex items-center space-x-2 text-[#17C964] font-mono">
+                <RefreshCw className="w-3.5 h-3.5 text-[#17C964] animate-spin" />
                 <span>Waiting for mobile scan...</span>
               </div>
-              <span className="px-2 py-0.5 bg-purple-900/60 text-purple-300 font-mono rounded text-[10px]">
+              <span className="px-2 py-0.5 bg-[#E9FBF1] text-[#17C964] font-mono rounded text-[10px] border border-[#17C964]/30">
                 Session ID: {sessionId}
               </span>
             </div>

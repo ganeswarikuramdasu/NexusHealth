@@ -307,7 +307,7 @@ public class CardService {
 
         String targetHealthId = req.getPatientHealthId() != null ? req.getPatientHealthId()
                 : (card != null ? card.getPatientHealthId() : profile.getPatientHealthId());
-        String targetUserId = card != null ? card.getPatientId() : (profile != null ? profile.getUserId() : "u_pat_1");
+        String targetUserId = card != null ? card.getPatientId() : (profile != null ? profile.getUserId() : "");
         User user = userRepository.findById(targetUserId).orElse(null);
         String patientName = user != null ? user.getName() : (card != null ? card.getPatientName() : "Patient Citizen");
 

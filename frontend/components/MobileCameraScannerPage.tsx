@@ -4,13 +4,11 @@ import { parseResponseSafe } from "../utils/api";
 import {
   Smartphone,
   Camera,
-  QrCode,
   CheckCircle2,
   ShieldCheck,
   RefreshCw,
   Zap,
-  Sparkles,
-  UserCheck
+  Sparkles
 } from "lucide-react";
 
 interface MobileCameraScannerPageProps {
@@ -133,27 +131,27 @@ export const MobileCameraScannerPage: React.FC<MobileCameraScannerPageProps> = (
   };
 
   return (
-    <div className="min-h-screen bg-[#090D16] text-white flex flex-col justify-between p-4 sm:p-6 font-sans">
+    <div className="min-h-screen bg-[#F4F6F8] text-slate-900 flex flex-col justify-between p-4 sm:p-6 font-sans">
       {/* Header */}
-      <div className="text-center pt-4 pb-2 border-b border-slate-800 space-y-1">
-        <div className="inline-flex items-center space-x-2 px-3 py-1 bg-purple-950 border border-purple-500/40 rounded-full text-xs font-bold text-purple-300">
-          <Smartphone className="w-3.5 h-3.5 text-purple-400" />
+      <div className="text-center pt-4 pb-2 border-b border-slate-200 space-y-1">
+        <div className="inline-flex items-center space-x-2 px-3 py-1 bg-[#E9FBF1] border border-[#17C964]/40 rounded-full text-xs font-bold text-[#17C964]">
+          <Smartphone className="w-3.5 h-3.5 text-[#17C964]" />
           <span>Handheld Mobile Camera Bridge</span>
         </div>
-        <h1 className="text-lg font-extrabold text-white">Wireless Patient Card & Face Scanner</h1>
-        <p className="text-[11px] text-slate-400 font-mono">Synced to Session ID: {sessionId}</p>
+        <h1 className="text-lg font-extrabold text-slate-900">Wireless Patient Card & Face Scanner</h1>
+        <p className="text-[11px] text-slate-500 font-mono">Synced to Session ID: {sessionId}</p>
       </div>
 
       {/* Main Viewport */}
       <div className="flex-1 my-4 flex flex-col items-center justify-center relative">
         {isSuccess ? (
-          <div className="p-8 bg-emerald-950/60 border-2 border-emerald-500 rounded-3xl text-center space-y-4 max-w-sm mx-auto shadow-2xl animate-in zoom-in-90">
-            <div className="w-20 h-20 bg-emerald-500/20 border-2 border-emerald-500 rounded-full flex items-center justify-center mx-auto text-emerald-400">
+          <div className="p-8 bg-[#E9FBF1] border-2 border-[#17C964] rounded-3xl text-center space-y-4 max-w-sm mx-auto shadow-2xl animate-in zoom-in-90">
+            <div className="w-20 h-20 bg-[#E9FBF1] border-2 border-[#17C964] rounded-full flex items-center justify-center mx-auto text-[#17C964]">
               <CheckCircle2 className="w-12 h-12 animate-bounce" />
             </div>
             <div>
-              <h2 className="text-xl font-black text-white">Scan Transmitted!</h2>
-              <p className="text-xs text-emerald-300 font-mono mt-2">
+              <h2 className="text-xl font-black text-slate-900">Scan Transmitted!</h2>
+              <p className="text-xs text-[#17C964] font-mono mt-2">
                 The patient record is now unlocked on your laptop screen.
               </p>
             </div>
@@ -162,13 +160,13 @@ export const MobileCameraScannerPage: React.FC<MobileCameraScannerPageProps> = (
                 setIsSuccess(false);
                 setIsScanning(true);
               }}
-              className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-2xl transition text-xs"
+              className="w-full py-3 bg-[#17C964] hover:bg-[#0f172a] text-white font-bold rounded-2xl transition text-xs"
             >
               Scan Another Card / Face
             </button>
           </div>
         ) : (
-          <div className="w-full max-w-sm h-80 bg-slate-950 border-2 border-purple-500/60 rounded-3xl overflow-hidden relative shadow-2xl flex items-center justify-center">
+          <div className="w-full max-w-sm h-80 bg-slate-950 border-2 border-[#17C964]/60 rounded-3xl overflow-hidden relative shadow-2xl flex items-center justify-center">
             {/* Live Camera Feed */}
             <video
               ref={videoRef}
@@ -180,12 +178,12 @@ export const MobileCameraScannerPage: React.FC<MobileCameraScannerPageProps> = (
             <canvas ref={canvasRef} className="hidden" />
 
             {/* Target Reticle Overlay */}
-            <div className="absolute inset-8 border-2 border-dashed border-purple-400/80 rounded-2xl pointer-events-none flex items-center justify-center">
-              <div className="w-full h-0.5 bg-purple-500/80 animate-pulse shadow-lg" />
+            <div className="absolute inset-8 border-2 border-dashed border-[#3CE584]/80 rounded-2xl pointer-events-none flex items-center justify-center">
+              <div className="w-full h-0.5 bg-[#17C964]/80 animate-pulse shadow-lg" />
             </div>
 
             {cameraError && (
-              <div className="absolute inset-0 bg-slate-950/90 p-4 text-center flex flex-col items-center justify-center space-y-2 text-xs text-amber-300">
+              <div className="absolute inset-0 bg-slate-950/90 p-4 text-center flex flex-col items-center justify-center space-y-2 text-xs text-[#F8B4A8]">
                 <p className="font-bold">{cameraError}</p>
               </div>
             )}
@@ -196,23 +194,9 @@ export const MobileCameraScannerPage: React.FC<MobileCameraScannerPageProps> = (
       {/* Action Buttons */}
       {!isSuccess && (
         <div className="space-y-3 max-w-sm mx-auto w-full pb-4">
-          <button
-            disabled={isSubmitting}
-            onClick={() => submitMobileScan("NEXUSHEALTH_CARD_TOKEN:NXAC-a1b2c3d4e5f6", "QR_CODE")}
-            className="w-full py-3.5 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-2xl transition shadow-xl text-xs flex items-center justify-center space-x-2"
-          >
-            <QrCode className="w-4 h-4" />
-            <span>{isSubmitting ? "Transmitting to Laptop..." : "Scan Demo Patient Card Token"}</span>
-          </button>
-
-          <button
-            disabled={isSubmitting}
-            onClick={() => submitMobileScan("NEXUSHEALTH_FACE_BIOMETRIC:FACE-PATIENT-88392014", "FACE_SCAN")}
-            className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-2xl transition text-xs flex items-center justify-center space-x-2 border border-slate-700"
-          >
-            <UserCheck className="w-4 h-4 text-emerald-400" />
-            <span>Scan Facial Biometrics</span>
-          </button>
+          <div className="w-full py-3.5 bg-slate-100 border border-slate-300 rounded-2xl text-center text-xs text-slate-500 font-mono">
+            Point the camera at the patient's Physical Health Card QR Code or face to transmit the scan to the connected laptop.
+          </div>
         </div>
       )}
 

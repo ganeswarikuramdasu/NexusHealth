@@ -84,6 +84,9 @@ public class DoctorService {
         if (isBlank(req.getName()) || isBlank(req.getEmail())) {
             throw ApiException.badRequest("Doctor Name and Email are required.");
         }
+        if (isBlank(req.getPassword())) {
+            throw ApiException.badRequest("Doctor Name, Email, and Initial Password are required.");
+        }
         if (!isBlank(req.getPassword())) {
             PasswordValidator.Result pwdCheck = PasswordValidator.validate(req.getPassword());
             if (!pwdCheck.valid()) {
@@ -103,7 +106,7 @@ public class DoctorService {
         long now = System.currentTimeMillis();
         String doctorId = "doc_" + now;
         String userId = "u_doc_" + now;
-        String password = !isBlank(req.getPassword()) ? req.getPassword() : "DoctorPass123!";
+        String password = req.getPassword();
         String licenseNumber = req.getLicenseNumber() != null ? req.getLicenseNumber()
                 : "MCI-2026-" + (10000 + RANDOM.nextInt(90000));
         String hospitalName = hospital != null ? hospital.getName() : "Unattached Independent Practice";
@@ -129,7 +132,6 @@ public class DoctorService {
                 .isActive(true)
                 .extra(extra)
                 .build();
-        doctorRepository.save(doctor);
 
         User user = User.builder()
                 .id(userId)
@@ -140,6 +142,8 @@ public class DoctorService {
                 .status("ACTIVE")
                 .build();
         userRepository.save(user);
+
+        doctorRepository.save(doctor);
 
         auditLogService.log(req.getName(), "DOCTOR", "DOCTOR_REGISTER", null,
                 "Registered as " + doctor.getSpecialization() + ". Affiliated Hospital: " + hospitalName +
@@ -303,7 +307,6 @@ public class DoctorService {
                 .isActive(hospitalActive)
                 .extra(extra)
                 .build();
-        doctorRepository.save(doctor);
 
         User user = User.builder()
                 .id(userId)
@@ -314,6 +317,8 @@ public class DoctorService {
                 .status("ACTIVE")
                 .build();
         userRepository.save(user);
+
+        doctorRepository.save(doctor);
 
         auditLogService.log("Hospital Admin", "HOSPITAL_ADMIN", "DOCTOR_PROVISIONED", null,
                 "Hospital " + resolvedHospitalName + " provisioned doctor account for " + doctor.getName() +
@@ -634,14 +639,9 @@ public class DoctorService {
         // Resolve patient using PatientResolver
         PatientResolver.Resolved patientResolved = patientResolver.resolve(patientHealthId).orElse(null);
 
-        // Fallback to first patient if not resolved (matches Node behavior)
-        if (patientResolved == null) {
-            patientResolved = patientResolver.resolve("u_pat_1").orElse(null);
-        }
-
         String patientUserId = patientResolved != null ? patientResolved.userId : patientHealthId;
         String patientGlobalId = patientResolved != null ? patientResolved.globalHealthId : patientHealthId;
-        String patientName = patientResolved != null ? patientResolved.name : "Ananya Sharma";
+        String patientName = patientResolved != null ? patientResolved.name : "";
         PatientProfile patientProf = patientResolved != null ? patientResolved.profile : null;
 
         // Fetch patient records

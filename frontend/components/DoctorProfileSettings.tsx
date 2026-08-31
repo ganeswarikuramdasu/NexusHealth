@@ -186,15 +186,15 @@ export const DoctorProfileSettings: React.FC<DoctorProfileSettingsProps> = ({
         <div
           className={`p-4 rounded-2xl border text-xs flex items-center justify-between font-medium ${
             saveStatus.type === "success"
-              ? "bg-emerald-950/60 border-emerald-500/40 text-emerald-200"
-              : "bg-red-950/60 border-red-500/40 text-red-200"
+              ? "bg-[#E9FBF1] border-[#17C964]/40 text-[#17C964]"
+              : "bg-[#FDE9E3] border-[#F2603C]/40 text-[#C83E1E]"
           }`}
         >
           <div className="flex items-center space-x-2">
             {saveStatus.type === "success" ? (
-              <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+              <CheckCircle2 className="w-5 h-5 text-[#17C964] shrink-0" />
             ) : (
-              <AlertTriangle className="w-5 h-5 text-red-400 shrink-0" />
+              <AlertTriangle className="w-5 h-5 text-[#F2603C] shrink-0" />
             )}
             <span>{saveStatus.message}</span>
           </div>
@@ -205,9 +205,9 @@ export const DoctorProfileSettings: React.FC<DoctorProfileSettingsProps> = ({
       )}
 
       {hasUnsavedChanges && (
-        <div className="bg-amber-950/70 border border-amber-500/40 p-4 rounded-2xl flex items-center justify-between text-xs text-amber-200 shadow-xl">
+        <div className="bg-amber-50 border border-amber-500/40 p-4 rounded-2xl flex items-center justify-between text-xs text-amber-800 shadow-xl">
           <div className="flex items-center space-x-2">
-            <Info className="w-5 h-5 text-amber-400 shrink-0" />
+            <Info className="w-5 h-5 text-amber-600 shrink-0" />
             <span>You have unsaved changes in your profile or schedule settings.</span>
           </div>
           <button
@@ -223,19 +223,19 @@ export const DoctorProfileSettings: React.FC<DoctorProfileSettingsProps> = ({
 
       {/* Emergency Active Status Header if Emergency Absence is Active */}
       {profileData.availabilityStatus === "EMERGENCY_UNAVAILABLE" && (
-        <div className="bg-red-950 border border-red-500 p-5 rounded-3xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="bg-[#F2603C] border border-[#C83E1E] p-5 rounded-3xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-start space-x-3 text-xs">
-            <Siren className="w-6 h-6 text-red-400 shrink-0 animate-bounce mt-0.5" />
+            <Siren className="w-6 h-6 text-white/80 shrink-0 animate-bounce mt-0.5" />
             <div>
-              <h3 className="font-bold text-red-100 text-sm">🚨 Emergency Absence Currently Active</h3>
-              <p className="text-red-300/80 mt-0.5">
+              <h3 className="font-bold text-white text-sm">🚨 Emergency Absence Currently Active</h3>
+              <p className="text-white/85 mt-0.5">
                 Reason: {profileData.emergencyAbsence?.reason || "Emergency"} | Period: {profileData.emergencyAbsence?.startDate} to {profileData.emergencyAbsence?.endDate}
               </p>
             </div>
           </div>
           <button
             onClick={handleClearEmergency}
-            className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl text-xs transition"
+            className="px-4 py-2 bg-white text-[#C83E1E] hover:bg-[#FDE9E3] font-bold rounded-xl text-xs transition"
           >
             Clear Emergency & Restore Schedule
           </button>
@@ -243,13 +243,13 @@ export const DoctorProfileSettings: React.FC<DoctorProfileSettingsProps> = ({
       )}
 
       {/* Main Tabs Navigation */}
-      <div className="flex items-center space-x-2 overflow-x-auto pb-2 border-b border-slate-800 text-xs font-semibold">
+      <div className="flex items-center space-x-2 overflow-x-auto pb-2 border-b border-slate-200 text-xs font-semibold">
         <button
           onClick={() => setActiveTab("PERSONAL")}
           className={`px-4 py-2.5 rounded-2xl border transition whitespace-nowrap flex items-center space-x-2 ${
             activeTab === "PERSONAL"
-              ? "bg-emerald-600 text-white border-emerald-500 shadow-lg shadow-emerald-900/40"
-              : "bg-[#13192B] text-slate-400 border-slate-800 hover:text-white"
+              ? "bg-[#17C964] text-white border-[#17C964] shadow-lg shadow-[#17C964]/40"
+              : "bg-[#FFFFFF] text-slate-500 border-slate-200 hover:text-slate-900"
           }`}
         >
           <User className="w-4 h-4" />
@@ -260,8 +260,8 @@ export const DoctorProfileSettings: React.FC<DoctorProfileSettingsProps> = ({
           onClick={() => setActiveTab("PROFESSIONAL")}
           className={`px-4 py-2.5 rounded-2xl border transition whitespace-nowrap flex items-center space-x-2 ${
             activeTab === "PROFESSIONAL"
-              ? "bg-emerald-600 text-white border-emerald-500 shadow-lg shadow-emerald-900/40"
-              : "bg-[#13192B] text-slate-400 border-slate-800 hover:text-white"
+              ? "bg-[#17C964] text-white border-[#17C964] shadow-lg shadow-[#17C964]/40"
+              : "bg-[#FFFFFF] text-slate-500 border-slate-200 hover:text-slate-900"
           }`}
         >
           <Award className="w-4 h-4" />
@@ -272,8 +272,8 @@ export const DoctorProfileSettings: React.FC<DoctorProfileSettingsProps> = ({
           onClick={() => setActiveTab("SCHEDULE")}
           className={`px-4 py-2.5 rounded-2xl border transition whitespace-nowrap flex items-center space-x-2 ${
             activeTab === "SCHEDULE"
-              ? "bg-emerald-600 text-white border-emerald-500 shadow-lg shadow-emerald-900/40"
-              : "bg-[#13192B] text-slate-400 border-slate-800 hover:text-white"
+              ? "bg-[#17C964] text-white border-[#17C964] shadow-lg shadow-[#17C964]/40"
+              : "bg-[#FFFFFF] text-slate-500 border-slate-200 hover:text-slate-900"
           }`}
         >
           <Calendar className="w-4 h-4" />
@@ -284,8 +284,8 @@ export const DoctorProfileSettings: React.FC<DoctorProfileSettingsProps> = ({
           onClick={() => setActiveTab("APPOINTMENT_RULES")}
           className={`px-4 py-2.5 rounded-2xl border transition whitespace-nowrap flex items-center space-x-2 ${
             activeTab === "APPOINTMENT_RULES"
-              ? "bg-emerald-600 text-white border-emerald-500 shadow-lg shadow-emerald-900/40"
-              : "bg-[#13192B] text-slate-400 border-slate-800 hover:text-white"
+              ? "bg-[#17C964] text-white border-[#17C964] shadow-lg shadow-[#17C964]/40"
+              : "bg-[#FFFFFF] text-slate-500 border-slate-200 hover:text-slate-900"
           }`}
         >
           <Clock className="w-4 h-4" />
@@ -296,11 +296,11 @@ export const DoctorProfileSettings: React.FC<DoctorProfileSettingsProps> = ({
           onClick={() => setActiveTab("LEAVE_EMERGENCY")}
           className={`px-4 py-2.5 rounded-2xl border transition whitespace-nowrap flex items-center space-x-2 ${
             activeTab === "LEAVE_EMERGENCY"
-              ? "bg-red-600 text-white border-red-500 shadow-lg shadow-red-900/40"
-              : "bg-[#13192B] text-slate-400 border-slate-800 hover:text-white"
+              ? "bg-[#F2603C] text-white border-[#F2603C] shadow-lg shadow-[#F2603C]/40"
+              : "bg-[#FFFFFF] text-slate-500 border-slate-200 hover:text-slate-900"
           }`}
         >
-          <Siren className="w-4 h-4 text-red-400" />
+          <Siren className="w-4 h-4 text-[#F2603C]" />
           <span>Leave & Emergency</span>
         </button>
 
@@ -308,8 +308,8 @@ export const DoctorProfileSettings: React.FC<DoctorProfileSettingsProps> = ({
           onClick={() => setActiveTab("NOTIFICATIONS")}
           className={`px-4 py-2.5 rounded-2xl border transition whitespace-nowrap flex items-center space-x-2 ${
             activeTab === "NOTIFICATIONS"
-              ? "bg-emerald-600 text-white border-emerald-500 shadow-lg shadow-emerald-900/40"
-              : "bg-[#13192B] text-slate-400 border-slate-800 hover:text-white"
+              ? "bg-[#17C964] text-white border-[#17C964] shadow-lg shadow-[#17C964]/40"
+              : "bg-[#FFFFFF] text-slate-500 border-slate-200 hover:text-slate-900"
           }`}
         >
           <Bell className="w-4 h-4" />
@@ -320,8 +320,8 @@ export const DoctorProfileSettings: React.FC<DoctorProfileSettingsProps> = ({
           onClick={() => setActiveTab("SECURITY")}
           className={`px-4 py-2.5 rounded-2xl border transition whitespace-nowrap flex items-center space-x-2 ${
             activeTab === "SECURITY"
-              ? "bg-emerald-600 text-white border-emerald-500 shadow-lg shadow-emerald-900/40"
-              : "bg-[#13192B] text-slate-400 border-slate-800 hover:text-white"
+              ? "bg-[#17C964] text-white border-[#17C964] shadow-lg shadow-[#17C964]/40"
+              : "bg-[#FFFFFF] text-slate-500 border-slate-200 hover:text-slate-900"
           }`}
         >
           <Lock className="w-4 h-4" />
@@ -331,16 +331,16 @@ export const DoctorProfileSettings: React.FC<DoctorProfileSettingsProps> = ({
 
       {/* TAB CONTENT: PERSONAL PROFILE */}
       {activeTab === "PERSONAL" && (
-        <div className="bg-[#13192B] border border-slate-800 rounded-3xl p-6 space-y-6 shadow-xl">
-          <div className="flex justify-between items-center border-b border-slate-800 pb-4">
+        <div className="bg-[#FFFFFF] border border-slate-200 rounded-3xl p-6 space-y-6 shadow-xl">
+          <div className="flex justify-between items-center border-b border-slate-200 pb-4">
             <div>
-              <h3 className="text-base font-bold text-white">Personal Information</h3>
-              <p className="text-xs text-slate-400 mt-0.5">Manage your demographic details and personal statement</p>
+              <h3 className="text-base font-bold text-slate-900">Personal Information</h3>
+              <p className="text-xs text-slate-500 mt-0.5">Manage your demographic details and personal statement</p>
             </div>
             <button
               onClick={handleSaveProfile}
               disabled={isSaving}
-              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs flex items-center space-x-2 transition"
+              className="px-4 py-2 bg-[#17C964] hover:bg-[#0EA653] text-white font-bold rounded-xl text-xs flex items-center space-x-2 transition"
             >
               <Save className="w-4 h-4" />
               <span>{isSaving ? "Saving..." : "Save Profile"}</span>
@@ -349,41 +349,41 @@ export const DoctorProfileSettings: React.FC<DoctorProfileSettingsProps> = ({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
             <div>
-              <label className="text-slate-400 mb-1 block">Full Name</label>
+              <label className="text-slate-500 mb-1 block">Full Name</label>
               <input
                 type="text"
                 value={profileData.name || ""}
                 onChange={(e) => updateField("name", e.target.value)}
-                className="w-full bg-[#0D121F] border border-slate-800 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-emerald-500"
+                className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-900 focus:outline-none focus:border-[#17C964]"
               />
             </div>
 
             <div>
-              <label className="text-slate-400 mb-1 block">Contact Phone Number</label>
+              <label className="text-slate-500 mb-1 block">Contact Phone Number</label>
               <input
                 type="text"
                 value={profileData.phone || ""}
                 onChange={(e) => updateField("phone", e.target.value)}
-                className="w-full bg-[#0D121F] border border-slate-800 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-emerald-500"
+                className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-900 focus:outline-none focus:border-[#17C964]"
               />
             </div>
 
             <div>
-              <label className="text-slate-400 mb-1 block">Email Address</label>
+              <label className="text-slate-500 mb-1 block">Email Address</label>
               <input
                 type="email"
                 value={profileData.email || ""}
                 onChange={(e) => updateField("email", e.target.value)}
-                className="w-full bg-[#0D121F] border border-slate-800 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-emerald-500"
+                className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-900 focus:outline-none focus:border-[#17C964]"
               />
             </div>
 
             <div>
-              <label className="text-slate-400 mb-1 block">Gender</label>
+              <label className="text-slate-500 mb-1 block">Gender</label>
               <select
                 value={profileData.gender || "Male"}
                 onChange={(e) => updateField("gender", e.target.value)}
-                className="w-full bg-[#0D121F] border border-slate-800 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-emerald-500"
+                className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-900 focus:outline-none focus:border-[#17C964]"
               >
                 <option value="Male">Male</option>
                 <option value="Female">Female</option>
@@ -392,44 +392,44 @@ export const DoctorProfileSettings: React.FC<DoctorProfileSettingsProps> = ({
             </div>
 
             <div>
-              <label className="text-slate-400 mb-1 block">Date of Birth</label>
+              <label className="text-slate-500 mb-1 block">Date of Birth</label>
               <input
                 type="date"
                 value={profileData.dob || ""}
                 onChange={(e) => updateField("dob", e.target.value)}
-                className="w-full bg-[#0D121F] border border-slate-800 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-emerald-500"
+                className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-900 focus:outline-none focus:border-[#17C964]"
               />
             </div>
 
             <div>
-              <label className="text-slate-400 mb-1 block">Profile Avatar Image URL</label>
+              <label className="text-slate-500 mb-1 block">Profile Avatar Image URL</label>
               <input
                 type="text"
                 value={profileData.profilePhoto || ""}
                 onChange={(e) => updateField("profilePhoto", e.target.value)}
                 placeholder="https://..."
-                className="w-full bg-[#0D121F] border border-slate-800 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-emerald-500"
+                className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-900 focus:outline-none focus:border-[#17C964]"
               />
             </div>
 
             <div className="md:col-span-2">
-              <label className="text-slate-400 mb-1 block">Residential Address</label>
+              <label className="text-slate-500 mb-1 block">Residential Address</label>
               <input
                 type="text"
                 value={profileData.address || ""}
                 onChange={(e) => updateField("address", e.target.value)}
-                className="w-full bg-[#0D121F] border border-slate-800 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-emerald-500"
+                className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-900 focus:outline-none focus:border-[#17C964]"
               />
             </div>
 
             <div className="md:col-span-2">
-              <label className="text-slate-400 mb-1 block">Physician Statement / Biography</label>
+              <label className="text-slate-500 mb-1 block">Physician Statement / Biography</label>
               <textarea
                 rows={3}
                 value={profileData.bio || ""}
                 onChange={(e) => updateField("bio", e.target.value)}
                 placeholder="Brief clinical background and patient care philosophy..."
-                className="w-full bg-[#0D121F] border border-slate-800 rounded-xl p-3 text-white focus:outline-none focus:border-emerald-500"
+                className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl p-3 text-slate-900 focus:outline-none focus:border-[#17C964]"
               />
             </div>
           </div>
@@ -438,16 +438,16 @@ export const DoctorProfileSettings: React.FC<DoctorProfileSettingsProps> = ({
 
       {/* TAB CONTENT: PROFESSIONAL INFO */}
       {activeTab === "PROFESSIONAL" && (
-        <div className="bg-[#13192B] border border-slate-800 rounded-3xl p-6 space-y-6 shadow-xl">
-          <div className="flex justify-between items-center border-b border-slate-800 pb-4">
+        <div className="bg-[#FFFFFF] border border-slate-200 rounded-3xl p-6 space-y-6 shadow-xl">
+          <div className="flex justify-between items-center border-b border-slate-200 pb-4">
             <div>
-              <h3 className="text-base font-bold text-white">Professional Credentials & Hospital Alignment</h3>
-              <p className="text-xs text-slate-400 mt-0.5">Specialization, credentials, consultation fee, and hospital department</p>
+              <h3 className="text-base font-bold text-slate-900">Professional Credentials & Hospital Alignment</h3>
+              <p className="text-xs text-slate-500 mt-0.5">Specialization, credentials, consultation fee, and hospital department</p>
             </div>
             <button
               onClick={handleSaveProfile}
               disabled={isSaving}
-              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs flex items-center space-x-2 transition"
+              className="px-4 py-2 bg-[#17C964] hover:bg-[#0EA653] text-white font-bold rounded-xl text-xs flex items-center space-x-2 transition"
             >
               <Save className="w-4 h-4" />
               <span>{isSaving ? "Saving..." : "Save Professional Info"}</span>
@@ -456,64 +456,64 @@ export const DoctorProfileSettings: React.FC<DoctorProfileSettingsProps> = ({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
             <div>
-              <label className="text-slate-400 mb-1 block">Specialization</label>
+              <label className="text-slate-500 mb-1 block">Specialization</label>
               <input
                 type="text"
                 value={profileData.specialization || ""}
                 onChange={(e) => updateField("specialization", e.target.value)}
-                className="w-full bg-[#0D121F] border border-slate-800 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-emerald-500"
+                className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-900 focus:outline-none focus:border-[#17C964]"
               />
             </div>
 
             <div>
-              <label className="text-slate-400 mb-1 block">Highest Qualification</label>
+              <label className="text-slate-500 mb-1 block">Highest Qualification</label>
               <input
                 type="text"
                 value={profileData.qualification || ""}
                 onChange={(e) => updateField("qualification", e.target.value)}
-                className="w-full bg-[#0D121F] border border-slate-800 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-emerald-500"
+                className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-900 focus:outline-none focus:border-[#17C964]"
               />
             </div>
 
             <div>
-              <label className="text-slate-400 mb-1 block flex items-center justify-between">
+              <label className="text-slate-500 mb-1 block flex items-center justify-between">
                 <span>Medical Council Registration Number</span>
-                <span className="text-[10px] text-amber-400 font-mono">🔒 Verified</span>
+                <span className="text-[10px] text-amber-600 font-mono">✅ Verified</span>
               </label>
               <input
                 type="text"
                 value={profileData.licenseNumber || ""}
                 onChange={(e) => updateField("licenseNumber", e.target.value)}
-                className="w-full bg-[#0D121F] border border-slate-800 rounded-xl px-3.5 py-2.5 text-white font-mono focus:outline-none focus:border-emerald-500"
+                className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-900 font-mono focus:outline-none focus:border-[#17C964]"
               />
             </div>
 
             <div>
-              <label className="text-slate-400 mb-1 block">Years of Clinical Experience</label>
+              <label className="text-slate-500 mb-1 block">Years of Clinical Experience</label>
               <input
                 type="number"
                 value={profileData.experienceYears || 0}
                 onChange={(e) => updateField("experienceYears", parseInt(e.target.value, 10) || 0)}
-                className="w-full bg-[#0D121F] border border-slate-800 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-emerald-500"
+                className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-900 focus:outline-none focus:border-[#17C964]"
               />
             </div>
 
             <div>
-              <label className="text-slate-400 mb-1 block">Designation</label>
+              <label className="text-slate-500 mb-1 block">Designation</label>
               <input
                 type="text"
                 value={profileData.designation || ""}
                 onChange={(e) => updateField("designation", e.target.value)}
-                className="w-full bg-[#0D121F] border border-slate-800 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-emerald-500"
+                className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-900 focus:outline-none focus:border-[#17C964]"
               />
             </div>
 
             <div>
-              <label className="text-slate-400 mb-1 block">Consultation Type</label>
+              <label className="text-slate-500 mb-1 block">Consultation Type</label>
               <select
                 value={profileData.consultationType || "BOTH"}
                 onChange={(e) => updateField("consultationType", e.target.value)}
-                className="w-full bg-[#0D121F] border border-slate-800 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-emerald-500"
+                className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-900 focus:outline-none focus:border-[#17C964]"
               >
                 <option value="IN_PERSON">In-Person Consultations Only</option>
                 <option value="TELECONSULT">Teleconsultation / Virtual Only</option>
@@ -522,17 +522,17 @@ export const DoctorProfileSettings: React.FC<DoctorProfileSettingsProps> = ({
             </div>
 
             <div>
-              <label className="text-slate-400 mb-1 block">Consultation Fee (₹ INR)</label>
+              <label className="text-slate-500 mb-1 block">Consultation Fee (₹ INR)</label>
               <input
                 type="number"
                 value={profileData.fee || 500}
                 onChange={(e) => updateField("fee", parseInt(e.target.value, 10) || 0)}
-                className="w-full bg-[#0D121F] border border-slate-800 rounded-xl px-3.5 py-2.5 text-white font-mono focus:outline-none focus:border-emerald-500"
+                className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-900 font-mono focus:outline-none focus:border-[#17C964]"
               />
             </div>
 
             <div>
-              <label className="text-slate-400 mb-1 block font-semibold flex items-center space-x-1">
+              <label className="text-slate-500 mb-1 block font-semibold flex items-center space-x-1">
                 <span>Associated Hospital</span>
                 <span className="text-[10px] text-slate-500">(Admin Managed)</span>
               </label>
@@ -540,7 +540,7 @@ export const DoctorProfileSettings: React.FC<DoctorProfileSettingsProps> = ({
                 type="text"
                 value={profileData.hospitalName || "Apex Care Hospital"}
                 disabled
-                className="w-full bg-[#080B13] border border-slate-800/80 rounded-xl px-3.5 py-2.5 text-slate-400 cursor-not-allowed"
+                className="w-full bg-[#EDF1F5] border border-slate-200/80 rounded-xl px-3.5 py-2.5 text-slate-500 cursor-not-allowed"
               />
             </div>
           </div>
@@ -549,18 +549,18 @@ export const DoctorProfileSettings: React.FC<DoctorProfileSettingsProps> = ({
 
       {/* TAB CONTENT: WEEKLY SCHEDULE */}
       {activeTab === "SCHEDULE" && (
-        <div className="bg-[#13192B] border border-slate-800 rounded-3xl p-6 space-y-6 shadow-xl">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-4">
+        <div className="bg-[#FFFFFF] border border-slate-200 rounded-3xl p-6 space-y-6 shadow-xl">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-4">
             <div>
-              <h3 className="text-base font-bold text-white">Weekly Working Schedule (Monday - Sunday)</h3>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <h3 className="text-base font-bold text-slate-900">Weekly Working Schedule (Monday - Sunday)</h3>
+              <p className="text-xs text-slate-500 mt-0.5">
                 Define active consultation days, shift working hours, and break windows
               </p>
             </div>
             <button
               onClick={handleSaveProfile}
               disabled={isSaving}
-              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs flex items-center space-x-2 transition"
+              className="px-4 py-2 bg-[#17C964] hover:bg-[#0EA653] text-white font-bold rounded-xl text-xs flex items-center space-x-2 transition"
             >
               <Save className="w-4 h-4" />
               <span>{isSaving ? "Saving..." : "Save Weekly Schedule"}</span>
@@ -588,8 +588,8 @@ export const DoctorProfileSettings: React.FC<DoctorProfileSettingsProps> = ({
                   key={dayName}
                   className={`p-4 rounded-2xl border transition ${
                     daySched.active
-                      ? "bg-[#0D121F] border-slate-800"
-                      : "bg-[#080B13] border-slate-800/50 opacity-60"
+                      ? "bg-[#EDF1F5] border-slate-200"
+                      : "bg-[#EDF1F5] border-slate-200/50 opacity-60"
                   }`}
                 >
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -602,11 +602,11 @@ export const DoctorProfileSettings: React.FC<DoctorProfileSettingsProps> = ({
                         onChange={(e) =>
                           updateWeeklySchedule(dayName, { ...daySched, active: e.target.checked })
                         }
-                        className="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500 bg-slate-900 border-slate-700"
+                        className="w-4 h-4 rounded text-[#17C964] focus:ring-[#17C964] bg-slate-100 border-slate-300"
                       />
                       <div>
-                        <span className="font-bold text-sm text-white">{dayName}</span>
-                        <span className="text-[11px] text-slate-400 block font-mono">
+                        <span className="font-bold text-sm text-slate-900">{dayName}</span>
+                        <span className="text-[11px] text-slate-500 block font-mono">
                           {daySched.active ? `${daySched.timeSlots.length} Shift Window(s)` : "OFF / Unavailable"}
                         </span>
                       </div>
@@ -626,7 +626,7 @@ export const DoctorProfileSettings: React.FC<DoctorProfileSettingsProps> = ({
                                   newTs[idx].startTime = e.target.value;
                                   updateWeeklySchedule(dayName, { ...daySched, timeSlots: newTs });
                                 }}
-                                className="w-24 bg-[#13192B] border border-slate-700 rounded-lg px-2 py-1 text-white text-center"
+                                className="w-24 bg-[#FFFFFF] border border-slate-300 rounded-lg px-2 py-1 text-slate-900 text-center"
                               />
                               <span className="text-slate-500">to</span>
                               <input
@@ -637,7 +637,7 @@ export const DoctorProfileSettings: React.FC<DoctorProfileSettingsProps> = ({
                                   newTs[idx].endTime = e.target.value;
                                   updateWeeklySchedule(dayName, { ...daySched, timeSlots: newTs });
                                 }}
-                                className="w-24 bg-[#13192B] border border-slate-700 rounded-lg px-2 py-1 text-white text-center"
+                                className="w-24 bg-[#FFFFFF] border border-slate-300 rounded-lg px-2 py-1 text-slate-900 text-center"
                               />
                               <button
                                 type="button"
@@ -645,7 +645,7 @@ export const DoctorProfileSettings: React.FC<DoctorProfileSettingsProps> = ({
                                   const newTs = daySched.timeSlots.filter((_, i) => i !== idx);
                                   updateWeeklySchedule(dayName, { ...daySched, timeSlots: newTs });
                                 }}
-                                className="text-slate-500 hover:text-red-400 p-1"
+                                className="text-slate-500 hover:text-[#F2603C] p-1"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
@@ -662,7 +662,7 @@ export const DoctorProfileSettings: React.FC<DoctorProfileSettingsProps> = ({
                             ];
                             updateWeeklySchedule(dayName, { ...daySched, timeSlots: newTs });
                           }}
-                          className="text-[11px] text-emerald-400 hover:underline font-semibold flex items-center space-x-1"
+                          className="text-[11px] text-[#17C964] hover:underline font-semibold flex items-center space-x-1"
                         >
                           <Plus className="w-3 h-3" />
                           <span>Add Shift Period</span>
@@ -680,18 +680,18 @@ export const DoctorProfileSettings: React.FC<DoctorProfileSettingsProps> = ({
 
       {/* TAB CONTENT: APPOINTMENT RULES */}
       {activeTab === "APPOINTMENT_RULES" && (
-        <div className="bg-[#13192B] border border-slate-800 rounded-3xl p-6 space-y-6 shadow-xl">
-          <div className="flex justify-between items-center border-b border-slate-800 pb-4">
+        <div className="bg-[#FFFFFF] border border-slate-200 rounded-3xl p-6 space-y-6 shadow-xl">
+          <div className="flex justify-between items-center border-b border-slate-200 pb-4">
             <div>
-              <h3 className="text-base font-bold text-white">Slot Duration, Buffer, & Token Capacity Rules</h3>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <h3 className="text-base font-bold text-slate-900">Slot Duration, Buffer, & Token Capacity Rules</h3>
+              <p className="text-xs text-slate-500 mt-0.5">
                 Configure appointment granularity, token limits, and booking horizon
               </p>
             </div>
             <button
               onClick={handleSaveProfile}
               disabled={isSaving}
-              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs flex items-center space-x-2 transition"
+              className="px-4 py-2 bg-[#17C964] hover:bg-[#0EA653] text-white font-bold rounded-xl text-xs flex items-center space-x-2 transition"
             >
               <Save className="w-4 h-4" />
               <span>{isSaving ? "Saving..." : "Save Slot Rules"}</span>
@@ -700,13 +700,13 @@ export const DoctorProfileSettings: React.FC<DoctorProfileSettingsProps> = ({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-xs">
             
-            <div className="p-4 bg-[#0D121F] border border-slate-800 rounded-2xl space-y-2">
-              <label className="text-white font-semibold block">Consultation Slot Duration</label>
-              <p className="text-[11px] text-slate-400">Duration allocated for each patient consultation</p>
+            <div className="p-4 bg-[#EDF1F5] border border-slate-200 rounded-2xl space-y-2">
+              <label className="text-slate-900 font-semibold block">Consultation Slot Duration</label>
+              <p className="text-[11px] text-slate-500">Duration allocated for each patient consultation</p>
               <select
                 value={profileData.slotDurationMin || 15}
                 onChange={(e) => updateField("slotDurationMin", parseInt(e.target.value, 10))}
-                className="w-full bg-[#13192B] border border-slate-700 rounded-xl px-3 py-2 text-white font-mono"
+                className="w-full bg-[#FFFFFF] border border-slate-300 rounded-xl px-3 py-2 text-slate-900 font-mono"
               >
                 <option value={10}>10 Minutes</option>
                 <option value={15}>15 Minutes (Standard)</option>
@@ -717,13 +717,13 @@ export const DoctorProfileSettings: React.FC<DoctorProfileSettingsProps> = ({
               </select>
             </div>
 
-            <div className="p-4 bg-[#0D121F] border border-slate-800 rounded-2xl space-y-2">
-              <label className="text-white font-semibold block">Buffer Interval Between Slots</label>
-              <p className="text-[11px] text-slate-400">Sanitization & documentation time between cases</p>
+            <div className="p-4 bg-[#EDF1F5] border border-slate-200 rounded-2xl space-y-2">
+              <label className="text-slate-900 font-semibold block">Buffer Interval Between Slots</label>
+              <p className="text-[11px] text-slate-500">Sanitization & documentation time between cases</p>
               <select
                 value={profileData.slotBufferMin || 5}
                 onChange={(e) => updateField("slotBufferMin", parseInt(e.target.value, 10))}
-                className="w-full bg-[#13192B] border border-slate-700 rounded-xl px-3 py-2 text-white font-mono"
+                className="w-full bg-[#FFFFFF] border border-slate-300 rounded-xl px-3 py-2 text-slate-900 font-mono"
               >
                 <option value={0}>0 Minutes (Back-to-back)</option>
                 <option value={5}>5 Minutes (Recommended)</option>
@@ -732,55 +732,55 @@ export const DoctorProfileSettings: React.FC<DoctorProfileSettingsProps> = ({
               </select>
             </div>
 
-            <div className="p-4 bg-[#0D121F] border border-slate-800 rounded-2xl space-y-2">
-              <label className="text-white font-semibold block">Max Tokens per Time Slot</label>
-              <p className="text-[11px] text-slate-400">Number of patients allowed in same slot window</p>
+            <div className="p-4 bg-[#EDF1F5] border border-slate-200 rounded-2xl space-y-2">
+              <label className="text-slate-900 font-semibold block">Max Tokens per Time Slot</label>
+              <p className="text-[11px] text-slate-500">Number of patients allowed in same slot window</p>
               <input
                 type="number"
                 min={1}
                 max={10}
                 value={profileData.tokensPerSlot || 2}
                 onChange={(e) => updateField("tokensPerSlot", parseInt(e.target.value, 10) || 1)}
-                className="w-full bg-[#13192B] border border-slate-700 rounded-xl px-3 py-2 text-white font-mono"
+                className="w-full bg-[#FFFFFF] border border-slate-300 rounded-xl px-3 py-2 text-slate-900 font-mono"
               />
             </div>
 
-            <div className="p-4 bg-[#0D121F] border border-slate-800 rounded-2xl space-y-2">
-              <label className="text-white font-semibold block">Daily Maximum Appointments Cap</label>
-              <p className="text-[11px] text-slate-400">Total appointments ceiling across all shifts in a day</p>
+            <div className="p-4 bg-[#EDF1F5] border border-slate-200 rounded-2xl space-y-2">
+              <label className="text-slate-900 font-semibold block">Daily Maximum Appointments Cap</label>
+              <p className="text-[11px] text-slate-500">Total appointments ceiling across all shifts in a day</p>
               <input
                 type="number"
                 min={5}
                 max={100}
                 value={profileData.dailyMaxAppointments || 30}
                 onChange={(e) => updateField("dailyMaxAppointments", parseInt(e.target.value, 10) || 30)}
-                className="w-full bg-[#13192B] border border-slate-700 rounded-xl px-3 py-2 text-white font-mono"
+                className="w-full bg-[#FFFFFF] border border-slate-300 rounded-xl px-3 py-2 text-slate-900 font-mono"
               />
             </div>
 
-            <div className="p-4 bg-[#0D121F] border border-slate-800 rounded-2xl space-y-2">
-              <label className="text-white font-semibold block">Booking Horizon (Days in Advance)</label>
-              <p className="text-[11px] text-slate-400">How far in advance patients can book slots</p>
+            <div className="p-4 bg-[#EDF1F5] border border-slate-200 rounded-2xl space-y-2">
+              <label className="text-slate-900 font-semibold block">Booking Horizon (Days in Advance)</label>
+              <p className="text-[11px] text-slate-500">How far in advance patients can book slots</p>
               <input
                 type="number"
                 min={1}
                 max={90}
                 value={profileData.bookingHorizonDays || 30}
                 onChange={(e) => updateField("bookingHorizonDays", parseInt(e.target.value, 10) || 30)}
-                className="w-full bg-[#13192B] border border-slate-700 rounded-xl px-3 py-2 text-white font-mono"
+                className="w-full bg-[#FFFFFF] border border-slate-300 rounded-xl px-3 py-2 text-slate-900 font-mono"
               />
             </div>
 
-            <div className="p-4 bg-[#0D121F] border border-slate-800 rounded-2xl space-y-2">
-              <label className="text-white font-semibold block">Booking Cutoff Window (Minutes)</label>
-              <p className="text-[11px] text-slate-400">Minimum notice before slot start for new bookings</p>
+            <div className="p-4 bg-[#EDF1F5] border border-slate-200 rounded-2xl space-y-2">
+              <label className="text-slate-900 font-semibold block">Booking Cutoff Window (Minutes)</label>
+              <p className="text-[11px] text-slate-500">Minimum notice before slot start for new bookings</p>
               <input
                 type="number"
                 min={0}
                 max={240}
                 value={profileData.bookingCutoffMins || 30}
                 onChange={(e) => updateField("bookingCutoffMins", parseInt(e.target.value, 10) || 30)}
-                className="w-full bg-[#13192B] border border-slate-700 rounded-xl px-3 py-2 text-white font-mono"
+                className="w-full bg-[#FFFFFF] border border-slate-300 rounded-xl px-3 py-2 text-slate-900 font-mono"
               />
             </div>
 
@@ -793,12 +793,12 @@ export const DoctorProfileSettings: React.FC<DoctorProfileSettingsProps> = ({
         <div className="space-y-6">
           
           {/* Emergency Trigger Section */}
-          <div className="bg-gradient-to-r from-red-950/80 via-[#13192B] to-[#13192B] border border-red-500/50 rounded-3xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xl">
+          <div className="bg-gradient-to-r from-[#FDE9E3] via-[#FFFFFF] to-[#FFFFFF] border border-[#F2603C]/50 rounded-3xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xl">
             <div className="flex items-start space-x-3 text-xs">
-              <Siren className="w-8 h-8 text-red-400 shrink-0 mt-1 animate-pulse" />
+              <Siren className="w-8 h-8 text-[#F2603C] shrink-0 mt-1 animate-pulse" />
               <div>
-                <h3 className="text-base font-bold text-red-200">🚨 Immediate Emergency Unavailability Trigger</h3>
-                <p className="text-slate-300 mt-1 max-w-xl">
+                <h3 className="text-base font-bold text-[#C83E1E]">🚨 Immediate Emergency Unavailability Trigger</h3>
+                <p className="text-slate-700 mt-1 max-w-xl">
                   In case of sudden hospital ER calls, personal emergencies, or acute illness, trigger an immediate emergency block. This instantly locks new bookings and safely handles existing scheduled patients.
                 </p>
               </div>
@@ -806,7 +806,7 @@ export const DoctorProfileSettings: React.FC<DoctorProfileSettingsProps> = ({
 
             <button
               onClick={() => setShowEmergencyModal(true)}
-              className="px-5 py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded-2xl text-xs flex items-center space-x-2 shadow-lg shadow-red-950/60 transition shrink-0"
+              className="px-5 py-3 bg-[#F2603C] hover:bg-[#E23A2E] text-white font-bold rounded-2xl text-xs flex items-center space-x-2 shadow-lg shadow-[#F2603C]/40 transition shrink-0"
             >
               <Siren className="w-4 h-4" />
               <span>Trigger Emergency Absence</span>
@@ -814,19 +814,19 @@ export const DoctorProfileSettings: React.FC<DoctorProfileSettingsProps> = ({
           </div>
 
           {/* Leave Application Form */}
-          <div className="bg-[#13192B] border border-slate-800 rounded-3xl p-6 space-y-4 shadow-xl">
-            <h3 className="text-sm font-bold text-white flex items-center space-x-2">
-              <Calendar className="w-4 h-4 text-emerald-400" />
+          <div className="bg-[#FFFFFF] border border-slate-200 rounded-3xl p-6 space-y-4 shadow-xl">
+            <h3 className="text-sm font-bold text-slate-900 flex items-center space-x-2">
+              <Calendar className="w-4 h-4 text-[#17C964]" />
               <span>Apply for Scheduled Planned Leave</span>
             </h3>
 
             <form onSubmit={handleApplyLeave} className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
               <div>
-                <label className="text-slate-400 mb-1 block">Leave Category</label>
+                <label className="text-slate-500 mb-1 block">Leave Category</label>
                 <select
                   value={leaveCategory}
                   onChange={(e: any) => setLeaveCategory(e.target.value)}
-                  className="w-full bg-[#0D121F] border border-slate-800 rounded-xl px-3 py-2.5 text-white"
+                  className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2.5 text-slate-900"
                 >
                   <option value="CASUAL">Casual Leave</option>
                   <option value="SICK">Medical / Sick Leave</option>
@@ -836,49 +836,49 @@ export const DoctorProfileSettings: React.FC<DoctorProfileSettingsProps> = ({
                 </select>
               </div>
 
-              <div className="flex items-center space-x-4 bg-[#0D121F] border border-slate-800 rounded-xl px-4 py-2 mt-5">
+              <div className="flex items-center space-x-4 bg-[#EDF1F5] border border-slate-200 rounded-xl px-4 py-2 mt-5">
                 <input
                   type="checkbox"
                   id="fullDay"
                   checked={leaveIsFullDay}
                   onChange={(e) => setLeaveIsFullDay(e.target.checked)}
-                  className="w-4 h-4 rounded text-emerald-500"
+                  className="w-4 h-4 rounded text-[#17C964]"
                 />
-                <label htmlFor="fullDay" className="text-slate-300 font-semibold cursor-pointer">
+                <label htmlFor="fullDay" className="text-slate-700 font-semibold cursor-pointer">
                   Full Day Leave
                 </label>
               </div>
 
               <div>
-                <label className="text-slate-400 mb-1 block">Start Date</label>
+                <label className="text-slate-500 mb-1 block">Start Date</label>
                 <input
                   type="date"
                   value={leaveStartDate}
                   onChange={(e) => setLeaveStartDate(e.target.value)}
-                  className="w-full bg-[#0D121F] border border-slate-800 rounded-xl px-3 py-2 text-white"
+                  className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900"
                   required
                 />
               </div>
 
               <div>
-                <label className="text-slate-400 mb-1 block">End Date</label>
+                <label className="text-slate-500 mb-1 block">End Date</label>
                 <input
                   type="date"
                   value={leaveEndDate}
                   onChange={(e) => setLeaveEndDate(e.target.value)}
-                  className="w-full bg-[#0D121F] border border-slate-800 rounded-xl px-3 py-2 text-white"
+                  className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900"
                   required
                 />
               </div>
 
               <div className="md:col-span-2">
-                <label className="text-slate-400 mb-1 block">Reason for Leave</label>
+                <label className="text-slate-500 mb-1 block">Reason for Leave</label>
                 <input
                   type="text"
                   placeholder="e.g., Attending National Cardiology Summit 2026..."
                   value={leaveReason}
                   onChange={(e) => setLeaveReason(e.target.value)}
-                  className="w-full bg-[#0D121F] border border-slate-800 rounded-xl px-3 py-2.5 text-white"
+                  className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2.5 text-slate-900"
                   required
                 />
               </div>
@@ -887,7 +887,7 @@ export const DoctorProfileSettings: React.FC<DoctorProfileSettingsProps> = ({
                 <button
                   type="submit"
                   disabled={isSubmittingLeave}
-                  className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs transition disabled:opacity-50"
+                  className="px-5 py-2.5 bg-[#17C964] hover:bg-[#0EA653] text-white font-bold rounded-xl text-xs transition disabled:opacity-50"
                 >
                   {isSubmittingLeave ? "Submitting..." : "Submit Leave Application"}
                 </button>
@@ -896,8 +896,8 @@ export const DoctorProfileSettings: React.FC<DoctorProfileSettingsProps> = ({
           </div>
 
           {/* Existing Leaves List */}
-          <div className="bg-[#13192B] border border-slate-800 rounded-3xl p-6 space-y-4 shadow-xl">
-            <h3 className="text-sm font-bold text-white">Submitted Leave History</h3>
+          <div className="bg-[#FFFFFF] border border-slate-200 rounded-3xl p-6 space-y-4 shadow-xl">
+            <h3 className="text-sm font-bold text-slate-900">Submitted Leave History</h3>
 
             {!profileData.leaves || profileData.leaves.length === 0 ? (
               <p className="text-xs text-slate-500 text-center py-4">No leave records submitted.</p>
@@ -906,23 +906,23 @@ export const DoctorProfileSettings: React.FC<DoctorProfileSettingsProps> = ({
                 {profileData.leaves.map((l) => (
                   <div
                     key={l.id}
-                    className="p-3.5 bg-[#0D121F] border border-slate-800 rounded-2xl flex items-center justify-between"
+                    className="p-3.5 bg-[#EDF1F5] border border-slate-200 rounded-2xl flex items-center justify-between"
                   >
                     <div>
                       <div className="flex items-center space-x-2">
-                        <span className="font-bold text-white">{l.category || "LEAVE"}</span>
-                        <span className="text-slate-400">({l.startDate} to {l.endDate})</span>
+                        <span className="font-bold text-slate-900">{l.category || "LEAVE"}</span>
+                        <span className="text-slate-500">({l.startDate} to {l.endDate})</span>
                       </div>
-                      <p className="text-slate-400 text-[11px] mt-0.5">{l.reason}</p>
+                      <p className="text-slate-500 text-[11px] mt-0.5">{l.reason}</p>
                     </div>
 
                     <div className="flex items-center space-x-3">
-                      <span className="text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-md">
+                      <span className="text-[10px] bg-[#E9FBF1] text-[#17C964] border border-[#17C964]/30 px-2 py-0.5 rounded-md">
                         {l.status}
                       </span>
                       <button
                         onClick={() => handleDeleteLeave(l.id)}
-                        className="text-slate-500 hover:text-red-400 p-1"
+                        className="text-slate-500 hover:text-[#F2603C] p-1"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -938,35 +938,35 @@ export const DoctorProfileSettings: React.FC<DoctorProfileSettingsProps> = ({
 
       {/* TAB CONTENT: NOTIFICATIONS */}
       {activeTab === "NOTIFICATIONS" && (
-        <div className="bg-[#13192B] border border-slate-800 rounded-3xl p-6 space-y-6 shadow-xl text-xs">
-          <div className="border-b border-slate-800 pb-4">
-            <h3 className="text-base font-bold text-white">Communication & Notification Preferences</h3>
-            <p className="text-slate-400 mt-0.5">Configure real-time alerts for bookings, cancellations, and emergency notifications</p>
+        <div className="bg-[#FFFFFF] border border-slate-200 rounded-3xl p-6 space-y-6 shadow-xl text-xs">
+          <div className="border-b border-slate-200 pb-4">
+            <h3 className="text-base font-bold text-slate-900">Communication & Notification Preferences</h3>
+            <p className="text-slate-500 mt-0.5">Configure real-time alerts for bookings, cancellations, and emergency notifications</p>
           </div>
 
           <div className="space-y-3 max-w-xl">
-            <div className="p-4 bg-[#0D121F] border border-slate-800 rounded-2xl flex items-center justify-between">
+            <div className="p-4 bg-[#EDF1F5] border border-slate-200 rounded-2xl flex items-center justify-between">
               <div>
-                <span className="font-bold text-white block">Email Notifications</span>
-                <span className="text-slate-400 text-[11px]">Receive daily schedule digests & appointment updates via email</span>
+                <span className="font-bold text-slate-900 block">Email Notifications</span>
+                <span className="text-slate-500 text-[11px]">Receive daily schedule digests & appointment updates via email</span>
               </div>
-              <input type="checkbox" defaultChecked className="w-4 h-4 rounded text-emerald-500" />
+              <input type="checkbox" defaultChecked className="w-4 h-4 rounded text-[#17C964]" />
             </div>
 
-            <div className="p-4 bg-[#0D121F] border border-slate-800 rounded-2xl flex items-center justify-between">
+            <div className="p-4 bg-[#EDF1F5] border border-slate-200 rounded-2xl flex items-center justify-between">
               <div>
-                <span className="font-bold text-white block">SMS Alerts</span>
-                <span className="text-slate-400 text-[11px]">Instant SMS for last-minute booking changes or emergency calls</span>
+                <span className="font-bold text-slate-900 block">SMS Alerts</span>
+                <span className="text-slate-500 text-[11px]">Instant SMS for last-minute booking changes or emergency calls</span>
               </div>
-              <input type="checkbox" defaultChecked className="w-4 h-4 rounded text-emerald-500" />
+              <input type="checkbox" defaultChecked className="w-4 h-4 rounded text-[#17C964]" />
             </div>
 
-            <div className="p-4 bg-[#0D121F] border border-slate-800 rounded-2xl flex items-center justify-between">
+            <div className="p-4 bg-[#EDF1F5] border border-slate-200 rounded-2xl flex items-center justify-between">
               <div>
-                <span className="font-bold text-white block">WhatsApp Updates</span>
-                <span className="text-slate-400 text-[11px]">Automated patient check-in notifications on WhatsApp</span>
+                <span className="font-bold text-slate-900 block">WhatsApp Updates</span>
+                <span className="text-slate-500 text-[11px]">Automated patient check-in notifications on WhatsApp</span>
               </div>
-              <input type="checkbox" defaultChecked className="w-4 h-4 rounded text-emerald-500" />
+              <input type="checkbox" defaultChecked className="w-4 h-4 rounded text-[#17C964]" />
             </div>
           </div>
         </div>
@@ -974,29 +974,29 @@ export const DoctorProfileSettings: React.FC<DoctorProfileSettingsProps> = ({
 
       {/* TAB CONTENT: SECURITY */}
       {activeTab === "SECURITY" && (
-        <div className="bg-[#13192B] border border-slate-800 rounded-3xl p-6 space-y-6 shadow-xl text-xs">
-          <div className="border-b border-slate-800 pb-4">
-            <h3 className="text-base font-bold text-white">Security & Access Management</h3>
-            <p className="text-slate-400 mt-0.5">Manage two-factor authentication, session timeouts, and clinical access logs</p>
+        <div className="bg-[#FFFFFF] border border-slate-200 rounded-3xl p-6 space-y-6 shadow-xl text-xs">
+          <div className="border-b border-slate-200 pb-4">
+            <h3 className="text-base font-bold text-slate-900">Security & Access Management</h3>
+            <p className="text-slate-500 mt-0.5">Manage two-factor authentication, session timeouts, and clinical access logs</p>
           </div>
 
           <div className="space-y-4 max-w-xl">
-            <div className="p-4 bg-[#0D121F] border border-slate-800 rounded-2xl flex items-center justify-between">
+            <div className="p-4 bg-[#EDF1F5] border border-slate-200 rounded-2xl flex items-center justify-between">
               <div>
-                <span className="font-bold text-white block">Two-Factor Authentication (2FA)</span>
-                <span className="text-slate-400 text-[11px]">Require OTP verification upon signing in into NexusHealth</span>
+                <span className="font-bold text-slate-900 block">Two-Factor Authentication (2FA)</span>
+                <span className="text-slate-500 text-[11px]">Require OTP verification upon signing in into NexusHealth</span>
               </div>
-              <span className="px-2.5 py-1 bg-emerald-950 text-emerald-400 border border-emerald-500/30 rounded-lg text-[10px] font-bold">
+              <span className="px-2.5 py-1 bg-[#E9FBF1] text-[#17C964] border border-[#17C964]/30 rounded-lg text-[10px] font-bold">
                 ACTIVE
               </span>
             </div>
 
-            <div className="p-4 bg-[#0D121F] border border-slate-800 rounded-2xl flex items-center justify-between">
+            <div className="p-4 bg-[#EDF1F5] border border-slate-200 rounded-2xl flex items-center justify-between">
               <div>
-                <span className="font-bold text-white block">Automatic Session Timeout</span>
-                <span className="text-slate-400 text-[11px]">Lock clinical workstation after inactivity</span>
+                <span className="font-bold text-slate-900 block">Automatic Session Timeout</span>
+                <span className="text-slate-500 text-[11px]">Lock clinical workstation after inactivity</span>
               </div>
-              <select className="bg-[#13192B] border border-slate-700 text-white rounded-xl px-3 py-1.5 font-mono">
+              <select className="bg-[#FFFFFF] border border-slate-300 text-slate-900 rounded-xl px-3 py-1.5 font-mono">
                 <option value="15">15 Minutes</option>
                 <option value="30">30 Minutes</option>
                 <option value="60">60 Minutes</option>

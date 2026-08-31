@@ -44,7 +44,7 @@ export const EmergencyAccessDoctorView: React.FC<EmergencyAccessDoctorViewProps>
 
   // Identification State (Step 1)
   const [idMethod, setIdMethod] = useState<"GLOBAL_HEALTH_ID" | "ACCESS_CARD" | "PATIENT_NAME" | "FINGERPRINT">("GLOBAL_HEALTH_ID");
-  const [searchQuery, setSearchQuery] = useState<string>("NH-IND-2026-88392014");
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const [identifying, setIdentifying] = useState<boolean>(false);
   const [identifyError, setIdentifyError] = useState<string | null>(null);
 
@@ -78,6 +78,15 @@ export const EmergencyAccessDoctorView: React.FC<EmergencyAccessDoctorViewProps>
   // Opened Clinical Record View
   const [openedPatientProfile, setOpenedPatientProfile] = useState<any | null>(null);
   const [openedMedicalRecords, setOpenedMedicalRecords] = useState<any[]>([]);
+  const [emergencySession, setEmergencySession] = useState<any | null>(null);
+
+  const handleEndEmergencySession = () => {
+    if (emergencySession?.id) {
+      fetch(`/api/doctor/access-sessions/${emergencySession.id}/end`, { method: "POST" }).catch(() => {});
+    }
+    setEmergencySession(null);
+    setOpenedPatientProfile(null);
+  };
 
   // Camera Scanner Effect
   useEffect(() => {
@@ -236,7 +245,7 @@ export const EmergencyAccessDoctorView: React.FC<EmergencyAccessDoctorViewProps>
         if (prev >= 100) {
           clearInterval(interval);
           setIsBiometricScanning(false);
-          handleIdentifyPatient(searchQuery || "NH-IND-2026-88392014");
+          handleIdentifyPatient(searchQuery);
           return 100;
         }
         return prev + 25;
@@ -291,6 +300,7 @@ export const EmergencyAccessDoctorView: React.FC<EmergencyAccessDoctorViewProps>
 
       setOpenedPatientProfile(data.patientProfile || identifiedPatient);
       setOpenedMedicalRecords(data.records || []);
+      setEmergencySession(data.accessSession || null);
       if (onRefreshRecords) onRefreshRecords();
     } catch (err: any) {
       setAuthError(err.message || "Failed to execute Break-Glass authorization.");
@@ -314,19 +324,19 @@ export const EmergencyAccessDoctorView: React.FC<EmergencyAccessDoctorViewProps>
         patient={openedPatientProfile}
         doctor={doctor}
         accessMethod="EMERGENCY_BREAK_GLASS"
+        accessSession={emergencySession}
         records={openedMedicalRecords}
-        onBack={() => {
-          setOpenedPatientProfile(null);
-        }}
+        onBack={handleEndEmergencySession}
+        onEndEmergencySession={handleEndEmergencySession}
         onRefreshRecords={onRefreshRecords}
       />
     );
   }
 
   return (
-    <div className="space-y-6 animate-fade-in text-slate-100">
+    <div className="space-y-6 animate-fade-in text-slate-900">
       {/* 1. UNIFIED EMERGENCY BANNER */}
-      <div className="bg-gradient-to-r from-red-950 via-rose-950 to-[#0B0F19] border-2 border-red-500/50 rounded-3xl p-6 shadow-2xl relative overflow-hidden">
+      <div className="bg-gradient-to-r from-red-950 via-rose-950 to-[#FFFFFF] border-2 border-red-500/50 rounded-3xl p-6 shadow-2xl relative overflow-hidden">
         <div className="absolute top-0 right-0 w-96 h-96 bg-red-600/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -352,12 +362,12 @@ export const EmergencyAccessDoctorView: React.FC<EmergencyAccessDoctorViewProps>
             {onNavigateToAccessHistory && (
               <button
                 onClick={onNavigateToAccessHistory}
-                className="px-4 py-2.5 bg-[#13192B] hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-white font-bold rounded-2xl text-xs transition flex items-center justify-center space-x-1.5 shadow-md group cursor-pointer"
+                className="px-4 py-2.5 bg-[#FFFFFF] hover:bg-slate-100 border border-slate-300 text-slate-700 hover:text-white font-bold rounded-2xl text-xs transition flex items-center justify-center space-x-1.5 shadow-md group cursor-pointer"
                 title="View Centralized Audit Ledger"
               >
-                <History className="w-3.5 h-3.5 text-purple-400 group-hover:rotate-45 transition-transform" />
+                <History className="w-3.5 h-3.5 text-[#17C964] group-hover:rotate-45 transition-transform" />
                 <span>Record Access History</span>
-                <ExternalLink className="w-3 h-3 text-slate-500 group-hover:text-purple-400" />
+                <ExternalLink className="w-3 h-3 text-slate-500 group-hover:text-[#17C964]" />
               </button>
             )}
           </div>
@@ -369,7 +379,7 @@ export const EmergencyAccessDoctorView: React.FC<EmergencyAccessDoctorViewProps>
       {/* ========================================================================= */}
       <div className="space-y-6">
         {/* STEP PROGRESS BAR */}
-        <div className="bg-[#13192B] border border-slate-800 rounded-2xl p-4 shadow-md">
+        <div className="bg-[#FFFFFF] border border-slate-200 rounded-2xl p-4 shadow-md">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
             {[
               { num: 1, label: "Step 1 — Identify Patient", active: workflowStep >= 1, current: workflowStep === 1 },
@@ -383,8 +393,8 @@ export const EmergencyAccessDoctorView: React.FC<EmergencyAccessDoctorViewProps>
                   step.current
                     ? "bg-red-600/20 border-red-500 text-white font-bold"
                     : step.active
-                    ? "bg-[#0D121F] border-slate-700 text-emerald-300 font-medium"
-                    : "bg-[#090D1A] border-slate-800/60 text-slate-500"
+                    ? "bg-[#EDF1F5] border-slate-300 text-[#17C964] font-medium"
+                    : "bg-[#F4F6F8] border-slate-200 text-slate-500"
                 }`}
               >
                 <span
@@ -392,8 +402,8 @@ export const EmergencyAccessDoctorView: React.FC<EmergencyAccessDoctorViewProps>
                     step.current
                       ? "bg-red-600 text-white"
                       : step.active
-                      ? "bg-emerald-600 text-white"
-                      : "bg-slate-800 text-slate-400"
+                      ? "bg-[#17C964] text-white"
+                      : "bg-slate-100 text-slate-500"
                   }`}
                 >
                   {step.num}
@@ -405,22 +415,22 @@ export const EmergencyAccessDoctorView: React.FC<EmergencyAccessDoctorViewProps>
         </div>
 
         {/* STEP 1: PATIENT IDENTIFICATION SECTION */}
-        <div className="bg-[#13192B] border border-slate-800 rounded-3xl p-6 shadow-xl space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-4">
+        <div className="bg-[#FFFFFF] border border-slate-200 rounded-3xl p-6 shadow-xl space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-4">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 rounded-2xl bg-red-600/10 border border-red-500/30 flex items-center justify-center text-red-400">
                 <UserCheck className="w-5 h-5" />
               </div>
               <div>
-                <h2 className="text-lg font-bold text-white">Step 1 — Emergency Patient Identification</h2>
-                <p className="text-xs text-slate-400">Identify the trauma/emergency patient using one of 4 approved methods.</p>
+                <h2 className="text-lg font-bold text-slate-900">Step 1 — Emergency Patient Identification</h2>
+                <p className="text-xs text-slate-500">Identify the trauma/emergency patient using one of 4 approved methods.</p>
               </div>
             </div>
 
             {identifiedPatient && (
               <button
                 onClick={handleResetWorkflow}
-                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-xl transition flex items-center space-x-1.5 self-start"
+                className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition flex items-center space-x-1.5 self-start"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
                 <span>Change / Re-identify Patient</span>
@@ -444,23 +454,20 @@ export const EmergencyAccessDoctorView: React.FC<EmergencyAccessDoctorViewProps>
                   onClick={() => {
                     setIdMethod(m.key as any);
                     setIdentifyError(null);
-                    if (m.key === "GLOBAL_HEALTH_ID") setSearchQuery("NH-IND-2026-88392014");
-                    if (m.key === "PATIENT_NAME") setSearchQuery("Ananya Sharma");
-                    if (m.key === "ACCESS_CARD") setSearchQuery("CARD-SEC-99201");
                   }}
                   className={`p-4 rounded-2xl border text-left flex flex-col justify-between transition ${
                     isSel
-                      ? "bg-red-600/20 border-red-500 text-white font-bold shadow-md shadow-red-950/50"
-                      : "bg-[#0D121F] border-slate-800 text-slate-400 hover:text-white hover:border-slate-700"
+                      ? "bg-[#FDECE8] border-[#F2603C] text-[#CC3315] font-bold shadow-md"
+                      : "bg-[#EDF1F5] border-slate-200 text-slate-500 hover:text-slate-900 hover:border-slate-300"
                   }`}
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <Icon className={`w-5 h-5 ${isSel ? "text-red-400" : "text-slate-500"}`} />
-                    {isSel && <span className="w-2 h-2 rounded-full bg-red-400 animate-ping" />}
+                    <Icon className={`w-5 h-5 ${isSel ? "text-[#F2603C]" : "text-slate-500"}`} />
+                    {isSel && <span className="w-2 h-2 rounded-full bg-[#F2603C] animate-ping" />}
                   </div>
                   <div>
-                    <div className="text-xs font-bold text-white">{m.label}</div>
-                    <div className="text-[10px] text-slate-400 mt-0.5">{m.desc}</div>
+                    <div className={`text-xs font-bold ${isSel ? "text-[#CC3315]" : "text-slate-800"}`}>{m.label}</div>
+                    <div className="text-[10px] text-slate-500 mt-0.5">{m.desc}</div>
                   </div>
                 </button>
               );
@@ -468,18 +475,18 @@ export const EmergencyAccessDoctorView: React.FC<EmergencyAccessDoctorViewProps>
           </div>
 
           {/* IDENTIFICATION INPUT INTERFACES */}
-          <div className="bg-[#0D121F] border border-slate-800 rounded-2xl p-5 space-y-4">
+          <div className="bg-[#EDF1F5] border border-slate-200 rounded-2xl p-5 space-y-4">
             {/* Method 1: Global Health ID */}
             {idMethod === "GLOBAL_HEALTH_ID" && (
               <div className="space-y-3 max-w-xl">
-                <label className="text-slate-300 text-xs font-bold block">Enter Patient Global Health ID</label>
-                <div className="flex items-center space-x-2">
+                <label className="text-slate-700 text-xs font-bold block">Enter Patient Global Health ID</label>
+<div className="flex items-center space-x-2">
                   <input
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="e.g. NH-IND-2026-88392014"
-                    className="w-full bg-[#13192B] border border-slate-700 rounded-xl px-4 py-3 text-white text-sm font-mono focus:border-red-500 focus:outline-none"
+                    placeholder="e.g. NH-IND-2026-XXXXXXXX"
+                    className="w-full bg-[#FFFFFF] border border-slate-300 rounded-xl px-4 py-3 text-slate-900 text-sm font-mono placeholder-slate-400 focus:border-red-500 focus:outline-none"
                   />
                   <button
                     onClick={() => handleIdentifyPatient()}
@@ -490,29 +497,6 @@ export const EmergencyAccessDoctorView: React.FC<EmergencyAccessDoctorViewProps>
                     <span>{identifying ? "Identifying..." : "Identify Patient"}</span>
                   </button>
                 </div>
-
-                {/* Quick Demo ID shortcuts */}
-                <div className="flex items-center space-x-2 text-[11px] text-slate-400">
-                  <span>Quick Select:</span>
-                  <button
-                    onClick={() => {
-                      setSearchQuery("NH-IND-2026-88392014");
-                      handleIdentifyPatient("NH-IND-2026-88392014");
-                    }}
-                    className="px-2.5 py-1 bg-[#13192B] hover:bg-slate-800 border border-slate-700 text-rose-300 rounded-lg font-mono text-[10px]"
-                  >
-                    Ananya Sharma (NH-IND-2026-88392014)
-                  </button>
-                  <button
-                    onClick={() => {
-                      setSearchQuery("NH-IND-2026-99281045");
-                      handleIdentifyPatient("NH-IND-2026-99281045");
-                    }}
-                    className="px-2.5 py-1 bg-[#13192B] hover:bg-slate-800 border border-slate-700 text-rose-300 rounded-lg font-mono text-[10px]"
-                  >
-                    Rohan Verma (NH-IND-2026-99281045)
-                  </button>
-                </div>
               </div>
             )}
 
@@ -521,8 +505,8 @@ export const EmergencyAccessDoctorView: React.FC<EmergencyAccessDoctorViewProps>
               <div className="space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
-                    <label className="text-slate-300 text-xs font-bold block">Patient Access Card / Emergency QR Code</label>
-                    <p className="text-[11px] text-slate-400">Scan QR via device camera, upload a QR code image/screenshot, or enter card token.</p>
+                    <label className="text-slate-700 text-xs font-bold block">Patient Access Card / Emergency QR Code</label>
+                    <p className="text-[11px] text-slate-500">Scan QR via device camera, upload a QR code image/screenshot, or enter card token.</p>
                   </div>
 
                   <div className="flex items-center space-x-2">
@@ -538,16 +522,16 @@ export const EmergencyAccessDoctorView: React.FC<EmergencyAccessDoctorViewProps>
                     <button
                       onClick={() => fileInputRef.current?.click()}
                       disabled={isUploadingQR}
-                      className="px-4 py-2 bg-[#13192B] hover:bg-slate-800 border border-slate-700 text-slate-200 text-xs font-bold rounded-xl flex items-center space-x-1.5 transition cursor-pointer"
+                      className="px-4 py-2 bg-[#FFFFFF] hover:bg-slate-100 border border-slate-300 text-slate-800 text-xs font-bold rounded-xl flex items-center space-x-1.5 transition cursor-pointer"
                     >
-                      <Upload className="w-4 h-4 text-emerald-400" />
+                      <Upload className="w-4 h-4 text-[#17C964]" />
                       <span>{isUploadingQR ? "Reading Image..." : "Upload QR Screenshot / Photo"}</span>
                     </button>
 
                     <button
                       onClick={() => setIsCameraActive(!isCameraActive)}
                       className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center space-x-2 transition cursor-pointer ${
-                        isCameraActive ? "bg-red-600 text-white" : "bg-slate-800 text-slate-300 hover:text-white"
+                        isCameraActive ? "bg-red-600 text-white" : "bg-slate-100 text-slate-700 hover:text-white"
                       }`}
                     >
                       <Camera className="w-4 h-4" />
@@ -573,7 +557,7 @@ export const EmergencyAccessDoctorView: React.FC<EmergencyAccessDoctorViewProps>
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="e.g. CARD-SEC-99201 or scan token"
-                    className="w-full bg-[#13192B] border border-slate-700 rounded-xl px-4 py-3 text-white text-sm font-mono focus:border-red-500 focus:outline-none"
+                    className="w-full bg-[#FFFFFF] border border-slate-300 rounded-xl px-4 py-3 text-slate-900 text-sm font-mono placeholder-slate-400 focus:border-red-500 focus:outline-none"
                   />
                   <button
                     onClick={() => handleIdentifyPatient()}
@@ -590,14 +574,14 @@ export const EmergencyAccessDoctorView: React.FC<EmergencyAccessDoctorViewProps>
             {/* Method 3: Name Search */}
             {idMethod === "PATIENT_NAME" && (
               <div className="space-y-3 max-w-xl">
-                <label className="text-slate-300 text-xs font-bold block">Search Patient by Full Name</label>
+                <label className="text-slate-700 text-xs font-bold block">Search Patient by Full Name</label>
                 <div className="flex items-center space-x-2">
                   <input
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="e.g. Ananya Sharma or Rohan Verma"
-                    className="w-full bg-[#13192B] border border-slate-700 rounded-xl px-4 py-3 text-white text-sm focus:border-red-500 focus:outline-none"
+                    placeholder="e.g. Patient name or Health ID"
+                    className="w-full bg-[#FFFFFF] border border-slate-300 rounded-xl px-4 py-3 text-slate-900 text-sm placeholder-slate-400 focus:border-red-500 focus:outline-none"
                   />
                   <button
                     onClick={() => handleIdentifyPatient()}
@@ -615,11 +599,11 @@ export const EmergencyAccessDoctorView: React.FC<EmergencyAccessDoctorViewProps>
             {idMethod === "FINGERPRINT" && (
               <div className="space-y-4 max-w-xl">
                 <div>
-                  <label className="text-slate-300 text-xs font-bold block">Biometric Optical / Face Recognition Scanner</label>
-                  <p className="text-[11px] text-slate-400">Place patient finger on clinical USB biometric reader or authenticate via terminal passkey.</p>
+                  <label className="text-slate-700 text-xs font-bold block">Biometric Optical / Face Recognition Scanner</label>
+                  <p className="text-[11px] text-slate-500">Place patient finger on clinical USB biometric reader or authenticate via terminal passkey.</p>
                 </div>
 
-                <div className="p-6 bg-[#13192B] border border-slate-800 rounded-2xl text-center space-y-4">
+                <div className="p-6 bg-[#FFFFFF] border border-slate-200 rounded-2xl text-center space-y-4">
                   <div className="w-16 h-16 rounded-3xl bg-red-950/60 border border-red-500/40 mx-auto flex items-center justify-center text-red-400 shadow-inner">
                     <Fingerprint className={`w-8 h-8 ${isBiometricScanning ? "animate-pulse text-red-300" : ""}`} />
                   </div>
@@ -627,7 +611,7 @@ export const EmergencyAccessDoctorView: React.FC<EmergencyAccessDoctorViewProps>
                   {isBiometricScanning ? (
                     <div className="space-y-2">
                       <div className="text-xs font-bold text-red-300">Scanning Biometric Ledger ({biometricProgress}%)...</div>
-                      <div className="w-full max-w-xs mx-auto bg-slate-800 h-2 rounded-full overflow-hidden">
+                      <div className="w-full max-w-xs mx-auto bg-slate-100 h-2 rounded-full overflow-hidden">
                         <div className="bg-red-500 h-full transition-all duration-200" style={{ width: `${biometricProgress}%` }} />
                       </div>
                     </div>
@@ -655,20 +639,20 @@ export const EmergencyAccessDoctorView: React.FC<EmergencyAccessDoctorViewProps>
 
           {/* VERIFIED PATIENT IDENTITY CARD */}
           {identifiedPatient && (
-            <div className="bg-gradient-to-br from-[#0D121F] to-[#13192B] border-2 border-emerald-500/60 rounded-3xl p-6 shadow-2xl space-y-5">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-4">
+            <div className="bg-gradient-to-br from-[#EDF1F5] to-[#FFFFFF] border-2 border-[#17C964]/60 rounded-3xl p-6 shadow-2xl space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-4">
                 <div className="flex items-center space-x-4">
-                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-600 flex items-center justify-center text-white font-black text-xl shadow-lg border border-emerald-400/40">
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#17C964] to-[#0f172a] flex items-center justify-center text-white font-black text-xl shadow-lg border border-[#7EC3EA]/40">
                     {identifiedPatient.name ? identifiedPatient.name.charAt(0) : "P"}
                   </div>
                   <div>
                     <div className="flex items-center space-x-2">
-                      <h3 className="font-extrabold text-white text-lg">{identifiedPatient.name}</h3>
-                      <span className="px-2.5 py-0.5 bg-emerald-950 border border-emerald-500/50 text-emerald-400 font-mono text-[10px] font-bold rounded-md">
+                      <h3 className="font-extrabold text-slate-900 text-lg">{identifiedPatient.name}</h3>
+                      <span className="px-2.5 py-0.5 bg-[#E9FBF1] border border-[#17C964]/50 text-[#17C964] font-mono text-[10px] font-bold rounded-md">
                         VERIFIED IDENTITY
                       </span>
                     </div>
-                    <div className="text-xs font-mono text-emerald-400 mt-0.5">
+                    <div className="text-xs font-mono text-[#17C964] mt-0.5">
                       Global Health ID: {identifiedPatient.globalHealthId}
                     </div>
                   </div>
@@ -684,43 +668,43 @@ export const EmergencyAccessDoctorView: React.FC<EmergencyAccessDoctorViewProps>
 
               {/* Patient Key Medical Profile Flags */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-                <div className="p-3.5 bg-[#090D1A] border border-slate-800 rounded-xl space-y-1">
-                  <div className="text-slate-400 font-bold flex items-center space-x-1.5">
-                    <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+                <div className="p-3.5 bg-[#FFFFFF] border border-slate-200 rounded-xl space-y-1">
+                  <div className="text-slate-500 font-bold flex items-center space-x-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5 text-[#F2603C]" />
                     <span>Critical Allergies</span>
                   </div>
-                  <div className="text-amber-300 font-semibold">
+                  <div className="text-[#CC3315] font-semibold">
                     {identifiedPatient.allergies && identifiedPatient.allergies.length > 0
                       ? identifiedPatient.allergies.join(", ")
                       : "Penicillin Allergy (Reported)"}
                   </div>
                 </div>
 
-                <div className="p-3.5 bg-[#090D1A] border border-slate-800 rounded-xl space-y-1">
-                  <div className="text-slate-400 font-bold flex items-center space-x-1.5">
-                    <HeartPulse className="w-3.5 h-3.5 text-rose-400" />
+                <div className="p-3.5 bg-[#FFFFFF] border border-slate-200 rounded-xl space-y-1">
+                  <div className="text-slate-500 font-bold flex items-center space-x-1.5">
+                    <HeartPulse className="w-3.5 h-3.5 text-[#F2603C]" />
                     <span>Chronic Conditions</span>
                   </div>
-                  <div className="text-rose-300 font-semibold">
+                  <div className="text-slate-800 font-semibold">
                     {identifiedPatient.chronicConditions && identifiedPatient.chronicConditions.length > 0
                       ? identifiedPatient.chronicConditions.join(", ")
                       : "Mild Asthma, Hypertension"}
                   </div>
                 </div>
 
-                <div className="p-3.5 bg-[#090D1A] border border-slate-800 rounded-xl space-y-1">
-                  <div className="text-slate-400 font-bold flex items-center space-x-1.5">
-                    <Phone className="w-3.5 h-3.5 text-sky-400" />
+                <div className="p-3.5 bg-[#FFFFFF] border border-slate-200 rounded-xl space-y-1">
+                  <div className="text-slate-500 font-bold flex items-center space-x-1.5">
+                    <Phone className="w-3.5 h-3.5 text-[#17C964]" />
                     <span>Emergency Next of Kin</span>
                   </div>
-                  <div className="text-sky-300 font-semibold">
+                  <div className="text-slate-800 font-semibold">
                     {identifiedPatient.emergencyContactName || "Vikram Sharma (Brother)"} • {identifiedPatient.emergencyContactPhone || "+91 98765 43210"}
                   </div>
                 </div>
               </div>
 
-              <div className="pt-2 flex items-center justify-between text-xs text-slate-400 border-t border-slate-800">
-                <span className="flex items-center space-x-1.5 text-emerald-400 font-bold">
+              <div className="pt-2 flex items-center justify-between text-xs text-slate-500 border-t border-slate-200">
+                <span className="flex items-center space-x-1.5 text-[#17C964] font-bold">
                   <CheckCircle2 className="w-4 h-4" />
                   <span>Identity confirmed. Proceed to Step 2 & 3: Break-Glass Authorization.</span>
                 </span>
@@ -733,14 +717,14 @@ export const EmergencyAccessDoctorView: React.FC<EmergencyAccessDoctorViewProps>
 
         {/* STEP 2 & 3: EMERGENCY REASON & BREAK-GLASS AUTHORIZATION SECTION */}
         {identifiedPatient && (
-          <div className="bg-[#13192B] border-2 border-red-500/50 rounded-3xl p-6 shadow-2xl space-y-6">
-            <div className="flex items-center space-x-3 border-b border-slate-800 pb-4">
+          <div className="bg-[#FFFFFF] border-2 border-red-500/50 rounded-3xl p-6 shadow-2xl space-y-6">
+            <div className="flex items-center space-x-3 border-b border-slate-200 pb-4">
               <div className="w-10 h-10 rounded-2xl bg-red-600/20 border border-red-500/50 flex items-center justify-center text-red-400 shadow-md">
                 <ShieldAlert className="w-5 h-5 animate-pulse" />
               </div>
               <div>
-                <h2 className="text-lg font-bold text-white">Step 2 & 3 — Emergency Reason & Break-Glass Authorization</h2>
-                <p className="text-xs text-slate-400">
+                <h2 className="text-lg font-bold text-slate-900">Step 2 & 3 — Emergency Reason & Break-Glass Authorization</h2>
+                <p className="text-xs text-slate-500">
                   Break-Glass is the legal authorization override to unlock the EHR for <strong>{identifiedPatient.name}</strong> without prior consent.
                 </p>
               </div>
@@ -761,13 +745,13 @@ export const EmergencyAccessDoctorView: React.FC<EmergencyAccessDoctorViewProps>
             <div className="space-y-4 text-xs">
               {/* Emergency Reason Dropdown */}
               <div>
-                <label className="text-slate-300 font-bold block mb-1.5">
+                <label className="text-slate-700 font-bold block mb-1.5">
                   Step 2: Clinical Emergency Reason <span className="text-red-400">*</span>
                 </label>
                 <select
                   value={emergencyReason}
                   onChange={(e) => setEmergencyReason(e.target.value)}
-                  className="w-full bg-[#0D121F] border border-slate-700 rounded-xl px-4 py-3 text-white text-xs focus:border-red-500 focus:outline-none"
+                  className="w-full bg-[#EDF1F5] border border-slate-300 rounded-xl px-4 py-3 text-slate-900 text-xs focus:border-red-500 focus:outline-none"
                 >
                   <option value="Patient unconscious / Unresponsive (Trauma Triage)">
                     🚨 Patient unconscious / Unresponsive (Trauma Triage)
@@ -785,14 +769,14 @@ export const EmergencyAccessDoctorView: React.FC<EmergencyAccessDoctorViewProps>
                     🚨 Acute Respiratory Failure / Toxic Poisoning
                   </option>
                   <option value="Other">
-                    ⚠️ Other Critical Emergency (Specify below)
+                    🚨 Other Critical Emergency (Specify below)
                   </option>
                 </select>
               </div>
 
               {emergencyReason === "Other" && (
                 <div>
-                  <label className="text-slate-300 font-bold block mb-1">
+                  <label className="text-slate-700 font-bold block mb-1">
                     Specify Custom Emergency Reason <span className="text-red-400">*</span>
                   </label>
                   <input
@@ -800,7 +784,7 @@ export const EmergencyAccessDoctorView: React.FC<EmergencyAccessDoctorViewProps>
                     value={customReason}
                     onChange={(e) => setCustomReason(e.target.value)}
                     placeholder="e.g. Acute stroke protocol with severe aphasia and no next-of-kin present"
-                    className="w-full bg-[#0D121F] border border-slate-700 rounded-xl px-4 py-2.5 text-white text-xs focus:border-red-500 focus:outline-none"
+                    className="w-full bg-[#EDF1F5] border border-slate-300 rounded-xl px-4 py-2.5 text-slate-900 text-xs placeholder-slate-400 focus:border-red-500 focus:outline-none"
                   />
                 </div>
               )}
@@ -808,10 +792,10 @@ export const EmergencyAccessDoctorView: React.FC<EmergencyAccessDoctorViewProps>
               {/* Mandatory Clinical Justification */}
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-slate-300 font-bold block">
+                  <label className="text-slate-700 font-bold block">
                     Step 3: Mandatory Clinical Justification <span className="text-red-400">*</span>
                   </label>
-                  <span className="text-[10px] font-mono text-slate-400">
+                  <span className="text-[10px] font-mono text-slate-500">
                     {clinicalJustification.length} characters (min 10)
                   </span>
                 </div>
@@ -820,19 +804,19 @@ export const EmergencyAccessDoctorView: React.FC<EmergencyAccessDoctorViewProps>
                   value={clinicalJustification}
                   onChange={(e) => setClinicalJustification(e.target.value)}
                   placeholder="Enter detailed medical necessity explaining why emergency break-glass override is strictly required..."
-                  className="w-full bg-[#0D121F] border border-slate-700 rounded-xl p-3.5 text-white text-xs focus:border-red-500 focus:outline-none leading-relaxed"
+                  className="w-full bg-[#EDF1F5] border border-slate-300 rounded-xl p-3.5 text-slate-900 text-xs placeholder-slate-400 focus:border-red-500 focus:outline-none leading-relaxed"
                 />
               </div>
 
               {/* Doctor Certification Checkbox */}
-              <label className="flex items-start space-x-3 p-3.5 bg-[#0D121F] border border-slate-800 rounded-xl cursor-pointer">
+              <label className="flex items-start space-x-3 p-3.5 bg-[#EDF1F5] border border-slate-200 rounded-xl cursor-pointer">
                 <input
                   type="checkbox"
                   checked={certifiedAcknowledgement}
                   onChange={(e) => setCertifiedAcknowledgement(e.target.checked)}
-                  className="mt-0.5 w-4 h-4 text-red-600 bg-slate-800 border-slate-700 rounded focus:ring-red-500 cursor-pointer"
+                  className="mt-0.5 w-4 h-4 text-red-600 bg-slate-100 border-slate-300 rounded focus:ring-red-500 cursor-pointer"
                 />
-                <span className="text-slate-300 text-xs leading-relaxed">
+                <span className="text-slate-700 text-xs leading-relaxed">
                   I, <strong>{doctor?.name || "Practicing Physician"}</strong>, certify under medical license penalty that this <strong>Break-Glass emergency override</strong> is strictly necessary for immediate life-saving care for <strong>{identifiedPatient.name}</strong>, and consent cannot be obtained due to acute medical incapacity.
                 </span>
               </label>
@@ -845,9 +829,9 @@ export const EmergencyAccessDoctorView: React.FC<EmergencyAccessDoctorViewProps>
               )}
 
               {/* EXECUTE BREAK-GLASS BUTTON */}
-              <div className="pt-3 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-800">
-                <div className="text-[11px] text-slate-400 flex items-center space-x-1.5">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+              <div className="pt-3 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-200">
+                <div className="text-[11px] text-slate-500 flex items-center space-x-1.5">
+                  <ShieldCheck className="w-3.5 h-3.5 text-[#F2603C]" />
                   <span>Logged directly into centralized Record Access History</span>
                 </div>
 

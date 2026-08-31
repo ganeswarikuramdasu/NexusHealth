@@ -113,7 +113,7 @@ public class PatientService {
                 ? doctorRepository.findById(req.getDoctorId()).orElseGet(() -> doctorRepository.findByUserId(req.getDoctorId()).orElse(null))
                 : null;
 
-        String targetPatientUserId = resolved != null ? resolved.userId : (req.getPatientId() != null ? req.getPatientId() : "u_pat_1");
+        String targetPatientUserId = resolved != null ? resolved.userId : (req.getPatientId() != null ? req.getPatientId() : "");
         String targetPatientName = resolved != null ? resolved.name : "Patient Citizen";
         String docId = doctor != null ? doctor.getId() : req.getDoctorId();
         String docName = doctor != null ? doctor.getName() : "Attending Physician";
@@ -198,7 +198,7 @@ public class PatientService {
                 : null;
 
         Map<String, Object> data = new LinkedHashMap<>();
-        data.put("patientId", req.getPatientId() != null ? req.getPatientId() : "u_pat_1");
+        data.put("patientId", req.getPatientId() != null ? req.getPatientId() : "");
         data.put("patientName", req.getPatientName() != null ? req.getPatientName() : "Patient");
         data.put("doctorId", req.getDoctorId());
         data.put("doctorName", doctor != null ? doctor.getName() : "Doctor");
@@ -239,7 +239,7 @@ public class PatientService {
     public ApiResponse addDietPlan(AddDietPlanRequest req) {
         var resolved = patientResolver.resolve(req.getPatientId()).orElse(null);
         String targetUserId = resolved != null ? resolved.userId : req.getPatientId();
-        String targetHealthId = resolved != null ? resolved.globalHealthId : "NH-IND-2026-88392014";
+        String targetHealthId = resolved != null ? resolved.globalHealthId : "";
 
         Map<String, Object> diet = new LinkedHashMap<>();
         diet.put("patientId", targetUserId);

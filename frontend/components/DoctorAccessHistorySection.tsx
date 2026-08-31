@@ -77,40 +77,40 @@ export const DoctorAccessHistorySection: React.FC<DoctorAccessHistorySectionProp
   const getMethodBadge = (method: string) => {
     switch (method) {
       case "APPOINTMENT":
-        return { label: "Appointment", color: "bg-blue-950 text-blue-400 border-blue-800", icon: Calendar };
+        return { label: "Appointment", color: "bg-[#E9FBF1] text-[#17C964] border-[#17C964]/40", icon: Calendar };
       case "PATIENT_ACCESS_CARD":
       case "ACCESS_CARD":
-        return { label: "Access Card", color: "bg-emerald-950 text-emerald-400 border-emerald-800", icon: CreditCard };
+        return { label: "Access Card", color: "bg-[#E9FBF1] text-[#17C964] border-[#17C964]/40", icon: CreditCard };
       case "BIOMETRIC":
       case "FACE_SCAN":
-        return { label: "Biometric", color: "bg-purple-950 text-purple-400 border-purple-800", icon: Fingerprint };
+        return { label: "Biometric", color: "bg-[#E9FBF1] text-[#17C964] border-[#17C964]/40", icon: Fingerprint };
       case "EMERGENCY_BREAK_GLASS":
       case "EMERGENCY":
       case "EMERGENCY_ACCESS":
-        return { label: "Emergency", color: "bg-red-950 text-red-400 border-red-800", icon: Siren };
+        return { label: "Emergency", color: "bg-[#FDE9E3] text-[#C83E1E] border-[#F2603C]/40", icon: Siren };
       case "PATIENT_AUTHORIZATION":
-        return { label: "Consent Grant", color: "bg-amber-950 text-amber-400 border-amber-800", icon: ShieldCheck };
+        return { label: "Consent Grant", color: "bg-amber-50 text-amber-700 border-amber-500/40", icon: ShieldCheck };
       default:
-        return { label: "Health ID Lookup", color: "bg-indigo-950 text-indigo-400 border-indigo-800", icon: User };
+        return { label: "Health ID Lookup", color: "bg-[#E9FBF1] text-[#17C964] border-[#17C964]/40", icon: User };
     }
   };
 
   return (
-    <div className="bg-[#13192B] border border-slate-800 rounded-3xl p-6 shadow-xl space-y-5 text-xs">
+    <div className="bg-[#FFFFFF] border border-slate-200 rounded-3xl p-6 shadow-xl space-y-5 text-xs">
       {/* HEADER */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-4">
         <div>
-          <div className="inline-flex items-center space-x-1.5 px-3 py-1 bg-purple-500/20 border border-purple-500/40 rounded-full text-xs font-mono font-bold text-purple-300 mb-1">
-            <History className="w-3.5 h-3.5 text-purple-400" />
+          <div className="inline-flex items-center space-x-1.5 px-3 py-1 bg-[#E9FBF1] border border-[#17C964]/40 rounded-full text-xs font-mono font-bold text-[#17C964] mb-1">
+            <History className="w-3.5 h-3.5 text-[#17C964]" />
             <span>Immutable Doctor Access Ledger</span>
           </div>
-          <h2 className="text-xl font-black text-white">My Patient Record Access History</h2>
-          <p className="text-slate-400 text-xs mt-0.5">
+          <h2 className="text-xl font-black text-slate-900">My Patient Record Access History</h2>
+          <p className="text-slate-500 text-xs mt-0.5">
             Complete audit trail of every patient health record accessed by Dr. {doctor.name}.
           </p>
         </div>
 
-        <div className="px-3 py-1.5 bg-[#0D121F] border border-slate-800 rounded-xl font-mono text-emerald-400 font-bold text-xs">
+        <div className="px-3 py-1.5 bg-[#EDF1F5] border border-slate-200 rounded-xl font-mono text-[#17C964] font-bold text-xs">
           Total Access Sessions: {accessLogs.length}
         </div>
       </div>
@@ -124,14 +124,14 @@ export const DoctorAccessHistorySection: React.FC<DoctorAccessHistorySectionProp
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search patient name, Health ID, reason..."
-            className="w-full bg-[#0D121F] border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-white placeholder-slate-500 text-xs focus:border-purple-500 focus:outline-none"
+            className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-slate-900 placeholder-slate-500 text-xs focus:border-[#17C964] focus:outline-none"
           />
           <Search className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
         </div>
 
         {/* Method Filter */}
         <div className="flex items-center space-x-2 w-full md:w-auto overflow-x-auto">
-          <Filter className="w-4 h-4 text-slate-400 shrink-0" />
+          <Filter className="w-4 h-4 text-slate-500 shrink-0" />
           {[
             { key: "ALL", label: "All Methods" },
             { key: "APPOINTMENT", label: "Appointment" },
@@ -145,8 +145,8 @@ export const DoctorAccessHistorySection: React.FC<DoctorAccessHistorySectionProp
               onClick={() => setMethodFilter(f.key)}
               className={`px-3 py-1.5 rounded-lg font-bold text-[11px] whitespace-nowrap transition ${
                 methodFilter === f.key
-                  ? "bg-purple-600 text-white shadow-md"
-                  : "bg-[#0D121F] text-slate-400 hover:text-white border border-slate-800"
+                  ? "bg-[#17C964] text-white shadow-md"
+                  : "bg-[#EDF1F5] text-slate-500 hover:text-slate-900 border border-slate-200"
               }`}
             >
               {f.label}
@@ -157,9 +157,9 @@ export const DoctorAccessHistorySection: React.FC<DoctorAccessHistorySectionProp
 
       {/* LOGS LIST */}
       {loading ? (
-        <div className="p-8 text-center text-slate-400">Loading access audit logs...</div>
+        <div className="p-8 text-center text-slate-500">Loading access audit logs...</div>
       ) : filteredLogs.length === 0 ? (
-        <div className="p-8 text-center text-slate-400 bg-[#0D121F] rounded-2xl border border-slate-800">
+        <div className="p-8 text-center text-slate-500 bg-[#EDF1F5] rounded-2xl border border-slate-200">
           No record access logs found matching filters.
         </div>
       ) : (
@@ -170,24 +170,24 @@ export const DoctorAccessHistorySection: React.FC<DoctorAccessHistorySectionProp
             return (
               <div
                 key={log.id}
-                className="p-4 bg-[#0D121F] border border-slate-800 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 transition hover:border-slate-700"
+                className="p-4 bg-[#EDF1F5] border border-slate-200 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 transition hover:border-slate-300"
               >
                 <div className="space-y-1">
                   <div className="flex items-center space-x-2.5">
-                    <span className="font-bold text-sm text-white">{log.patientName}</span>
-                    <span className="text-emerald-400 font-mono text-xs font-bold">({log.patientHealthId})</span>
+                    <span className="font-bold text-sm text-slate-900">{log.patientName}</span>
+                    <span className="text-[#17C964] font-mono text-xs font-bold">({log.patientHealthId})</span>
                     <span className={`px-2 py-0.5 border rounded font-mono text-[10px] font-bold flex items-center space-x-1 ${badge.color}`}>
                       <Icon className="w-3 h-3" />
                       <span>{badge.label}</span>
                     </span>
                   </div>
 
-                  <div className="text-slate-400 text-xs">
+                  <div className="text-slate-500 text-xs">
                     <strong>Reason / Context:</strong> {log.reason || "Clinical Record Consultation"}
                   </div>
 
                   {log.justification && (
-                    <div className="text-rose-300 text-[11px] bg-red-950/40 p-2 rounded-lg border border-red-900/40 mt-1">
+                    <div className="text-[#C83E1E] text-[11px] bg-[#FDE9E3] p-2 rounded-lg border border-[#F2603C]/40 mt-1">
                       <strong>Break-Glass Justification:</strong> {log.justification}
                     </div>
                   )}
@@ -201,9 +201,9 @@ export const DoctorAccessHistorySection: React.FC<DoctorAccessHistorySectionProp
                   </div>
                 </div>
 
-                <div className="text-right shrink-0 font-mono text-xs text-slate-400">
+                <div className="text-right shrink-0 font-mono text-xs text-slate-500">
                   <div>{log.timestamp || log.startedAt || "2026-08-11"}</div>
-                  <div className="text-emerald-400 font-bold text-[10px] uppercase mt-0.5">
+                  <div className="text-[#17C964] font-bold text-[10px] uppercase mt-0.5">
                     ✓ AUDIT LOGGED
                   </div>
                 </div>

@@ -1,11 +1,10 @@
-/**
+﻿/**
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
 
 import React, { useState, useEffect } from "react";
 import { UserRole, PatientProfile, DoctorProfile, HospitalProfile, ConsentGrant, Appointment, MedicalRecord, AuditLog } from "./types";
-import { Navbar } from "./components/Navbar";
 import { PatientView } from "./components/PatientView";
 import { DoctorView } from "./components/DoctorView";
 import { HospitalAdminView } from "./components/HospitalAdminView";
@@ -37,7 +36,7 @@ export default function App() {
   const [loginInitialRegister, setLoginInitialRegister] = useState<boolean>(false);
 
   useEffect(() => {
-    document.documentElement.classList.add("dark");
+    document.documentElement.classList.remove("dark");
   }, []);
 
   // Modals
@@ -56,7 +55,7 @@ export default function App() {
   // Load data from Express server on mount and user switch
   const refreshData = async (userToLoad = currentUser) => {
     try {
-      const targetPatientId = userToLoad?.role === "PATIENT" ? (userToLoad.id || "u_pat_1") : "u_pat_1";
+      const targetPatientId = userToLoad?.role === "PATIENT" ? (userToLoad.id || "") : "";
 
       let recordUrl = `/api/patient/records/${targetPatientId}`;
       if (userToLoad?.role === "HOSPITAL_ADMIN") {
@@ -67,13 +66,16 @@ export default function App() {
         recordUrl = `/api/admin/all-records`;
       }
 
-      const [prof, rec, con, doc, hosp, apt, aud, patList] = await Promise.all([
-        safeFetchJson<PatientProfile | null>(`/api/patient/profile/${targetPatientId}`, null),
+      const isPatient = userToLoad?.role === "PATIENT" && !!targetPatientId;
+      const prof = isPatient ? await safeFetchJson<PatientProfile | null>(`/api/patient/profile/${targetPatientId}`, null) : null;
+      const con = isPatient ? await safeFetchJson<ConsentGrant[]>(`/api/patient/consents/${targetPatientId}`, []) : [];
+      const isPatientAppt = !!targetPatientId ? `/api/appointments?patientId=${targetPatientId}` : "/api/appointments";
+
+      const [rec, doc, hosp, apt, aud, patList] = await Promise.all([
         safeFetchJson<MedicalRecord[]>(recordUrl, []),
-        safeFetchJson<ConsentGrant[]>(`/api/patient/consents/${targetPatientId}`, []),
         safeFetchJson<DoctorProfile[]>("/api/doctors", []),
         safeFetchJson<HospitalProfile[]>("/api/hospitals", []),
-        safeFetchJson<Appointment[]>(`/api/appointments?patientId=${targetPatientId}`, []),
+        safeFetchJson<Appointment[]>(isPatientAppt, []),
         safeFetchJson<AuditLog[]>("/api/admin/audit-logs", []),
         safeFetchJson<any[]>("/api/admin/patients", []),
       ]);
@@ -133,7 +135,7 @@ export default function App() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          patientId: currentUser?.id || "u_pat_1",
+          patientId: currentUser?.id || "",
           doctorId,
           consentType: consentType || "TEMPORARY",
           allowedCategories: ["ALL_RECORDS"],
@@ -178,9 +180,9 @@ export default function App() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          patientId: currentUser?.id || "u_pat_1",
-          patientName: currentUser?.name || "Ananya Sharma",
-          patientHealthId: currentUser?.globalHealthId || patientProfile?.globalHealthId || "NH-IND-2026-88392014",
+          patientId: currentUser?.id || "",
+          patientName: currentUser?.name || "",
+          patientHealthId: currentUser?.globalHealthId || patientProfile?.globalHealthId || "",
           doctorId,
           hospitalId,
           appointmentDate,
@@ -362,110 +364,90 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0A0E1A] text-slate-100 font-sans selection:bg-purple-600 selection:text-white">
-      {/* Top Navbar */}
-      <Navbar
-        currentUser={currentUser}
-        onLogout={() => {
-          setCurrentUser(null);
-          setViewMode("LANDING");
-        }}
-        onGoToHome={() => setViewMode("LANDING")}
-        onOpenCard={() => setIsCardModalOpen(true)}
-        healthId={safePatientProfile.globalHealthId}
-      />
+    <div className="min-h-screen bg-[#f4f6f9] text-slate-900 font-sans">
 
-      {/* Main Workspace (Full Page Responsive Layout) */}
-      <main className="w-full px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-        
-        {/* National Health Mission Hero Banner */}
-        <div className="bg-gradient-to-r from-purple-950/80 via-indigo-950/60 to-slate-950 border border-purple-500/30 rounded-3xl p-5 text-white shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4 relative overflow-hidden">
-          <div className="flex items-center space-x-4 z-10">
-            <div className="w-12 h-12 bg-purple-900/40 border border-purple-500/40 rounded-2xl flex items-center justify-center shrink-0 shadow-lg shadow-purple-900/40">
-              <span className="text-2xl">🇮🇳</span>
-            </div>
-            <div>
-              <div className="flex items-center space-x-2">
-                <span className="px-2.5 py-0.5 bg-purple-500/20 border border-purple-500/40 text-purple-300 text-[10px] font-mono font-bold uppercase tracking-wider rounded-md">
-                  NATIONAL DIGITAL HEALTH MISSION
-                </span>
-              </div>
-              <h2 className="text-base sm:text-lg font-black text-white mt-1 tracking-tight">
-                “One Nation. One Health Identity. Infinite Care.”
-              </h2>
-              <p className="text-xs text-slate-300 mt-0.5">
-                Unified Electronic Health Record System & Interoperable Digital Health Stack
-              </p>
-            </div>
-          </div>
-        </div>
-        {currentUser.role === "PATIENT" && (
-          <PatientView
-            profile={safePatientProfile}
-            records={records}
-            consents={consents}
-            doctors={doctors}
-            hospitals={hospitals}
-            appointments={appointments}
-            onGrantConsent={handleGrantConsent}
-            onRevokeConsent={handleRevokeConsent}
-            onBookAppointment={handleBookAppointment}
-            patientName={currentUser.name}
-          />
-        )}
+      {currentUser.role === "PATIENT" && (
+        <PatientView
+          profile={safePatientProfile}
+          records={records}
+          consents={consents}
+          doctors={doctors}
+          hospitals={hospitals}
+          appointments={appointments}
+          onGrantConsent={handleGrantConsent}
+          onRevokeConsent={handleRevokeConsent}
+          onBookAppointment={handleBookAppointment}
+          patientName={currentUser.name}
+          appUser={currentUser}
+          onLogout={() => {
+            setCurrentUser(null);
+            setViewMode("LANDING");
+          }}
+          onGoToHome={() => setViewMode("LANDING")}
+        />
+      )}
 
-        {currentUser.role === "DOCTOR" && (
-          <DoctorView
-            doctor={activeDoctor}
-            records={records}
-            consents={consents}
-            patientProfiles={allPatients.length > 0 ? allPatients : (patientProfile ? [patientProfile] : [])}
-            hospitals={hospitals}
-            appointments={appointments}
-            onAddRecord={handleCreateRecord}
-            onBreakGlassAccess={handleBreakGlassGranted}
-            onUpdateAppointmentStatus={async (aptId, status) => {
-              await fetch("/api/appointments/update-status", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ appointmentId: aptId, status }),
-              });
-              refreshData();
-            }}
-            doctorName={currentUser.name}
-          />
-        )}
+      {currentUser.role === "DOCTOR" && (
+        <DoctorView
+          doctor={activeDoctor}
+          records={records}
+          consents={consents}
+          patientProfiles={allPatients.length > 0 ? allPatients : (patientProfile ? [patientProfile] : [])}
+          hospitals={hospitals}
+          appointments={appointments}
+          onAddRecord={handleCreateRecord}
+          onBreakGlassAccess={handleBreakGlassGranted}
+          onUpdateAppointmentStatus={async (aptId, status) => {
+            await fetch("/api/appointments/update-status", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ appointmentId: aptId, status }),
+            });
+            refreshData();
+          }}
+          doctorName={currentUser.name}
+          appUser={currentUser}
+          onLogout={() => {
+            setCurrentUser(null);
+            setViewMode("LANDING");
+          }}
+          onGoToHome={() => setViewMode("LANDING")}
+        />
+      )}
 
-        {currentUser.role === "HOSPITAL_ADMIN" && (
-          <HospitalAdminView
-            hospital={activeHospital}
-            doctors={doctors}
-            records={records}
-            patientProfiles={allPatients.length > 0 ? allPatients : (patientProfile ? [patientProfile] : [])}
-            onApproveDoctor={handleApproveDoctor}
-            onRefreshData={refreshData}
-          />
-        )}
+      {currentUser.role === "HOSPITAL_ADMIN" && (
+        <HospitalAdminView
+          hospital={activeHospital}
+          doctors={doctors}
+          records={records}
+          patientProfiles={allPatients.length > 0 ? allPatients : (patientProfile ? [patientProfile] : [])}
+          onApproveDoctor={handleApproveDoctor}
+          onRefreshData={refreshData}
+          appUser={currentUser}
+          onLogout={() => {
+            setCurrentUser(null);
+            setViewMode("LANDING");
+          }}
+          onGoToHome={() => setViewMode("LANDING")}
+        />
+      )}
 
-        {currentUser.role === "SUPER_ADMIN" && (
-          <SuperAdminView
-            hospitals={hospitals}
-            doctors={doctors}
-            auditLogs={auditLogs}
-            records={records}
-            patientProfiles={allPatients.length > 0 ? allPatients : (patientProfile ? [patientProfile] : [])}
-            onDeleteHospital={handleDeleteHospital}
-          />
-        )}
-      </main>
-
-      {/* Footer */}
-      <footer className="border-t border-slate-800 bg-[#0B0F19] py-6 text-center text-xs text-slate-400 mt-12">
-        <p className="font-bold text-slate-200">NexusHealth Global Digital Health Identity Platform</p>
-        <p className="text-[11px] text-slate-500 mt-1">
-          Compliant with MCI, HIPAA & Global Healthcare Privacy Standards • Lifelong Immutable Global Health IDs
-        </p>
-      </footer>
+      {currentUser.role === "SUPER_ADMIN" && (
+        <SuperAdminView
+          hospitals={hospitals}
+          doctors={doctors}
+          auditLogs={auditLogs}
+          records={records}
+          patientProfiles={allPatients.length > 0 ? allPatients : (patientProfile ? [patientProfile] : [])}
+          onDeleteHospital={handleDeleteHospital}
+          appUser={currentUser}
+          onLogout={() => {
+            setCurrentUser(null);
+            setViewMode("LANDING");
+          }}
+          onGoToHome={() => setViewMode("LANDING")}
+        />
+      )}
 
       {/* Modals */}
       <GlobalHealthCardModal

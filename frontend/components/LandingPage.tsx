@@ -1,19 +1,20 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { UserRole } from "../types";
 import {
   Activity,
-  User,
-  Stethoscope,
-  Building2,
-  ShieldCheck,
   FileText,
   Lock,
-  Calendar,
-  Bot,
+  ShieldCheck,
   ShieldAlert,
+  HeartPulse,
+  Network,
+  CheckCircle2,
+  Menu,
+  X,
+  Siren,
+  Stethoscope,
+  Users,
   ArrowRight,
-  Sparkles,
-  Globe,
   Zap,
 } from "lucide-react";
 
@@ -21,218 +22,383 @@ interface LandingPageProps {
   onOpenLogin: (initialRole?: UserRole, initialRegister?: boolean) => void;
 }
 
-export const LandingPage: React.FC<LandingPageProps> = ({
-  onOpenLogin,
-}) => {
-  return (
-    <div className="min-h-screen bg-[#0A0E1A] text-slate-100 font-sans selection:bg-purple-600 selection:text-white">
-      {/* Top Header */}
-      <header className="border-b border-slate-800/80 bg-[#0B0F19]/90 backdrop-blur-md sticky top-0 z-50">
-        <div className="w-full px-4 sm:px-8 h-20 flex items-center justify-between">
-          {/* Logo & National Slogan */}
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-3">
-              <div className="w-11 h-11 bg-gradient-to-tr from-purple-600 via-indigo-600 to-cyan-500 rounded-2xl flex items-center justify-center shadow-lg shadow-purple-600/30 border border-purple-400/30">
-                <Activity className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <span className="text-xl font-black tracking-tight text-white block">
-                  NexusHealth <span className="text-purple-400">AI</span>
-                </span>
-                <span className="text-[10px] font-mono text-cyan-400 font-bold tracking-widest uppercase block">
-                  National Digital Health Mission
-                </span>
-              </div>
-            </div>
+const C = {
+  neon: "#17C964",
+  neonBright: "#3CE584",
+  neonDeep: "#0EA653",
+  navy: "#0B1220",
+  navyLight: "#111C2F",
+  card: "#141F36",
+  border: "rgba(255,255,255,0.09)",
+  borderGreen: "rgba(23,201,100,0.45)",
+  panelText: "#DCE6F2",
+  panelMuted: "#8FA2BA",
+  dim: "#5D6B80",
+};
 
-            {/* Quote Badge */}
-            <div className="hidden lg:flex items-center pl-4 border-l border-slate-800">
-              <span className="px-3 py-1 bg-purple-950/60 border border-purple-500/30 text-purple-300 text-xs font-bold italic rounded-xl shadow-xs">
-                “One Nation. One Health Identity. Infinite Care.”
+const NAV_LINKS = [
+  { label: "Platform", href: "#platform" },
+  { label: "How it works", href: "#how-it-works" },
+  { label: "Security", href: "#security" },
+  { label: "Emergency", href: "#emergency" },
+];
+
+const FEATURES = [
+  { icon: FileText, title: "One lifelong Health ID", desc: "A QR-enabled identity every provider recognizes, from day one." },
+  { icon: Network, title: "Portable records", desc: "Labs, consults, and vitals travel with the patient, wherever care happens." },
+  { icon: Lock, title: "Consent you control", desc: "Time-bound access, revocable in a single action, always on your terms." },
+  { icon: ShieldAlert, title: "Emergency break-glass", desc: "Instant access for trauma teams, with mandatory, audited reason logging." },
+  { icon: HeartPulse, title: "AI clinical support", desc: "Record-aware guidance for faster triage and safer prescribing." },
+  { icon: ShieldCheck, title: "Immutable audit trail", desc: "Every action on a tamper-proof ledger, ready for full compliance." },
+];
+
+const STEPS = [
+  { step: "01", title: "Issue a Health ID", desc: "Verify identity and issue a lifelong, QR-enabled patient identifier." },
+  { step: "02", title: "Attach the record", desc: "Consults, labs, and vitals attach to the ID and follow the patient." },
+  { step: "03", title: "Care, anywhere", desc: "Any physician or ER pulls the full, consented record at the point of care." },
+];
+
+const METRICS = [
+  { value: "0.02s", label: "Emergency record access" },
+  { value: "100%", label: "Digital identity coverage" },
+  { value: "256-bit", label: "Encryption at rest, in transit" },
+  { value: "24/7", label: "AI-supported triage" },
+];
+
+const AUDIENCES = [
+  { icon: Users, title: "For patients", desc: "Own and share your records, on your terms." },
+  { icon: Stethoscope, title: "For physicians", desc: "Consented access at the bedside, in seconds." },
+  { icon: Siren, title: "For emergency teams", desc: "Critical data the moment the patient arrives." },
+];
+
+const FOOTER_COLUMNS: { title: string; links: string[] }[] = [
+  { title: "Platform", links: ["Health ID", "Patient records", "Consent manager", "Emergency access"] },
+  { title: "Company", links: ["About", "Careers", "Partners", "Contact"] },
+  { title: "Legal", links: ["Privacy", "Terms", "Compliance", "Security"] },
+];
+
+export const LandingPage: React.FC<LandingPageProps> = ({ onOpenLogin }) => {
+  const [scrolled, setScrolled] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  return (
+    <div className="min-h-screen font-sans antialiased selection:bg-[#17C964]/30 selection:text-white" style={{ backgroundColor: C.navy, color: C.panelText }}>
+      {/* Navbar */}
+      <header
+        className={`fixed inset-x-0 top-0 z-50 transition-all ${scrolled ? "shadow-lg shadow-black/30" : ""}`}
+        style={{ backgroundColor: scrolled ? "rgba(11,18,32,0.92)" : "rgba(11,18,32,0.4)", borderBottom: `1px solid ${scrolled ? C.border : "transparent"}`, backdropFilter: scrolled ? "blur(12px)" : "none" }}
+      >
+        <nav className="w-full max-w-6xl mx-auto px-5 sm:px-8 h-16 flex items-center justify-between">
+          <a href="#top" className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center shadow-lg" style={{ backgroundColor: C.neon, boxShadow: `0 4px 14px ${C.neon}66` }}>
+              <Activity className="w-4.5 h-4.5" style={{ color: "#06130B" }} />
+            </div>
+            <div className="leading-none">
+              <span className="text-[17px] font-bold tracking-tight text-white block">NexusHealth</span>
+              <span className="text-[9px] font-bold tracking-[0.18em] uppercase block mt-0.5" style={{ color: C.neonBright }}>
+                National Health Stack
               </span>
             </div>
+          </a>
+
+          <div className="hidden md:flex items-center gap-7">
+            {NAV_LINKS.map((l) => (
+              <a key={l.href} href={l.href} className="text-[13px] font-semibold text-[#9FB0C6] hover:text-[#3CE584] transition-colors">
+                {l.label}
+              </a>
+            ))}
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex items-center space-x-3">
-            <button
-              onClick={() => onOpenLogin("PATIENT", false)}
-              className="px-4 py-2 bg-[#13192B] hover:bg-slate-800 text-slate-200 border border-slate-700/80 rounded-xl text-xs font-bold transition flex items-center space-x-2"
-            >
-              <User className="w-4 h-4 text-purple-400" />
-              <span>Login</span>
+          <div className="hidden md:flex items-center gap-4">
+            <button onClick={() => onOpenLogin("PATIENT", false)} className="px-4 py-2 text-[13px] font-bold text-[#3CE584] hover:text-white transition-colors">
+              Sign in
             </button>
             <button
               onClick={() => onOpenLogin("PATIENT", true)}
-              className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-xl text-xs font-bold transition shadow-lg shadow-purple-600/30 flex items-center space-x-2"
+              className="px-4 py-2 text-[13px] font-bold text-white rounded-md transition hover:brightness-110 flex items-center gap-1.5"
+              style={{ backgroundColor: C.neon, boxShadow: `0 6px 18px ${C.neon}55` }}
             >
-              <Sparkles className="w-4 h-4" />
-              <span>Register Health ID</span>
+              Get a Health ID
+              <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
-        </div>
+
+          <button onClick={() => setMenuOpen((v) => !v)} className="md:hidden p-2 text-[#9FB0C6] rounded-md" style={{ border: `1px solid ${C.border}` }} aria-label="Toggle menu">
+            {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
+        </nav>
+
+        {menuOpen && (
+          <div className="md:hidden px-5 py-4 space-y-3" style={{ backgroundColor: C.navyLight, borderTop: `1px solid ${C.border}` }}>
+            {NAV_LINKS.map((l) => (
+              <a key={l.href} href={l.href} onClick={() => setMenuOpen(false)} className="block py-2 text-sm font-semibold text-[#9FB0C6]">
+                {l.label}
+              </a>
+            ))}
+            <div className="flex gap-3 pt-2" style={{ borderTop: `1px solid ${C.border}` }}>
+              <button onClick={() => onOpenLogin("PATIENT", false)} className="flex-1 py-2.5 text-sm font-bold text-[#3CE584] rounded-md" style={{ border: `1px solid ${C.border}` }}>
+                Sign in
+              </button>
+              <button onClick={() => onOpenLogin("PATIENT", true)} className="flex-1 py-2.5 text-sm font-bold text-white rounded-md" style={{ backgroundColor: C.neon }}>
+                Get Health ID
+              </button>
+            </div>
+          </div>
+        )}
       </header>
 
-      {/* Hero Section */}
-      <section className="relative pt-12 pb-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto text-center space-y-8">
-        {/* Hero Motto Banner */}
-        <div className="inline-flex items-center space-x-2 px-4 py-1.5 bg-purple-950/60 border border-purple-500/40 rounded-full shadow-md">
-          <span className="w-2 h-2 rounded-full bg-purple-400 animate-ping" />
-          <span className="text-xs font-mono font-bold text-purple-300 uppercase tracking-widest">
-            NATIONAL DIGITAL HEALTH MISSION INTEROPERABILITY
+      {/* Hero */}
+      <section id="top" className="relative pt-32 pb-20 sm:pt-40 sm:pb-28 overflow-hidden">
+        {/* glow accents */}
+        <div className="pointer-events-none absolute inset-0" aria-hidden>
+          <div className="absolute -top-40 -right-24 w-[34rem] h-[34rem] rounded-full blur-[130px]" style={{ backgroundColor: "rgba(23,201,100,0.18)" }} />
+          <div className="absolute bottom-0 -left-32 w-[28rem] h-[28rem] rounded-full blur-[120px]" style={{ backgroundColor: "rgba(23,201,100,0.10)" }} />
+        </div>
+
+        <div className="relative max-w-6xl mx-auto px-5 sm:px-8 text-center">
+          <span className="inline-flex items-center gap-2 px-4 py-1.5 text-[12px] font-bold rounded-full text-white" style={{ backgroundColor: "rgba(23,201,100,0.12)", border: `1px solid ${C.borderGreen}`, color: C.neonBright }}>
+            <Zap className="w-3.5 h-3.5" />
+            Next-generation health identity
           </span>
-        </div>
 
-        {/* Main Title & Slogan Quote */}
-        <div className="space-y-4 max-w-4xl mx-auto">
-          <h1 className="text-4xl sm:text-6xl font-black text-white tracking-tight leading-tight">
-            “One Nation. One Health Identity. <span className="bg-gradient-to-r from-purple-400 via-indigo-300 to-cyan-400 bg-clip-text text-transparent">Infinite Care</span>.”
+          <h1 className="mt-7 text-4xl sm:text-6xl font-extrabold tracking-tight leading-[1.05] text-white mx-auto max-w-4xl">
+            One health identity for{" "}
+            <span style={{ color: C.neonBright }}>every citizen, everywhere.</span>
           </h1>
-          <p className="text-lg sm:text-xl text-cyan-300 font-bold max-w-2xl mx-auto">
-            A Unified Portable Electronic Health Record Stack for Every Citizen
-          </p>
-          <p className="text-sm sm:text-base text-slate-400 max-w-3xl mx-auto leading-relaxed">
-            NexusHealth AI seamlessly connects patients, medical practitioners, hospitals, and governance administrators into a single secure digital health continuum. Lifetime medical history, digital prescriptions, consent management, and AI clinical support—all tied to your verifiable Global Health ID.
-          </p>
-        </div>
 
-        {/* Hero Call to Action Buttons */}
-        <div className="flex flex-wrap items-center justify-center gap-4 pt-2">
-          <button
-            onClick={() => onOpenLogin("PATIENT", false)}
-            className="px-8 py-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold rounded-2xl shadow-xl shadow-purple-600/30 text-sm transition flex items-center space-x-3 group"
-          >
-            <span>Access Portal / Login</span>
-            <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-          </button>
-          
-          <button
-            onClick={() => onOpenLogin("PATIENT", true)}
-            className="px-8 py-4 bg-[#13192B] hover:bg-slate-800 text-purple-300 border border-purple-500/40 font-bold rounded-2xl text-sm transition shadow-md flex items-center space-x-2"
-          >
-            <Sparkles className="w-4 h-4 text-purple-400" />
-            <span>Create New Health ID</span>
-          </button>
+          <p className="mt-6 text-lg sm:text-xl text-[#9FB0C6] max-w-2xl mx-auto leading-relaxed">
+            NexusHealth connects patients, doctors, and hospitals around one portable,
+            consent-driven record &mdash; so the right information is always at the point of care.
+          </p>
+
+          <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
+            <button
+              onClick={() => onOpenLogin("PATIENT", true)}
+              className="px-7 py-3.5 text-sm font-bold text-white rounded-md transition hover:brightness-110 flex items-center gap-2"
+              style={{ backgroundColor: C.neon, boxShadow: `0 8px 26px ${C.neon}66` }}
+            >
+              Create a Health ID
+              <ArrowRight className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => onOpenLogin("PATIENT", false)}
+              className="px-7 py-3.5 text-sm font-bold text-white rounded-md transition hover:bg-white/5"
+              style={{ border: "1px solid rgba(255,255,255,0.25)" }}
+            >
+              Provider sign in
+            </button>
+          </div>
+
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[13px] text-[#8FA2BA]">
+            <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4" style={{ color: C.neonBright }} /> 0.02-second retrieval</span>
+            <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4" style={{ color: C.neonBright }} /> 256-bit encrypted</span>
+            <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4" style={{ color: C.neonBright }} /> Nationwide</span>
+          </div>
         </div>
       </section>
 
-      {/* Core Capabilities Section */}
-      <section className="py-16 bg-[#0D121F] border-y border-slate-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
-          <div className="text-center space-y-3 max-w-2xl mx-auto">
-            <span className="px-3 py-1 bg-purple-950 border border-purple-500/40 text-purple-300 text-xs font-mono font-bold rounded-full uppercase">
-              Core Stack Capabilities
-            </span>
-            <h2 className="text-3xl font-black text-white">
-              Built for Interoperability, Trust & Speed
+      {/* Trust strip */}
+      <section style={{ borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}`, backgroundColor: C.navyLight }}>
+        <div className="max-w-6xl mx-auto px-5 sm:px-8 py-6 flex flex-wrap items-center justify-center gap-x-10 gap-y-3">
+          <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#5D6B80]">Interoperable with</span>
+          {["National Health Authority", "Apollo Network", "Fortis Care", "AIIMS Registry", "PM-JAY"].map((n) => (
+            <span key={n} className="text-sm font-bold text-[#8FA2BA]">{n}</span>
+          ))}
+        </div>
+      </section>
+
+      {/* Features */}
+      <section id="platform" className="py-20 sm:py-24 relative">
+        <div className="max-w-6xl mx-auto px-5 sm:px-8 relative z-10">
+          <div className="max-w-2xl">
+            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">
+              Everything a hospital needs, in one record
             </h2>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              Every component is designed to eliminate fragmented medical siloes while enforcing absolute patient data ownership.
+            <p className="mt-3 text-base text-[#9FB0C6] leading-relaxed">
+              Replace scattered charts and paper with a single, consent-driven record that is always current.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Feature 1 */}
-            <div className="bg-[#13192B] border border-slate-800 rounded-2xl p-6 space-y-3 shadow-md hover:border-purple-500/40 transition">
-              <div className="w-12 h-12 bg-sky-950/60 border border-sky-500/40 rounded-2xl flex items-center justify-center text-sky-400">
-                <Globe className="w-6 h-6" />
-              </div>
-              <h3 className="text-base font-bold text-white">Universal Health ID</h3>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                Unique lifelong health identifier formatted as <code className="text-purple-400 font-bold font-mono">NH-IND-2026-XXXXXXXX</code>. Contains verifiable digital signature, blood group, emergency contacts, and printable health card with QR code.
-              </p>
-            </div>
-
-            {/* Feature 2 */}
-            <div className="bg-[#13192B] border border-slate-800 rounded-2xl p-6 space-y-3 shadow-md hover:border-purple-500/40 transition">
-              <div className="w-12 h-12 bg-emerald-950/60 border border-emerald-500/40 rounded-2xl flex items-center justify-center text-emerald-400">
-                <FileText className="w-6 h-6" />
-              </div>
-              <h3 className="text-base font-bold text-white">Interoperable EHR Records</h3>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                Seamless sharing of lab reports, consultation notes, vitals, and digital prescriptions across all affiliated clinics and specialty hospitals.
-              </p>
-            </div>
-
-            {/* Feature 3 */}
-            <div className="bg-[#13192B] border border-slate-800 rounded-2xl p-6 space-y-3 shadow-md hover:border-purple-500/40 transition">
-              <div className="w-12 h-12 bg-indigo-950/60 border border-indigo-500/40 rounded-2xl flex items-center justify-center text-indigo-400">
-                <Lock className="w-6 h-6" />
-              </div>
-              <h3 className="text-base font-bold text-white">Patient Consent Control</h3>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                Patients actively grant access to doctors for 24-hour temporary slots, specific appointments, or permanent care—with 1-click immediate revocation.
-              </p>
-            </div>
-
-            {/* Feature 4 */}
-            <div className="bg-[#13192B] border border-slate-800 rounded-2xl p-6 space-y-3 shadow-md hover:border-purple-500/40 transition">
-              <div className="w-12 h-12 bg-rose-950/60 border border-rose-500/40 rounded-2xl flex items-center justify-center text-rose-400">
-                <ShieldAlert className="w-6 h-6" />
-              </div>
-              <h3 className="text-base font-bold text-white">Emergency ER Break-Glass</h3>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                Emergency override protocol for trauma physicians during critical life-threatening care, enforcing mandatory reason logging & immediate patient audit notification.
-              </p>
-            </div>
-
-            {/* Feature 5 */}
-            <div className="bg-[#13192B] border border-slate-800 rounded-2xl p-6 space-y-3 shadow-md hover:border-purple-500/40 transition">
-              <div className="w-12 h-12 bg-purple-950/60 border border-purple-500/40 rounded-2xl flex items-center justify-center text-purple-400">
-                <Bot className="w-6 h-6" />
-              </div>
-              <h3 className="text-base font-bold text-white">Gemini AI Clinical Assistant</h3>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                Contextual health Q&A for patients over their medical records & differential diagnosis support with drug interaction checks for attending physicians.
-              </p>
-            </div>
-
-            {/* Feature 6 */}
-            <div className="bg-[#13192B] border border-slate-800 rounded-2xl p-6 space-y-3 shadow-md hover:border-purple-500/40 transition">
-              <div className="w-12 h-12 bg-cyan-950/60 border border-cyan-500/40 rounded-2xl flex items-center justify-center text-cyan-400">
-                <ShieldCheck className="w-6 h-6" />
-              </div>
-              <h3 className="text-base font-bold text-white">Immutable System Audit Trail</h3>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                Every record access, consent grant, prescription issuance, or hospital approval is recorded on an immutable ledger for absolute legal compliance.
-              </p>
-            </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mt-12">
+            {FEATURES.map((f) => {
+              const Icon = f.icon;
+              return (
+                <div
+                  key={f.title}
+                  className="p-6 rounded-2xl transition-all duration-200 group"
+                  style={{ backgroundColor: C.card, border: `1px solid ${C.border}` }}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = C.neon; e.currentTarget.style.boxShadow = `0 10px 30px rgba(23,201,100,0.14)`; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.boxShadow = "none"; }}
+                >
+                  <div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ backgroundColor: "rgba(23,201,100,0.13)", border: `1px solid ${C.borderGreen}33` }}>
+                    <Icon className="w-5 h-5" style={{ color: C.neonBright }} />
+                  </div>
+                  <h3 className="mt-4 text-base font-bold text-white">{f.title}</h3>
+                  <p className="mt-2 text-[13px] text-[#8FA2BA] leading-relaxed">{f.desc}</p>
+                </div>
+              );
+            })}
           </div>
         </div>
       </section>
 
-      {/* Network Metrics Bar */}
-      <section className="py-12 bg-[#0A0E1A]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-[#13192B] border border-slate-800 rounded-3xl p-8 grid grid-cols-2 lg:grid-cols-4 gap-6 text-center shadow-lg">
-            <div>
-              <div className="text-3xl sm:text-4xl font-black text-purple-400 font-mono">100%</div>
-              <div className="text-xs font-bold text-slate-300 mt-1">Digital Identity Coverage</div>
+      {/* How it works */}
+      <section id="how-it-works" className="py-20 sm:py-24 relative" style={{ backgroundColor: C.navyLight, borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}` }}>
+        <div className="max-w-6xl mx-auto px-5 sm:px-8 relative z-10">
+          <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white text-center">
+            From issue to care in three steps
+          </h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-12 mt-14">
+            {STEPS.map((s, idx) => (
+              <div key={s.step} className="text-center relative">
+                {idx < STEPS.length - 1 && (
+                  <div className="hidden md:block absolute top-6 left-[60%] w-[80%] h-px" style={{ background: "linear-gradient(90deg, rgba(23,201,100,0.5), rgba(23,201,100,0.05))" }} />
+                )}
+                <div className="w-14 h-14 mx-auto rounded-full flex items-center justify-center text-lg font-extrabold text-[#06130B] shadow-lg" style={{ backgroundColor: C.neon, boxShadow: `0 8px 22px ${C.neon}55` }}>
+                  {s.step}
+                </div>
+                <h3 className="mt-5 text-lg font-bold text-white">{s.title}</h3>
+                <p className="mt-2 text-sm text-[#8FA2BA] leading-relaxed max-w-xs mx-auto">{s.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Security */}
+      <section id="security" className="py-20 sm:py-24 relative">
+        <div className="max-w-6xl mx-auto px-5 sm:px-8 grid grid-cols-1 lg:grid-cols-2 gap-14 items-center relative z-10">
+          <div>
+            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">
+              Patient privacy, engineered in
+            </h2>
+            <p className="mt-4 text-base text-[#9FB0C6] leading-relaxed max-w-xl">
+              Every access is consented, every action is audited, and every byte is encrypted.
+              Patients remain the sole owners of their record.
+            </p>
+            <div className="mt-6 space-y-4">
+              {[
+                { icon: Lock, text: "Consent-driven access across every provider." },
+                { icon: ShieldCheck, text: "One-tap revocation at any time, anywhere." },
+                { icon: Network, text: "Audit trail meeting national and global standards." },
+              ].map((it) => {
+                const Icon = it.icon;
+                return (
+                  <div key={it.text} className="flex items-center gap-3">
+                    <span className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: "rgba(23,201,100,0.13)", border: `1px solid ${C.borderGreen}33` }}>
+                      <Icon className="w-4 h-4" style={{ color: C.neonBright }} />
+                    </span>
+                    <span className="text-sm text-[#DCE6F2]">{it.text}</span>
+                  </div>
+                );
+              })}
             </div>
-            <div>
-              <div className="text-3xl sm:text-4xl font-black text-emerald-400 font-mono">0.02s</div>
-              <div className="text-xs font-bold text-slate-300 mt-1">EHR Verification Latency</div>
+          </div>
+
+          <div className="flex flex-col gap-4">
+            {AUDIENCES.map((r) => {
+              const Icon = r.icon;
+              return (
+                <div key={r.title} className="flex items-center gap-4 p-5 rounded-2xl transition-all duration-200" style={{ backgroundColor: C.card, border: `1px solid ${C.border}` }}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = C.neon; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = C.border; }}
+                >
+                  <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: "rgba(23,201,100,0.13)", border: `1px solid ${C.borderGreen}33` }}>
+                    <Icon className="w-5 h-5" style={{ color: C.neonBright }} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-white">{r.title}</p>
+                    <p className="text-[13px] text-[#8FA2BA] mt-0.5">{r.desc}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* Metrics */}
+      <section style={{ borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}`, backgroundColor: C.navyLight }}>
+        <div className="relative max-w-6xl mx-auto px-5 sm:px-8 py-14 grid grid-cols-2 lg:grid-cols-4 gap-8 text-center">
+          <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[40rem] h-40 rounded-full blur-[120px]" style={{ backgroundColor: "rgba(23,201,100,0.10)" }} />
+          </div>
+          {METRICS.map((m) => (
+            <div key={m.label} className="relative">
+              <div className="text-3xl sm:text-4xl font-extrabold" style={{ color: C.neonBright }}>{m.value}</div>
+              <div className="text-[13px] font-medium mt-1 text-[#8FA2BA]">{m.label}</div>
             </div>
-            <div>
-              <div className="text-3xl sm:text-4xl font-black text-cyan-400 font-mono">256-Bit</div>
-              <div className="text-xs font-bold text-slate-300 mt-1">Immutable Audit Trail</div>
-            </div>
-            <div>
-              <div className="text-3xl sm:text-4xl font-black text-indigo-400 font-mono">24/7</div>
-              <div className="text-xs font-bold text-slate-300 mt-1">Gemini AI Clinical Support</div>
+          ))}
+        </div>
+      </section>
+
+      {/* Emergency CTA */}
+      <section id="emergency" className="py-20 sm:py-24 relative overflow-hidden">
+        <div className="pointer-events-none absolute inset-0" aria-hidden>
+          <div className="absolute -bottom-24 left-1/2 -translate-x-1/2 w-[36rem] h-72 rounded-full blur-[130px]" style={{ backgroundColor: "rgba(23,201,100,0.16)" }} />
+        </div>
+        <div className="relative max-w-6xl mx-auto px-5 sm:px-8">
+          <div className="rounded-3xl p-8 sm:p-14 text-center relative overflow-hidden" style={{ backgroundColor: C.navyLight, border: `1px solid ${C.border}` }}>
+            <div className="pointer-events-none absolute -top-20 -right-16 w-64 h-64 rounded-full blur-[90px]" style={{ backgroundColor: "rgba(23,201,100,0.18)" }} aria-hidden />
+            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">
+              Critical data, at the emergency door
+            </h2>
+            <p className="mt-4 text-base text-[#9FB0C6] max-w-2xl mx-auto leading-relaxed">
+              Break-glass access gives trauma teams instant, audited visibility of allergies,
+              medications, and directives &mdash; without waiting for paperwork.
+            </p>
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+              <button onClick={() => onOpenLogin("PATIENT", true)} className="px-7 py-3.5 text-sm font-bold text-white rounded-md transition hover:brightness-110 flex items-center gap-2" style={{ backgroundColor: C.neon, boxShadow: `0 8px 26px ${C.neon}66` }}>
+                Get started today
+                <ArrowRight className="w-4 h-4" />
+              </button>
+              <button onClick={() => onOpenLogin("PATIENT", false)} className="px-7 py-3.5 text-sm font-bold text-white rounded-md transition hover:bg-white/5" style={{ border: "1px solid rgba(255,255,255,0.25)" }}>
+                Provider sign in
+              </button>
             </div>
           </div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-slate-800 bg-[#0B0F19] py-8 text-center text-xs text-slate-400 space-y-2">
-        <p className="font-bold text-slate-200">
-          NexusHealth AI Gateway • “One Nation. One Health Identity. Infinite Care.”
-        </p>
-        <p className="text-[11px] text-slate-500 max-w-xl mx-auto">
-          Compliant with MCI, National Health Authority, HIPAA & Global Electronic Medical Record Privacy Guidelines.
-        </p>
+      <footer style={{ backgroundColor: "#060B14", borderTop: `1px solid ${C.border}` }}>
+        <div className="max-w-6xl mx-auto px-5 sm:px-8 py-14">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+            <div className="col-span-2 md:col-span-1 space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: C.neon }}>
+                  <Activity className="w-4 h-4" style={{ color: "#06130B" }} />
+                </div>
+                <span className="text-base font-bold text-white">NexusHealth</span>
+              </div>
+              <p className="text-[13px] leading-relaxed max-w-xs text-[#8FA2BA]">
+                One nation, one health identity, continuous care.
+              </p>
+            </div>
+
+            {FOOTER_COLUMNS.map((col) => (
+              <div key={col.title}>
+                <h4 className="text-[11px] font-bold uppercase tracking-wider mb-3 text-[#5D6B80]">{col.title}</h4>
+                {col.links.map((l) => (
+                  <a key={l} href="#platform" className="block py-1.5 text-[13px] text-[#8FA2BA] hover:text-[#3CE584] transition-colors">{l}</a>
+                ))}
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3" style={{ borderTop: `1px solid ${C.border}` }}>
+            <p className="text-xs text-[#5D6B80]">© {new Date().getFullYear()} NexusHealth Global Digital Health Identity Platform</p>
+            <p className="text-[11px] text-[#5D6B80]">Aligned with National Health Authority · HIPAA · MCI</p>
+          </div>
+        </div>
       </footer>
     </div>
   );
