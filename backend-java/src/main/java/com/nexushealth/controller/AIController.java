@@ -39,4 +39,9 @@ public class AIController {
     public ApiResponse generateDietPlan(@RequestBody GenerateDietPlanRequest req) {
         return aiService.generateDietPlan(req);
     }
+
+    @PostMapping("/care-analysis")
+    public ApiResponse careAnalysis(@RequestBody com.nexushealth.dto.ai.AIRequests.CareAnalysisRequest req) {
+        return aiService.careAnalysis(req);
+    }
 }

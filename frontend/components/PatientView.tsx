@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import {
   PatientProfile,
   MedicalRecord,
@@ -253,6 +253,29 @@ export const PatientView: React.FC<PatientViewProps> = ({
   });
   const [vitalsFormError, setVitalsFormError] = useState("");
 
+  // ── Automatic Location Tracker ──
+  const [patientLoc, setPatientLoc] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [locStatus, setLocStatus] = useState<"TRACKING" | "DENIED" | "UNSUPPORTED" | "UNAVAILABLE">("TRACKING");
+  useEffect(() => {
+    if (!("geolocation" in navigator)) {
+      setLocStatus("UNSUPPORTED");
+      return;
+    }
+    const watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        setPatientLoc({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
+        setLocStatus("TRACKING");
+      },
+      (err) => {
+        console.warn("Location tracker unavailable:", err.message);
+        setPatientLoc(null);
+        setLocStatus(err.code === 1 ? "DENIED" : "UNAVAILABLE");
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 }
+    );
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, []);
+
   // Dynamic Patient Medication & Adherence State
   const [activeMedications, setActiveMedications] = useState<PatientMedication[]>([]);
   const [medicationHistory, setMedicationHistory] = useState<PatientMedication[]>([]);
@@ -389,6 +412,87 @@ export const PatientView: React.FC<PatientViewProps> = ({
       setIsAiReplying(false);
     }
   };
+
+  // ── Proactive AI Care Analysis ──
+  // Runs automatically after every vitals update (the patient never needs to
+  // ask). It compares the latest reading + medical history against clinical
+  // ranges and, if anything looks abnormal, recommends a nearby doctor.
+  const [careAnalysis, setCareAnalysis] = useState<any>(null);
+  const [careLoading, setCareLoading] = useState(false);
+  const [careError, setCareError] = useState<string | null>(null);
+
+  const nearbyProviders = useMemo(() => {
+    const list = activeHospitalsList
+      .filter((h) => h.status === "APPROVED" || h.status === "ACTIVE" || !h.status)
+      .map((h) => {
+        const docs = doctors
+          .filter((d) => d.hospitalId === h.id && d.status === "APPROVED" && d.isActive !== false)
+          .map((d) => d.name);
+        return {
+          hospitalId: h.id,
+          hospitalName: h.name,
+          address: [h.address, h.city, h.state, h.pincode].filter(Boolean).join(", "),
+          latitude: h.latitude ?? null,
+          longitude: h.longitude ?? null,
+          doctors: docs,
+        };
+      });
+    if (patientLoc) {
+      for (const p of list) {
+        if (typeof p.latitude === "number" && typeof p.longitude === "number") {
+          (p as any).distanceKm = haversineKm(patientLoc.latitude, patientLoc.longitude, p.latitude, p.longitude);
+        }
+      }
+    }
+    return list;
+  }, [activeHospitalsList, doctors, patientLoc]);
+
+  const runCareHealthCheck = useCallback(
+    async (vitalsOverride?: any) => {
+      if (!profile) return;
+      setCareLoading(true);
+      setCareError(null);
+      try {
+        const profileWithLoc = {
+          ...profile,
+          latitude: patientLoc?.latitude ?? profile.latitude,
+          longitude: patientLoc?.longitude ?? profile.longitude,
+          city: profile.city || (patientLoc ? "Current GPS Location" : undefined),
+        };
+        const res = await fetch("/api/ai/care-analysis", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            patientHealthId: profile.globalHealthId || profile.id,
+            patientProfile: profileWithLoc,
+            vitals: vitalsOverride || latestVitals || {},
+            medicalRecords: records,
+            previousAnalyses: [],
+            nearbyProviders,
+          }),
+        });
+        const data = await parseResponseSafe<any>(res, { success: false });
+        if (!res.ok || !data || !data.success) {
+          setCareError(data?.message || "AI care analysis could not be completed.");
+          return;
+        }
+        setCareAnalysis(data);
+      } catch (err) {
+        console.error("Care analysis failed:", err);
+        setCareError("Could not reach the AI care engine. Check that the backend is running.");
+      } finally {
+        setCareLoading(false);
+      }
+    },
+    [profile, patientLoc, latestVitals, records, nearbyProviders]
+  );
+
+  // Auto-run once when the patient opens the Vitals & Biomarkers tab.
+  useEffect(() => {
+    if (activeTab === "VITALS_ANALYTICS" && vitalsHistory.length > 0 && !careLoading && !careAnalysis) {
+      runCareHealthCheck();
+    }
+  }, [activeTab]);
 
   const navTabs = [
     { key: "DASHBOARD", label: "Dashboard", icon: Activity },
@@ -1068,6 +1172,154 @@ export const PatientView: React.FC<PatientViewProps> = ({
                 </div>
                 <div className="text-[10px] text-[#17C964] font-mono font-bold">{latestVitals ? "✔ EXCELLENT" : "NO DATA YET"}</div>
               </div>
+            </div>
+
+            {/* ── Proactive AI Care Analysis (auto-runs, patient needn't ask) ── */}
+            <div className="bg-[#FFFFFF] border border-[#17C964]/40 rounded-3xl p-6 space-y-4 shadow-xl">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 flex items-center space-x-2">
+                    <Bot className="w-5 h-5 text-[#17C964]" />
+                    <span>Proactive AI Care Analysis</span>
+                  </h3>
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    Runs automatically on every vitals update — checks your readings, scans your medical history and recommends a nearby doctor if it finds anything abnormal. No need to ask.
+                  </p>
+                </div>
+                <button
+                  onClick={() => runCareHealthCheck()}
+                  disabled={careLoading}
+                  className="px-4 py-2 bg-[#0f172a] hover:bg-[#17C964] disabled:opacity-50 text-white font-bold rounded-xl text-xs transition flex items-center space-x-2 shrink-0"
+                >
+                  <RefreshCw className={`w-4 h-4 ${careLoading ? "animate-spin" : ""}`} />
+                  <span>{careLoading ? "Analyzing…" : "Run AI Check"}</span>
+                </button>
+              </div>
+
+              {/* Live location tracker status */}
+              <div className="flex flex-wrap items-center gap-2 text-[11px] font-mono">
+                <span className={`px-2 py-1 rounded-lg border font-bold ${
+                  locStatus === "TRACKING"
+                    ? "bg-[#E9FBF1] text-[#17C964] border-[#17C964]/40"
+                    : locStatus === "DENIED"
+                    ? "bg-[#FEF2F2] text-[#F2603C] border-[#F2603C]/40"
+                    : "bg-[#FFF7ED] text-amber-600 border-amber-300"
+                }`}>
+                  {locStatus === "TRACKING" ? "● LIVE LOCATION TRACKING" : locStatus === "DENIED" ? "⚠ LOCATION PERMISSION DENIED" : "⚠ LOCATION UNAVAILABLE"}
+                </span>
+                {patientLoc && (
+                  <span className="px-2 py-1 rounded-lg bg-[#EDF1F5] text-slate-600 border border-slate-200">
+                    {patientLoc.latitude.toFixed(4)}, {patientLoc.longitude.toFixed(4)}
+                  </span>
+                )}
+                {nearbyProviders.some((p: any) => p.distanceKm != null) && (
+                  <span className="px-2 py-1 rounded-lg bg-[#EDF1F5] text-slate-600 border border-slate-200">
+                    {nearbyProviders.filter((p: any) => p.distanceKm != null).length} nearby hospital(s) matched for doctor suggestions
+                  </span>
+                )}
+              </div>
+
+              {careLoading && (
+                <div className="flex items-center justify-center py-6 text-[#17C964]">
+                  <RefreshCw className="w-5 h-5 animate-spin mr-2" />
+                  <span className="text-xs font-mono">Analyzing vitals + medical history…</span>
+                </div>
+              )}
+
+              {!careLoading && careError && (
+                <div className="py-3 px-4 rounded-xl bg-[#FEF2F2] border border-[#F2603C]/40 text-xs font-mono text-[#F2603C]">{careError}</div>
+              )}
+
+              {!careLoading && careAnalysis?.success && (
+                <div className="space-y-4">
+                  <div className="flex flex-wrap gap-2">
+                    <span className={`px-3 py-1 rounded-xl text-[11px] font-black border ${
+                      careAnalysis.status === "URGENT"
+                        ? "bg-[#FEF2F2] text-[#F2603C] border-[#F2603C]/50"
+                        : careAnalysis.status === "REVIEW"
+                        ? "bg-amber-50 text-amber-600 border-amber-300"
+                        : "bg-[#E9FBF1] text-[#17C964] border-[#17C964]/50"
+                    }`}>
+                      STATUS: {careAnalysis.status}
+                    </span>
+                    <span className={`px-3 py-1 rounded-xl text-[11px] font-black border ${
+                      careAnalysis.needsDoctorVisit
+                        ? "bg-[#FEF2F2] text-[#F2603C] border-[#F2603C]/50"
+                        : "bg-[#E9FBF1] text-[#17C964] border-[#17C964]/50"
+                    }`}>
+                      {careAnalysis.needsDoctorVisit ? "⚠ SEE A DOCTOR RECOMMENDED" : "✓ NO DOCTOR VISIT NEEDED"}
+                    </span>
+                  </div>
+
+                  <div className="prose-sm max-w-none text-[13px] leading-relaxed text-slate-700 whitespace-pre-wrap font-sans bg-[#EDF1F5]/60 border border-slate-200 rounded-2xl p-4">
+                    {String(careAnalysis.assessment || "").replace(/\*\*/g, "").replace(/^#+\s*/gm, "")}
+                  </div>
+
+                  {(Array.isArray(careAnalysis.abnormalities) && careAnalysis.abnormalities.length > 0) ||
+                    (Array.isArray(careAnalysis.recordsRedFlags) && careAnalysis.recordsRedFlags.length > 0) ? (
+                    <div>
+                      <h4 className="text-xs font-black text-slate-700 uppercase mb-2">Detected Abnormalities</h4>
+                      <div className="grid gap-2">
+                        {(careAnalysis.abnormalities || []).map((a: any, i: number) => (
+                          <div key={i} className="flex items-center justify-between bg-[#FEF2F2]/60 border border-[#F2603C]/30 rounded-xl px-3 py-2 text-xs">
+                            <span className="font-bold text-slate-800">{a.name}</span>
+                            <span className="font-mono text-[#F2603C] font-bold">
+                              {a.value} <span className="text-slate-400">(ref {a.referenceRange})</span>
+                            </span>
+                          </div>
+                        ))}
+                        {(careAnalysis.recordsRedFlags || []).map((f: string, i: number) => (
+                          <div key={`f${i}`} className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 text-xs">
+                            <span className="font-bold text-slate-800">Medical history flag</span>
+                            <span className="font-mono text-amber-600 font-bold capitalize">{f}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {Array.isArray(careAnalysis.suggestedProviders) && careAnalysis.suggestedProviders.length > 0 && (
+                    <div>
+                      <h4 className="text-xs font-black text-slate-700 uppercase mb-2">📍 Recommended Nearby Providers</h4>
+                      <div className="grid md:grid-cols-3 gap-3">
+                        {careAnalysis.suggestedProviders.map((p: any, i: number) => (
+                          <div key={i} className="border border-[#17C964]/40 bg-[#E9FBF1]/50 rounded-2xl p-3 space-y-1">
+                            <div className="text-xs font-black text-slate-900">{p.hospitalName}</div>
+                            <div className="text-[10px] text-slate-500 font-mono">{p.address}</div>
+                            <div className="text-[10px] text-slate-600 font-mono">{p.doctorSummary}</div>
+                            <div className="text-[10px] font-black text-[#17C964]">{p.distanceLabel}</div>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-[10px] text-slate-400 mt-2">
+                        Based on your live location. You can also book them via the{" "}
+                        <button onClick={() => setActiveTab("APPOINTMENTS")} className="text-[#17C964] font-bold underline">
+                          Book Appointments
+                        </button>{" "}
+                        tab.
+                      </p>
+                    </div>
+                  )}
+
+                  {Array.isArray(careAnalysis.recommendations) && careAnalysis.recommendations.length > 0 && (
+                    <div>
+                      <h4 className="text-xs font-black text-slate-700 uppercase mb-2">Recommendations</h4>
+                      <ul className="space-y-1.5">
+                        {careAnalysis.recommendations.map((r: string, i: number) => (
+                          <li key={i} className="flex items-start text-xs text-slate-700 space-x-2">
+                            <span className="text-[#17C964] font-black mt-0.5">➤</span>
+                            <span>{r}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {!careLoading && !careAnalysis && !careError && vitalsHistory.length === 0 && (
+                <p className="text-xs text-slate-400">Log your first vitals reading and the AI care engine will analyze it automatically.</p>
+              )}
             </div>
 
             {/* Historical Log Table */}
@@ -1787,6 +2039,7 @@ className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2.5 te
                 };
                 setVitalsHistory((prev) => [...prev, newLog]);
                 setShowVitalsModal(false);
+                runCareHealthCheck(newLog);
               }}
               className="w-full py-3 bg-[#17C964] hover:bg-[#0EA653] text-white font-bold rounded-xl transition text-xs shadow-lg shadow-[#17C964]/30"
             >
@@ -2008,4 +2261,13 @@ className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2.5 te
       />
     </>
   );
+};
+
+const haversineKm = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
+  const R = 6371;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
 };

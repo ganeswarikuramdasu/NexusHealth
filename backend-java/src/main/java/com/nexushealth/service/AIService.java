@@ -255,6 +255,280 @@ public class AIService {
     }
 
     /**
+     * Proactive care analysis. The frontend calls this automatically (it does
+     * not require the patient to ask anything) whenever vitals are logged or
+     * the care section opens. It runs the latest vitals + medical history
+     * against clinical reference ranges, flags anything abnormal, and when it
+     * finds an abnormality it recommends nearby doctors/hospitals the patient
+     * should see.
+     */
+    @SuppressWarnings("unchecked")
+    public ApiResponse careAnalysis(CareAnalysisRequest req) {
+        Map<String, Object> vitals = req.getVitals() != null ? req.getVitals() : new LinkedHashMap<>();
+        List<?> records = req.getMedicalRecords() != null ? req.getMedicalRecords() : Collections.emptyList();
+        Map<String, Object> patientProfile = req.getPatientProfile() != null ? req.getPatientProfile() : Collections.emptyMap();
+        List<Map<String, Object>> providers = normalizeProviders(req.getNearbyProviders(),
+                safeNum(patientProfile.get("latitude")), safeNum(patientProfile.get("longitude")));
+
+        List<Map<String, Object>> abnormalities = new ArrayList<>();
+        String status = "STABLE";
+
+        evaluateVital(abnormalities, vitals, "BP Systolic", safeNum(vitals.get("bpSystolic")), 90, 120,
+                "mmHg", "High systolic pressure strains the heart and arteries over time.");
+        evaluateVital(abnormalities, vitals, "BP Diastolic", safeNum(vitals.get("bpDiastolic")), 60, 80,
+                "mmHg", "High diastolic pressure increases cardiovascular risk.");
+        evaluateVital(abnormalities, vitals, "Glucose (Fasting)", safeNum(vitals.get("glucose")), 70, 100,
+                "mg/dL", "Elevated fasting glucose may indicate pre-diabetes or diabetes.");
+        evaluateVital(abnormalities, vitals, "Heart Rate", safeNum(vitals.get("heartRate")), 60, 100,
+                "bpm", "Abnormal resting heart rate can signal arrhythmia or compensation.");
+        evaluateVital(abnormalities, vitals, "SpO2", safeNum(vitals.get("spo2")), 95, 100,
+                "%", "Low blood oxygen warrants evaluation for respiratory or cardiac conditions.");
+
+        List<String> redFlags = scanRecordsForRedFlags(records);
+
+        boolean anyAbnormal = !abnormalities.isEmpty() || !redFlags.isEmpty();
+        boolean anyCritical = abnormalities.stream()
+                .anyMatch(a -> "CRITICAL".equals(a.get("level")));
+
+        if (anyCritical) {
+            status = "URGENT";
+        } else if (anyAbnormal) {
+            status = "REVIEW";
+        }
+        boolean needsDoctorVisit = anyAbnormal;
+
+        List<Map<String, Object>> suggested = suggestProviders(providers, needsDoctorVisit ? 3 : 2);
+
+        String careSummary = buildCareSummary(status, abnormalities, redFlags, vitals);
+
+        String aiAssessment = callGemini(
+                "You are NexusHealth's proactive clinical care AI. A patient's vitals and medical history have been automatically analyzed WITHOUT them asking. Review the findings and, if any abnormality exists, clearly recommend that they see a doctor and recommend the nearest suitable providers from the supplied list. Always end with a safety disclaimer. Use Markdown.",
+                "Patient:\n" + safeJson(req.getPatientProfile())
+                        + "\nPatient health ID: " + firstNonBlank(req.getPatientHealthId(), "not provided")
+                        + "\nLatest vitals: " + safeJson(vitals)
+                        + "\nMedical history summary: " + summarizeRecords(records)
+                        + "\nDetected abnormalities: " + (abnormalities.isEmpty() ? "none" : safeJson(abnormalities))
+                        + "\nRecords red flags: " + (redFlags.isEmpty() ? "none" : String.join("; ", redFlags))
+                        + "\nOverall status: " + status
+                        + "\nNearby hospitals/doctors available: " + safeJson(providers)
+        );
+
+        String assessment = (aiAssessment != null) ? aiAssessment : careSummary;
+
+        List<String> recommendations = new ArrayList<>();
+        if (!anyAbnormal) {
+            recommendations.add("No actionable abnormality detected - continue your routine monitoring and lifestyle plan.");
+            recommendations.add("Log vitals at least weekly so proactive tracking stays continuous.");
+        } else {
+            for (Map<String, Object> a : abnormalities) {
+                recommendations.add("Abnormal " + a.get("name") + " (" + a.get("value") + ") - see the nearest doctor for a clinical review.");
+            }
+            if (!redFlags.isEmpty()) {
+                recommendations.add("Your medical history contains flags that warrant follow-up (" + String.join(", ", redFlags) + ").");
+            }
+            recommendations.add(suggested.isEmpty()
+                    ? "No nearby provider coordinates were available - use the Book Appointments tab to pick a provider."
+                    : "Consult " + suggested.get(0).get("hospitalName") + " (" + suggested.get(0).get("doctorSummary") + ") - " + suggested.get(0).get("distanceLabel") + ".");
+        }
+
+        return ApiResponse.ok()
+                .with("status", status)
+                .with("needsDoctorVisit", needsDoctorVisit)
+                .with("abnormalities", abnormalities)
+                .with("recordsRedFlags", redFlags)
+                .with("suggestedProviders", suggested)
+                .with("recommendations", recommendations)
+                .with("assessment", assessment)
+                .with("source", aiAssessment != null ? "GEMINI" : "SIMULATED");
+    }
+
+    private void evaluateVital(List<Map<String, Object>> abnormalities, Map<String, Object> vitals,
+                               String name, double value, double normalLow, double normalHigh,
+                               String unit, String advice) {
+        if (Double.isNaN(value)) return;
+        boolean abnormal = value < normalLow || value > normalHigh;
+        if (!abnormal) return;
+
+        boolean criticalHigh = value > normalHigh * 1.5;
+        boolean criticalLow = value < normalLow * 0.6;
+        String level = (criticalHigh || criticalLow)
+                ? "CRITICAL"
+                : "ABNORMAL";
+
+        Map<String, Object> entry = new LinkedHashMap<>();
+        entry.put("name", name);
+        entry.put("value", value + " " + unit);
+        entry.put("level", level);
+        entry.put("referenceRange", normalLow + "-" + normalHigh + " " + unit);
+        entry.put("advice", advice);
+        abnormalities.add(entry);
+    }
+
+    private List<String> scanRecordsForRedFlags(List<?> records) {
+        List<String> flags = new ArrayList<>();
+        String[] keywords = {
+                "emergency", "critical", "life-threatening", "abnormal", "admitted",
+                "icu", "stroke", "heart attack", "myocardial", "cancer", "malignant",
+                "anaphylaxis", "seizure", "unconscious", "cardiac arrest"
+        };
+        for (Object rec : records) {
+            if (!(rec instanceof Map)) continue;
+            Map<?, ?> m = (Map<?, ?>) rec;
+            String diagnosis = mapStr(m, "diagnosis", "");
+            String notes = mapStr(m, "clinicalNotes", "");
+            String title = mapStr(m, "title", "");
+            String summary = (diagnosis + " " + notes + " " + title).toLowerCase();
+            for (String kw : keywords) {
+                if (summary.contains(kw) && !flags.contains(kw)) {
+                    flags.add(kw);
+                }
+            }
+            Object vibe = m.get("recordType");
+            if ("EMERGENCY".equalsIgnoreCase(String.valueOf(vibe)) && !flags.contains("emergency visit")) {
+                flags.add("emergency visit");
+            }
+        }
+        return flags;
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> normalizeProviders(List<?> raw, double patientLat, double patientLng) {
+        List<Map<String, Object>> out = new ArrayList<>();
+        if (raw == null) return out;
+        for (Object o : raw) {
+            if (!(o instanceof Map)) continue;
+            Map<?, ?> m = (Map<?, ?>) o;
+            Map<String, Object> entry = new LinkedHashMap<>();
+            entry.put("hospitalId", mapStr(m, "hospitalId", ""));
+            entry.put("hospitalName", mapStr(m, "hospitalName", "Healthcare Facility"));
+            entry.put("address", mapStr(m, "address", ""));
+            Object distObj = m.get("distanceKm");
+            double dist = Double.NaN;
+            if (distObj != null) {
+                try {
+                    dist = Double.parseDouble(String.valueOf(distObj));
+                } catch (Exception ignored) {
+                }
+            }
+            if (Double.isNaN(dist) && !Double.isNaN(patientLat) && !Double.isNaN(patientLng)) {
+                double hLat = safeNum(m.get("latitude"));
+                double hLng = safeNum(m.get("longitude"));
+                if (!Double.isNaN(hLat) && !Double.isNaN(hLng)) {
+                    dist = haversineKm(patientLat, patientLng, hLat, hLng);
+                }
+            }
+            entry.put("distanceKm", Double.isNaN(dist) ? null : Math.round(dist * 10) / 10.0);
+            List<?> docList = m.get("doctors") instanceof List ? (List<?>) m.get("doctors") : Collections.emptyList();
+            String docSummary;
+            if (docList.isEmpty()) {
+                docSummary = "General practitioners available";
+            } else if (docList.size() == 1) {
+                docSummary = "Dr. " + String.valueOf(docList.get(0));
+            } else {
+                docSummary = "Drs. " + String.valueOf(docList.get(0)).trim() + " & " + (docList.size() - 1) + " more";
+            }
+            entry.put("doctorSummary", docSummary);
+            out.add(entry);
+        }
+        out.sort((a, b) -> {
+            Object da = a.get("distanceKm");
+            Object db = b.get("distanceKm");
+            if (da == null) return 1;
+            if (db == null) return -1;
+            return Double.compare(((Number) da).doubleValue(), ((Number) db).doubleValue());
+        });
+        return out;
+    }
+
+    private List<Map<String, Object>> suggestProviders(List<Map<String, Object>> providers, int limit) {
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (Map<String, Object> p : providers) {
+            if (out.size() >= limit) break;
+            Map<String, Object> copy = new LinkedHashMap<>(p);
+            Object dist = copy.get("distanceKm");
+            copy.put("distanceLabel", dist == null ? "Distance not available" : String.format("%.1f km away", dist));
+            out.add(copy);
+        }
+        return out;
+    }
+
+    private String buildCareSummary(String status, List<Map<String, Object>> abnormalities,
+                                    List<String> redFlags, Map<String, Object> vitals) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("## \uD83E\uDE7A Proactive AI Health Check\n\n");
+        sb.append("**Overall status:** ").append(status).append("\n\n");
+
+        if (vitals.isEmpty()) {
+            sb.append("No vitals logged yet for this Health ID. Log your BP, glucose, heart rate and SpO2 so I can monitor them continuously.");
+        } else {
+            sb.append("**Latest vitals:** ");
+            sb.append("BP ").append(vitals.get("bpSystolic")).append("/").append(vitals.get("bpDiastolic"))
+                    .append(" | Glucose ").append(vitals.get("glucose")).append(" | HR ").append(vitals.get("heartRate"))
+                    .append(" | SpO2 ").append(vitals.get("spo2")).append("%\n\n");
+        }
+
+        if (abnormalities.isEmpty() && redFlags.isEmpty()) {
+            sb.append("\u2705 All parameters are within reference ranges. Continue routine self-care and keep logging vitals.\n");
+            sb.append("\n> This is a proactive check, not a diagnosis. Always confirm with a licensed physician.\n");
+            return sb.toString();
+        }
+
+        sb.append("### \u26A0\uFE0F Abnormalities Detected\n");
+        for (Map<String, Object> a : abnormalities) {
+            sb.append("- **").append(a.get("name")).append("**: `").append(a.get("value"))
+                    .append("` (ref ").append(a.get("referenceRange")).append(") - ")
+                    .append("CRITICAL".equals(a.get("level")) ? "**needs urgent review**" : "needs review")
+                    .append(". ").append(a.get("advice")).append("\n");
+        }
+        for (String flag : redFlags) {
+            sb.append("- History flag: `").append(flag).append("` - consider clinical follow-up.\n");
+        }
+        sb.append("\n> **It is recommended that you see a doctor.** Your care section will list nearby hospitals and doctors - or use the *Book Appointments* tab.\n");
+        return sb.toString();
+    }
+
+    private String summarizeRecords(List<?> records) {
+        if (records == null || records.isEmpty()) return "No medical records on file.";
+        StringBuilder sb = new StringBuilder();
+        int shown = 0;
+        for (Object rec : records) {
+            if (shown >= 8) break;
+            if (!(rec instanceof Map)) continue;
+            Map<?, ?> m = (Map<?, ?>) rec;
+            sb.append("- [").append(mapStr(m, "recordDate", "?")).append("] ")
+                    .append(mapStr(m, "recordType", "record")).append(": ")
+                    .append(mapStr(m, "title", "")).append(" | ")
+                    .append(mapStr(m, "diagnosis", "")).append("\n");
+            shown++;
+        }
+        return sb.toString();
+    }
+
+    private static double safeNum(Object o) {
+        if (o == null) return Double.NaN;
+        try {
+            return Double.parseDouble(String.valueOf(o));
+        } catch (Exception e) {
+            return Double.NaN;
+        }
+    }
+
+    private static String mapStr(Map<?, ?> m, String key, String def) {
+        Object v = m.get(key);
+        return v == null ? def : String.valueOf(v);
+    }
+
+    private static double haversineKm(double lat1, double lng1, double lat2, double lng2) {
+        double R = 6371.0;
+        double dLat = Math.toRadians(lat2 - lat1);
+        double dLng = Math.toRadians(lng2 - lng1);
+        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+                * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+        return 2 * R * Math.asin(Math.sqrt(a));
+    }
+
+    /**
      * Returns true when a real Gemini API key is configured so the service
      * can reach the live model. When false, all replies fall back to the
      * built-in deterministic guidance (so the app never breaks offline).

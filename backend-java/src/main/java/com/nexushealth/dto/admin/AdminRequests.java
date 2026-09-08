@@ -10,6 +10,12 @@ public class AdminRequests {
         private String address;
         private String phone;
         private Integer totalBeds;
+        private String location;
+        private String city;
+        private String state;
+        private String pincode;
+        private Double latitude;
+        private Double longitude;
 
         public String getName() { return name; }
         public void setName(String name) { this.name = name; }
@@ -25,6 +31,18 @@ public class AdminRequests {
         public void setPhone(String phone) { this.phone = phone; }
         public Integer getTotalBeds() { return totalBeds; }
         public void setTotalBeds(Integer totalBeds) { this.totalBeds = totalBeds; }
+        public String getLocation() { return location; }
+        public void setLocation(String location) { this.location = location; }
+        public String getCity() { return city; }
+        public void setCity(String city) { this.city = city; }
+        public String getState() { return state; }
+        public void setState(String state) { this.state = state; }
+        public String getPincode() { return pincode; }
+        public void setPincode(String pincode) { this.pincode = pincode; }
+        public Double getLatitude() { return latitude; }
+        public void setLatitude(Double latitude) { this.latitude = latitude; }
+        public Double getLongitude() { return longitude; }
+        public void setLongitude(Double longitude) { this.longitude = longitude; }
     }
 
     public static class ApproveHospitalRequest {
@@ -54,6 +72,12 @@ public class AdminRequests {
         private Integer totalBeds;
         private Integer availableBeds;
         private String status;
+        private String location;
+        private String city;
+        private String state;
+        private String pincode;
+        private Double latitude;
+        private Double longitude;
 
         public String getHospitalId() { return hospitalId; }
         public void setHospitalId(String hospitalId) { this.hospitalId = hospitalId; }
@@ -73,6 +97,18 @@ public class AdminRequests {
         public void setAvailableBeds(Integer availableBeds) { this.availableBeds = availableBeds; }
         public String getStatus() { return status; }
         public void setStatus(String status) { this.status = status; }
+        public String getLocation() { return location; }
+        public void setLocation(String location) { this.location = location; }
+        public String getCity() { return city; }
+        public void setCity(String city) { this.city = city; }
+        public String getState() { return state; }
+        public void setState(String state) { this.state = state; }
+        public String getPincode() { return pincode; }
+        public void setPincode(String pincode) { this.pincode = pincode; }
+        public Double getLatitude() { return latitude; }
+        public void setLatitude(Double latitude) { this.latitude = latitude; }
+        public Double getLongitude() { return longitude; }
+        public void setLongitude(Double longitude) { this.longitude = longitude; }
     }
 
     public static class DeleteDoctorRequest {

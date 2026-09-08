@@ -84,4 +84,26 @@ public class AIRequests {
         public String getGoal() { return goal; }
         public void setGoal(String goal) { this.goal = goal; }
     }
+
+    public static class CareAnalysisRequest {
+        private String patientHealthId;
+        private Map<String, Object> patientProfile;
+        private Map<String, Object> vitals;
+        private List<?> medicalRecords;
+        private List<?> previousAnalyses;
+        private List<?> nearbyProviders;
+
+        public String getPatientHealthId() { return patientHealthId; }
+        public void setPatientHealthId(String patientHealthId) { this.patientHealthId = patientHealthId; }
+        public Map<String, Object> getPatientProfile() { return patientProfile; }
+        public void setPatientProfile(Map<String, Object> patientProfile) { this.patientProfile = patientProfile; }
+        public Map<String, Object> getVitals() { return vitals; }
+        public void setVitals(Map<String, Object> vitals) { this.vitals = vitals; }
+        public List<?> getMedicalRecords() { return medicalRecords; }
+        public void setMedicalRecords(List<?> medicalRecords) { this.medicalRecords = medicalRecords; }
+        public List<?> getPreviousAnalyses() { return previousAnalyses; }
+        public void setPreviousAnalyses(List<?> previousAnalyses) { this.previousAnalyses = previousAnalyses; }
+        public List<?> getNearbyProviders() { return nearbyProviders; }
+        public void setNearbyProviders(List<?> nearbyProviders) { this.nearbyProviders = nearbyProviders; }
+    }
 }

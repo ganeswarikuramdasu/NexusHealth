@@ -76,6 +76,11 @@ export const SuperAdminView: React.FC<SuperAdminViewProps> = ({
   const [editHospPhone, setEditHospPhone] = useState("");
   const [editHospTotalBeds, setEditHospTotalBeds] = useState(150);
   const [editHospAvailBeds, setEditHospAvailBeds] = useState(30);
+  const [editHospCity, setEditHospCity] = useState("");
+  const [editHospState, setEditHospState] = useState("");
+  const [editHospPincode, setEditHospPincode] = useState("");
+  const [editHospLat, setEditHospLat] = useState("");
+  const [editHospLng, setEditHospLng] = useState("");
   const [editHospStatusMsg, setEditHospStatusMsg] = useState<{ type: "success" | "error"; msg: string } | null>(null);
 
   // Hospital Provisioning Modal State
@@ -87,6 +92,11 @@ export const SuperAdminView: React.FC<SuperAdminViewProps> = ({
   const [newHospAddress, setNewHospAddress] = useState("Central Medical Enclave, Health City");
   const [newHospPhone, setNewHospPhone] = useState("+91 11 4000 7000");
   const [newHospBeds, setNewHospBeds] = useState(200);
+  const [newHospCity, setNewHospCity] = useState("");
+  const [newHospState, setNewHospState] = useState("");
+  const [newHospPincode, setNewHospPincode] = useState("");
+  const [newHospLat, setNewHospLat] = useState("");
+  const [newHospLng, setNewHospLng] = useState("");
   const [addHospStatus, setAddHospStatus] = useState<{ type: "success" | "error"; msg: string } | null>(null);
 
   const openEditHospitalModal = (hosp: HospitalProfile) => {
@@ -98,6 +108,11 @@ export const SuperAdminView: React.FC<SuperAdminViewProps> = ({
     setEditHospPhone(hosp.phone || "");
     setEditHospTotalBeds(hosp.totalBeds || 150);
     setEditHospAvailBeds(hosp.availableBeds || 30);
+    setEditHospCity(hosp.city || "");
+    setEditHospState(hosp.state || "");
+    setEditHospPincode(hosp.pincode || "");
+    setEditHospLat(hosp.latitude != null ? String(hosp.latitude) : "");
+    setEditHospLng(hosp.longitude != null ? String(hosp.longitude) : "");
     setEditHospStatusMsg(null);
   };
 
@@ -118,6 +133,12 @@ export const SuperAdminView: React.FC<SuperAdminViewProps> = ({
           phone: editHospPhone,
           totalBeds: editHospTotalBeds,
           availableBeds: editHospAvailBeds,
+          location: editHospCity,
+          city: editHospCity,
+          state: editHospState,
+          pincode: editHospPincode,
+          latitude: editHospLat ? Number(editHospLat) : undefined,
+          longitude: editHospLng ? Number(editHospLng) : undefined,
         }),
       });
       const data = await parseResponseSafe<any>(res, { success: false, message: "Failed to update hospital." });
@@ -133,6 +154,12 @@ export const SuperAdminView: React.FC<SuperAdminViewProps> = ({
       editingHospital.phone = editHospPhone;
       editingHospital.totalBeds = editHospTotalBeds;
       editingHospital.availableBeds = editHospAvailBeds;
+      editingHospital.location = editHospCity;
+      editingHospital.city = editHospCity;
+      editingHospital.state = editHospState;
+      editingHospital.pincode = editHospPincode;
+      editingHospital.latitude = editHospLat ? Number(editHospLat) : undefined;
+      editingHospital.longitude = editHospLng ? Number(editHospLng) : undefined;
       setTimeout(() => {
         setEditingHospital(null);
         setEditHospStatusMsg(null);
@@ -178,6 +205,12 @@ export const SuperAdminView: React.FC<SuperAdminViewProps> = ({
           address: newHospAddress,
           phone: newHospPhone,
           totalBeds: newHospBeds,
+          location: newHospAddress,
+          city: newHospCity,
+          state: newHospState,
+          pincode: newHospPincode,
+          latitude: newHospLat ? Number(newHospLat) : undefined,
+          longitude: newHospLng ? Number(newHospLng) : undefined,
         }),
       });
       const data = await parseResponseSafe<any>(res, { success: false, message: "Failed to provision hospital." });
@@ -565,6 +598,64 @@ export const SuperAdminView: React.FC<SuperAdminViewProps> = ({
                 />
               </div>
 
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1">City / Area</label>
+                  <input
+                    type="text"
+                    value={newHospCity}
+                    onChange={(e) => setNewHospCity(e.target.value)}
+                    placeholder="e.g. Banjara Hills, Hyderabad"
+                    className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900 outline-none focus:border-[#17C964]/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1">State</label>
+                  <input
+                    type="text"
+                    value={newHospState}
+                    onChange={(e) => setNewHospState(e.target.value)}
+                    placeholder="e.g. Telangana"
+                    className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900 outline-none focus:border-[#17C964]/50"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1">Pincode</label>
+                  <input
+                    type="text"
+                    value={newHospPincode}
+                    onChange={(e) => setNewHospPincode(e.target.value)}
+                    placeholder="500034"
+                    className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900 outline-none focus:border-[#17C964]/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1">Latitude</label>
+                  <input
+                    type="number"
+                    step="any"
+                    value={newHospLat}
+                    onChange={(e) => setNewHospLat(e.target.value)}
+                    placeholder="17.3850"
+                    className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900 outline-none focus:border-[#17C964]/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1">Longitude</label>
+                  <input
+                    type="number"
+                    step="any"
+                    value={newHospLng}
+                    onChange={(e) => setNewHospLng(e.target.value)}
+                    placeholder="78.4867"
+                    className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900 outline-none focus:border-[#17C964]/50"
+                  />
+                </div>
+              </div>
+
               <button
                 type="submit"
                 className="w-full py-3 bg-[#17C964] hover:bg-[#0EA653] text-white font-bold rounded-xl transition shadow-lg shadow-[#17C964]/30 text-xs"
@@ -742,6 +833,64 @@ export const SuperAdminView: React.FC<SuperAdminViewProps> = ({
                     value={editHospAvailBeds}
                     onChange={(e) => setEditHospAvailBeds(Number(e.target.value))}
                     className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1">City / Area</label>
+                  <input
+                    type="text"
+                    value={editHospCity}
+                    onChange={(e) => setEditHospCity(e.target.value)}
+                    placeholder="e.g. Banjara Hills, Hyderabad"
+                    className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1">State</label>
+                  <input
+                    type="text"
+                    value={editHospState}
+                    onChange={(e) => setEditHospState(e.target.value)}
+                    placeholder="e.g. Telangana"
+                    className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1">Pincode</label>
+                  <input
+                    type="text"
+                    value={editHospPincode}
+                    onChange={(e) => setEditHospPincode(e.target.value)}
+                    placeholder="500034"
+                    className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900 outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1">Latitude</label>
+                  <input
+                    type="number"
+                    step="any"
+                    value={editHospLat}
+                    onChange={(e) => setEditHospLat(e.target.value)}
+                    placeholder="17.3850"
+                    className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1">Longitude</label>
+                  <input
+                    type="number"
+                    step="any"
+                    value={editHospLng}
+                    onChange={(e) => setEditHospLng(e.target.value)}
+                    placeholder="78.4867"
+                    className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900 outline-none"
                   />
                 </div>
               </div>

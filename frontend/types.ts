@@ -23,6 +23,10 @@ export interface PatientProfile {
   emergencyContactPhone?: string;
   allergies?: string[];
   chronicConditions?: string[];
+  latitude?: number;
+  longitude?: number;
+  city?: string;
+  locationUpdatedAt?: string;
 }
 
 export interface ScheduleTimeSlot {
@@ -183,6 +187,12 @@ export interface HospitalProfile {
   totalBeds: number;
   availableBeds: number;
   status: "PENDING_APPROVAL" | "APPROVED" | "REJECTED" | "SUSPENDED";
+  location?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 export interface ConsentGrant {

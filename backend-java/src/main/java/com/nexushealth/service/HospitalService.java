@@ -99,6 +99,13 @@ public class HospitalService {
         Map<String, Object> extra = new LinkedHashMap<>();
         extra.put("departments", List.of("General Medicine", "Emergency ER", "Cardiology", "Pediatrics"));
         extra.put("departmentStatuses", new LinkedHashMap<>());
+        extra.put("location", req.getLocation() != null ? req.getLocation().trim()
+                : firstNonBlank(req.getCity(), "Healthcare City"));
+        extra.put("city", req.getCity() != null ? req.getCity().trim() : "New Delhi");
+        extra.put("state", req.getState() != null ? req.getState().trim() : "Delhi NCR");
+        extra.put("pincode", req.getPincode() != null ? req.getPincode().trim() : "110016");
+        if (req.getLatitude() != null) extra.put("latitude", req.getLatitude());
+        if (req.getLongitude() != null) extra.put("longitude", req.getLongitude());
 
         Hospital hospital = Hospital.builder()
                 .id(hospitalId)
@@ -269,6 +276,14 @@ public class HospitalService {
         if (req.getTotalBeds() != null) hospital.setTotalBeds(req.getTotalBeds());
         if (req.getAvailableBeds() != null) hospital.setAvailableBeds(req.getAvailableBeds());
         if (!isBlank(req.getStatus())) hospital.setStatus(req.getStatus().trim());
+        Map<String, Object> extra = new LinkedHashMap<>(hospital.getExtra());
+        if (!isBlank(req.getLocation())) extra.put("location", req.getLocation().trim());
+        if (!isBlank(req.getCity())) extra.put("city", req.getCity().trim());
+        if (!isBlank(req.getState())) extra.put("state", req.getState().trim());
+        if (!isBlank(req.getPincode())) extra.put("pincode", req.getPincode().trim());
+        if (req.getLatitude() != null) extra.put("latitude", req.getLatitude());
+        if (req.getLongitude() != null) extra.put("longitude", req.getLongitude());
+        hospital.setExtra(extra);
         hospitalRepository.save(hospital);
 
         if (hospital.getAdminUserId() != null) {
@@ -307,11 +322,62 @@ public class HospitalService {
         out.put("availableBeds", h.getAvailableBeds());
         out.put("status", h.getStatus());
         if (h.getExtra() != null) out.putAll(h.getExtra());
+        if (!out.containsKey("latitude") || !out.containsKey("longitude")) {
+            double[] coords = hospitalCoords(h);
+            out.putIfAbsent("latitude", coords[0]);
+            out.putIfAbsent("longitude", coords[1]);
+        }
+        out.putIfAbsent("location", h.getAddress() != null ? h.getAddress() : "Healthcare City");
+        out.putIfAbsent("city", "New Delhi");
+        out.putIfAbsent("state", "Delhi NCR");
+        out.putIfAbsent("pincode", "110016");
         return out;
+    }
+
+    /**
+     * Deterministic demo coordinates for hospitals that predate the location
+     * feature (so "nearby" search and AI suggestions still work). Anchored in
+     * the NCR region, derived from the hospital name so it never changes.
+     */
+    private static final double[][] NCR_ANCHORS = {
+            {28.6139, 77.2090}, {28.7041, 77.1025}, {28.5355, 77.3910},
+            {28.5273, 77.1386}, {28.4595, 77.0266}, {28.6304, 77.2177}
+    };
+
+    private double[] hospitalCoords(Hospital h) {
+        double lat = -1, lng = -1;
+        try {
+            Object latObj = h.getExtra() != null ? h.getExtra().get("latitude") : null;
+            Object lngObj = h.getExtra() != null ? h.getExtra().get("longitude") : null;
+            if (latObj != null && lngObj != null) {
+                lat = Double.parseDouble(String.valueOf(latObj));
+                lng = Double.parseDouble(String.valueOf(lngObj));
+            }
+        } catch (Exception ignored) {
+        }
+        if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+            lat = -1;
+            lng = -1;
+        }
+        if (lat < 0) {
+            int idx = Math.abs(h.getName().hashCode()) % NCR_ANCHORS.length;
+            double[] anchor = NCR_ANCHORS[idx];
+            lat = anchor[0] + (idx * 0.003);
+            lng = anchor[1] + (idx * 0.003);
+        }
+        return new double[]{lat, lng};
     }
 
     private static boolean isBlank(String s) {
         return s == null || s.trim().isEmpty();
+    }
+
+    private static String firstNonBlank(String... values) {
+        if (values == null) return "";
+        for (String v : values) {
+            if (v != null && !v.isBlank()) return v;
+        }
+        return "";
     }
 
     // ── Hospital isolation guard ──────────────────────────────────────

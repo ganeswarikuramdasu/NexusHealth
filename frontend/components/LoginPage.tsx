@@ -24,6 +24,13 @@ const C = {
   line: "#E6EAF0",
 };
 
+const DEMO_ACCOUNTS: { role: UserRole; label: string; email: string; password: string }[] = [
+  { role: "SUPER_ADMIN", label: "Super Admin", email: "demo.admin@nexusdemo.in", password: "DemoAdmin@2026" },
+  { role: "HOSPITAL_ADMIN", label: "Hospital Admin", email: "citycare@nexusdemo.in", password: "CityCare@2026" },
+  { role: "DOCTOR", label: "Doctor", email: "doctor.anand@nexusdemo.in", password: "Doctor@2026" },
+  { role: "PATIENT", label: "Patient", email: "patient.demo@nexusdemo.in", password: "Patient@2026" },
+];
+
 export const LoginPage: React.FC<LoginPageProps> = ({
   hospitals,
   onLoginSuccess,
@@ -37,6 +44,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
   const [isRegisterMode, setIsRegisterMode] = useState(
     initialRole === "PATIENT" ? initialRegister : false
   );
+  const [showDemo, setShowDemo] = useState(false);
 
   // Login form states
   const [loginEmail, setLoginEmail] = useState("");
@@ -264,6 +272,33 @@ export const LoginPage: React.FC<LoginPageProps> = ({
     { role: "HOSPITAL_ADMIN", label: "Hospital", icon: Building2 },
     { role: "SUPER_ADMIN", label: "Admin", icon: ShieldCheck },
   ];
+
+  const handleUseDemoAccount = async (acc: typeof DEMO_ACCOUNTS[0]) => {
+    setIsRegisterMode(false);
+    setSelectedRole(acc.role);
+    setLoginEmail(acc.email);
+    setLoginPassword(acc.password);
+    setStatusMessage(null);
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: acc.email,
+          password: acc.password,
+          role: acc.role
+        }),
+      });
+      const data = await parseResponseSafe<any>(res, { success: false, message: "Authentication service unavailable." });
+      if (!res.ok || !data || data.success === false) {
+        setStatusMessage({ type: "error", text: data?.message || "Authentication failed. Invalid email or password." });
+        return;
+      }
+      onLoginSuccess(data.user, acc.role);
+    } catch (err) {
+      setStatusMessage({ type: "error", text: "Login service error. Please try again." });
+    }
+  };
 
   return (
     <div className="min-h-screen font-sans flex flex-col lg:flex-row selection:bg-[#17C964]/30 selection:text-slate-900">
@@ -668,6 +703,53 @@ export const LoginPage: React.FC<LoginPageProps> = ({
               </form>
             )}
           </div>
+
+          {/* Demo Accounts Quick Access */}
+          {!isRegisterMode && (
+            <div className="w-full rounded-2xl p-5 border mt-4"
+                 style={{ borderColor: C.line, backgroundColor: "#FAFBFC" }}>
+                <div className="flex items-center gap-2 mb-3">
+                  <Sparkles className="w-4 h-4" style={{ color: C.neon }} />
+                  <span className="text-xs font-bold text-slate-700">Quick Demo Access</span>
+                  <span className="ml-auto px-2 py-0.5 rounded-full text-[9px] font-bold"
+                        style={{ backgroundColor: C.neonTint, color: C.neonDeep }}>
+                    Explore all roles
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {DEMO_ACCOUNTS.map((acc) => {
+                    const Icon = acc.role === "SUPER_ADMIN" ? ShieldCheck
+                      : acc.role === "HOSPITAL_ADMIN" ? Building2
+                      : acc.role === "DOCTOR" ? Stethoscope
+                      : User;
+                    return (
+                      <button
+                        key={acc.email}
+                        type="button"
+                        onClick={() => handleUseDemoAccount(acc)}
+                        className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border transition hover:shadow-sm group text-center min-h-[92px]"
+                        style={{
+                          borderColor: C.line,
+                          backgroundColor: "#FFFFFF",
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.borderColor = C.neon; e.currentTarget.style.backgroundColor = C.neonTint; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.borderColor = C.line; e.currentTarget.style.backgroundColor = "#FFFFFF"; }}
+                      >
+                        <span className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+                              style={{ backgroundColor: C.neonTint, color: C.neonDeep }}>
+                          <Icon className="w-4 h-4" />
+                        </span>
+                        <span className="text-[11px] font-bold text-slate-800 leading-tight">{acc.label}</span>
+                        <span className="text-[9px] text-slate-500 leading-tight w-full truncate">{acc.email}</span>
+                        <span className="inline-flex items-center gap-1 text-[9px] font-bold" style={{ color: C.neonDeep }}>
+                          Explore <ArrowRight className="w-3 h-3 transition group-hover:translate-x-0.5" />
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
         </div>
       </div>
 
