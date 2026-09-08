@@ -106,6 +106,7 @@ public class CardRequests {
         private String doctorName;
         private String hospitalName;
         private Boolean verifiedByPin;
+        private String pinCode;
 
         public String getCardId() { return cardId; }
         public void setCardId(String cardId) { this.cardId = cardId; }
@@ -119,5 +120,7 @@ public class CardRequests {
         public void setHospitalName(String hospitalName) { this.hospitalName = hospitalName; }
         public Boolean getVerifiedByPin() { return verifiedByPin; }
         public void setVerifiedByPin(Boolean verifiedByPin) { this.verifiedByPin = verifiedByPin; }
+        public String getPinCode() { return pinCode; }
+        public void setPinCode(String pinCode) { this.pinCode = pinCode; }
     }
 }

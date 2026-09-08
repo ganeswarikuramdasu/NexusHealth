@@ -358,7 +358,6 @@ export interface AccessCard {
   patientHealthId: string;
   patientName: string;
   cardIdentifier: string;
-  secureToken: string;
   status: CardStatus;
   issuedAt: string;
   activatedAt?: string;

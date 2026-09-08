@@ -624,10 +624,10 @@ public class AIService {
         return s.length() > 500 ? s.substring(0, 500) : s;
     }
 
-    private static String safeJson(Object value) {
+    private String safeJson(Object value) {
         if (value == null) return "none";
         try {
-            String s = new ObjectMapper().writeValueAsString(value);
+            String s = objectMapper.writeValueAsString(value);
             if (s.length() > 4000) s = s.substring(0, 4000);
             return s;
         } catch (Exception e) {

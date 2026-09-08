@@ -138,7 +138,7 @@ public class AuthService {
             throw ApiException.badRequest("This OTP has expired. Please request a new code.");
         }
 
-        if (entry.code().equals(req.getOtpCode()) || "123456".equals(req.getOtpCode())) {
+        if (entry.code().equals(req.getOtpCode())) {
             activeOtps.remove(cleanEmail);
             return ApiResponse.ok("Email verified successfully.");
         }
@@ -347,7 +347,6 @@ public class AuthService {
         cardOut.put("patientHealthId", globalHealthId);
         cardOut.put("patientName", name);
         cardOut.put("cardIdentifier", cardIdentifier);
-        cardOut.put("secureToken", secureToken);
         cardOut.put("status", "ACTIVE");
         cardOut.put("issuedAt", card.getIssuedAt().toString());
         cardOut.put("activatedAt", card.getActivatedAt().toString());

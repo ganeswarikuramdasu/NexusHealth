@@ -384,11 +384,17 @@ public class EmergencyService {
                         + session.get("doctorName") + " (" + session.get("hospitalName") + "). Reason: "
                         + session.get("emergencyReason") + ".");
 
-        @SuppressWarnings("unchecked")
-        List<String> actions = (List<String>) session.get("actionsPerformed");
+        Object actionsObj = session.get("actionsPerformed");
+        List<String> actions = new ArrayList<>();
+        if (actionsObj instanceof List<?> list) {
+            for (Object o : list) {
+                if (o != null) actions.add(String.valueOf(o));
+            }
+        }
         if (!actions.contains("AI Emergency Medical Summary Viewed")) {
             actions.add("AI Emergency Medical Summary Viewed");
         }
+        session.put("actionsPerformed", actions);
 
         Map<String, Object> aiResult = generateDeterministicEmergencySummary(session, prof, emgProfile, recentRecords);
 

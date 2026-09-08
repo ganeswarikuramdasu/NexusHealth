@@ -1,54 +1,42 @@
 server:
-  # Railway injects PORT (the platform's convention). Render injects
-  # SERVER_PORT. If neither is set, default to 8080 for local dev.
+  # Render injects PORT. Render Blueprints may also set SERVER_PORT.
+  # If neither is set, default to 8080 for local dev.
   port: ${PORT:${SERVER_PORT:8080}}
 
 spring:
   application:
     name: nexushealth-backend
 
+  # Load the project .env (repo root) if present so local `mvn spring-boot:run`
+  # works without exporting anything. Optional: missing file is ignored, and
+  # real environment variables / Render dashboard values always win.
+  config:
+    import: "optional:file:.env[.properties],optional:file:../.env[.properties]"
+
   datasource:
-    # Defaults match this project's existing .env (root/.env) so `mvn
-    # spring-boot:run` works immediately without extra setup - same as the
-    # old Node backend connected to. Override via env vars (MYSQL_HOST etc.)
-    # on any machine where these don't apply.
-    url: jdbc:mysql://${MYSQL_HOST:127.0.0.1}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:nexushealth}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    # Local dev defaults point at localhost. Override via env vars
+    # (MYSQL_URL, or MYSQL_HOST/PORT/DATABASE/USER/PASSWORD + MYSQL_SSL_MODE)
+    # on any other machine. Aiven requires TLS -> set MYSQL_SSL_MODE=REQUIRED.
+    url: ${MYSQL_URL:jdbc:mysql://${MYSQL_HOST:127.0.0.1}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:nexushealth}?sslMode=${MYSQL_SSL_MODE:DISABLED}&allowPublicKeyRetrieval=true&serverTimezone=UTC}
     username: ${MYSQL_USER:root}
-    password: ${MYSQL_PASSWORD:Ganeswari@2006}
+    password: ${MYSQL_PASSWORD:}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:
     hibernate:
       # 'update' lets Hibernate ADD any columns/tables new entities need
-      # (e.g. the JSON `extra` column on doctors/hospitals added in Phase 2)
       # without touching data in existing columns. It won't rename or drop
-      # anything. If you ever see it trying to MODIFY a column that's
-      # locked by a foreign key (harmless warning, not an error - the table
-      # already has the right structure from the Node schema), that's
-      # normal and safe to ignore.
+      # anything.
       ddl-auto: update
     show-sql: false
     properties:
       hibernate:
         format_sql: true
-        dialect: org.hibernate.dialect.MySQLDialect
-
-  mail:
-    # Defaults match this project's existing .env so OTP email works
-    # immediately without extra setup - override via env vars elsewhere.
-    host: ${SMTP_HOST:smtp.gmail.com}
-    port: ${SMTP_PORT:587}
-    username: ${SMTP_USER:ganeswarikuramdasu@gmail.com}
-    password: ${SMTP_PASS:lnyi gwph mzee zakh}
-    properties:
-      mail:
-        smtp:
-          auth: true
-          starttls:
-            enable: true
 
   jackson:
     default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: false
 
   mvc:
     throw-exception-if-no-handler-found: true
@@ -68,8 +56,7 @@ nexushealth:
   gemini:
     api-key: ${GEMINI_API_KEY:}
   email:
-    from: ${SMTP_FROM:NexusHealth Identity <ganeswarikuramdasu@gmail.com>}
-    provider: ${EMAIL_PROVIDER:SMTP}
+    from: ${EMAIL_FROM:NexusHealth Identity <no-reply@nexushealth.in>}
     brevo-api-key: ${BREVO_API_KEY:}
 
 logging:

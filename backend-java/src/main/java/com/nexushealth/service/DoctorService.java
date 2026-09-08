@@ -516,7 +516,8 @@ public class DoctorService {
         }
         if (consentOpt.isPresent()) {
             Consent c = consentOpt.get();
-            if (!"REVOKED".equals(c.getStatus())) {
+            if (!"REVOKED".equals(c.getStatus())
+                    && (c.getExpiresAt() == null || !LocalDate.now().isAfter(c.getExpiresAt()))) {
                 hasConsent = true;
                 activeConsent = c;
             }
@@ -832,8 +833,8 @@ public class DoctorService {
         doctorRepository.save(doctor);
 
         // Check affected appointments
-        LocalDate startLocal = LocalDate.parse(startDate);
-        LocalDate endLocal = LocalDate.parse(endDate);
+        LocalDate startLocal = parseIsoDate(startDate, "Start date");
+        LocalDate endLocal = parseIsoDate(endDate, "End date");
         List<Appointment> affected = findAffectedAppointments(doctorId, startLocal, endLocal);
 
         auditLogService.log(doctor.getName(), "DOCTOR", "LEAVE_APPLY", null,
@@ -890,8 +891,8 @@ public class DoctorService {
         String end = req.getEndDate() != null ? req.getEndDate() : start;
         String action = req.getActionTaken() != null ? req.getActionTaken() : "CANCEL";
 
-        LocalDate startLocal = LocalDate.parse(start);
-        LocalDate endLocal = LocalDate.parse(end);
+        LocalDate startLocal = parseIsoDate(start, "Start date");
+        LocalDate endLocal = parseIsoDate(end, "End date");
         List<Appointment> affected = findAffectedAppointments(doctorId, startLocal, endLocal);
 
         for (Appointment apt : affected) {
@@ -1058,8 +1059,8 @@ public class DoctorService {
             ranges.add(rangeEntry);
             extra.put("inactiveDateRanges", ranges);
 
-            LocalDate sLocal = LocalDate.parse(startDateStr);
-            LocalDate eLocal = LocalDate.parse(endDateStr);
+            LocalDate sLocal = parseIsoDate(startDateStr, "Start date");
+            LocalDate eLocal = parseIsoDate(endDateStr, "End date");
             List<Appointment> affectedAppointments = findAffectedAppointments(doctorId, sLocal, eLocal);
 
             for (Appointment apt : affectedAppointments) {
@@ -1113,14 +1114,14 @@ public class DoctorService {
                     }
                 }
             }
-            LocalDate sLocal = LocalDate.parse(startDateStr);
-            LocalDate eLocal = LocalDate.parse(endDateStr);
+            LocalDate sLocal = parseIsoDate(startDateStr, "Start date");
+            LocalDate eLocal = parseIsoDate(endDateStr, "End date");
             ranges.removeIf(r -> {
                 String rStart = (String) r.get("startDate");
                 String rEnd = (String) r.get("endDate");
                 if (rStart == null || rEnd == null) return false;
-                LocalDate rS = LocalDate.parse(rStart);
-                LocalDate rE = LocalDate.parse(rEnd);
+                LocalDate rS = parseIsoDate(rStart, "Range start date");
+                LocalDate rE = parseIsoDate(rEnd, "Range end date");
                 return !rS.isAfter(eLocal) && !rE.isBefore(sLocal);
             });
             extra.put("inactiveDateRanges", ranges);
@@ -1318,7 +1319,7 @@ public class DoctorService {
         if (!isBlank(callerDocId) && !"SUPER_ADMIN".equals(callerDocId)) {
             Doctor callerDoc = doctorRepository.findById(callerDocId)
                     .orElseGet(() -> doctorRepository.findByUserId(callerDocId).orElse(null));
-            if (callerDoc != null && doctor != null && !callerDoc.getId().equals(doctor.getId())) {
+            if (callerDoc == null || doctor == null || !callerDoc.getId().equals(doctor.getId())) {
                 throw new ApiException(HttpStatus.FORBIDDEN,
                         "Forbidden: Doctor is strictly restricted to accessing records of their own authorized patients.");
             }
@@ -1474,5 +1475,17 @@ public class DoctorService {
 
     private static boolean isBlank(String s) {
         return s == null || s.trim().isEmpty();
+    }
+
+    private static LocalDate parseIsoDate(String dateStr, String fieldName) {
+        if (isBlank(dateStr)) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, fieldName + " is mandatory.");
+        }
+        try {
+            return LocalDate.parse(dateStr.trim());
+        } catch (Exception e) {
+            throw new ApiException(HttpStatus.BAD_REQUEST,
+                    fieldName + " has an invalid date. Use YYYY-MM-DD format.");
+        }
     }
 }

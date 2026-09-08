@@ -204,6 +204,7 @@ export const DoctorCardScannerSection: React.FC<DoctorCardScannerSectionProps> =
           doctorName: doctor?.name || "",
           hospitalName: doctor?.hospitalName || hospitalName || "Apollo Multi-Specialty Hospital",
           verifiedByPin: usePin,
+          pinCode: usePin ? pinCodeInput : undefined,
         }),
       });
 

@@ -163,6 +163,11 @@ public class CardService {
         AccessCard oldCard = accessCardRepository.findByIdOrPatientId(req.getCardId(), req.getPatientId())
                 .orElseThrow(() -> ApiException.notFound("Card not found."));
 
+        String enteredPin = req.getPinCode();
+        if (enteredPin == null || enteredPin.isBlank() || !enteredPin.equals(oldCard.getPinCode())) {
+            throw ApiException.forbidden("Invalid PIN. Cannot request card replacement without the current card PIN.");
+        }
+
         oldCard.setStatus("REVOKED");
         oldCard.setRevokedAt(LocalDateTime.now());
 
@@ -246,7 +251,8 @@ public class CardService {
 
         List<Consent> activeConsents = consentRepository.findActiveForPatient(card.getPatientId());
         boolean hasActiveConsent = activeConsents.stream().anyMatch(c ->
-                actorId.equals(c.getDoctorId()) || "GRANTED".equals(c.getStatus()));
+                actorId.equals(c.getDoctorId()) && "GRANTED".equals(c.getStatus())
+                        && (c.getExpiresAt() == null || !LocalDate.now().isAfter(c.getExpiresAt())));
         boolean isHospitalAdmin = "HOSPITAL_ADMIN".equals(actorRole);
         boolean isAuthorized = hasActiveConsent || isHospitalAdmin;
 
@@ -311,6 +317,15 @@ public class CardService {
         User user = userRepository.findById(targetUserId).orElse(null);
         String patientName = user != null ? user.getName() : (card != null ? card.getPatientName() : "Patient Citizen");
 
+        boolean pinClaimed = Boolean.TRUE.equals(req.getVerifiedByPin());
+        if (pinClaimed) {
+            String enteredPin = req.getPinCode();
+            boolean pinOk = card != null && enteredPin != null && enteredPin.equals(card.getPinCode());
+            if (!pinOk) {
+                throw ApiException.forbidden("Invalid PIN. Physical confirmation required to grant assisted access.");
+            }
+        }
+
         Consent consent = Consent.builder()
                 .id("c_assisted_" + System.currentTimeMillis())
                 .patientId(targetUserId)
@@ -340,7 +355,16 @@ public class CardService {
         List<MedicalRecord> records = medicalRecordRepository.findForPatient(targetUserId);
         ApiResponse resp = ApiResponse.ok();
         resp.put("authorizationStatus", "AUTHORIZED");
-        resp.put("consent", consent);
+        Map<String, Object> consentOut = new LinkedHashMap<>();
+        consentOut.put("id", consent.getId());
+        consentOut.put("patientId", consent.getPatientId());
+        consentOut.put("doctorId", consent.getDoctorId());
+        consentOut.put("consentType", consent.getConsentType());
+        consentOut.put("scope", consent.getScope());
+        consentOut.put("expiresAt", consent.getExpiresAt() != null ? consent.getExpiresAt().toString() : null);
+        consentOut.put("notes", consent.getNotes());
+        consentOut.put("status", consent.getStatus());
+        resp.put("consent", consentOut);
         resp.put("patient", buildPatientSummary(null, profile, user, targetUserId, targetHealthId, patientName));
         List<Map<String, Object>> recordMaps = new ArrayList<>();
         for (MedicalRecord r : records) recordMaps.add(recordSummary(r));
@@ -413,7 +437,7 @@ public class CardService {
         out.put("id", r.getId());
         out.put("recordType", r.getRecordType());
         out.put("title", r.getTitle());
-        out.put("date", r.getRecordDate().toString());
+        out.put("date", r.getRecordDate() != null ? r.getRecordDate().toString() : null);
         out.put("diagnosis", r.getDiagnosis());
         return out;
     }
@@ -425,7 +449,6 @@ public class CardService {
         out.put("patientHealthId", c.getPatientHealthId());
         out.put("patientName", c.getPatientName());
         out.put("cardIdentifier", c.getCardIdentifier());
-        out.put("secureToken", c.getSecureToken());
         out.put("status", c.getStatus());
         out.put("issuedAt", c.getIssuedAt() != null ? c.getIssuedAt().toString() : null);
         out.put("activatedAt", c.getActivatedAt() != null ? c.getActivatedAt().toString() : null);
@@ -449,7 +472,7 @@ public class CardService {
         out.put("actorRole", l.getActorRole());
         out.put("hospitalId", l.getHospitalId());
         out.put("hospitalName", l.getHospitalName());
-        out.put("timestamp", l.getTimestamp().toString());
+        out.put("timestamp", l.getTimestamp() != null ? l.getTimestamp().toString() : null);
         out.put("accessType", l.getAccessType());
         out.put("authorizationStatus", l.getAuthorizationStatus());
         out.put("recordsAccessed", l.getRecordsAccessed());

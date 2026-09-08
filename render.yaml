@@ -2,14 +2,12 @@
 # render.yaml
 # Render Blueprint for the NexusHealth Spring Boot backend.
 #
-# Deploy: new Render Blueprint -> connect this repo, or
-# manually:  Render -> New -> Web Service -> from this repo,
-# pick the Dockerfile, then set the environment variables
-# below (values come from Aiven MySQL + your credentials).
+# Deploy: Render -> New -> Blueprint -> this repo, or
+# manually: Render -> New -> Web Service -> this repo,
+# pick the Dockerfile, then set the env vars below.
 #
-# NOTE: Render's MySQL is not free. The DATABASE_URL below is
-# a mysql:// URL pointing at your Aiven MySQL free instance.
-# Replace the <...> placeholders with real values.
+# Values that are `sync: false` are filled in the Render
+# dashboard at provision time (secrets / Aiven specifics).
 # ======================================================
 
 services:
@@ -23,36 +21,47 @@ services:
     envVars:
       - key: SERVER_PORT
         value: 8080
+
       # --- MySQL (Aiven free) ---
+      # Fill MYSQL_HOST / MYSQL_PORT / MYSQL_PASSWORD from:
+      #   Aiven console -> your MySQL service -> Overview -> Connection information
+      # Aiven assigns a CUSTOM port (NOT 3306). The database 'defaultdb'
+      # always exists; use your custom DB name if you created one.
+      - key: MYSQL_SSL_MODE
+        value: REQUIRED
       - key: MYSQL_HOST
-        value: <AIVEN_HOST>.aivencloud.com
+        sync: false
       - key: MYSQL_PORT
-        value: "3306"
+        sync: false
       - key: MYSQL_DATABASE
-        value: nexushealth
+        value: defaultdb
       - key: MYSQL_USER
         value: avnadmin
       - key: MYSQL_PASSWORD
-        sync: false   # set in Render dashboard (secret)
+        sync: false
+
       # --- Super admin ---
       - key: SUPER_ADMIN_EMAIL
         value: ganeswarikuramdasu@gmail.com
       - key: SUPER_ADMIN_PASSWORD
         sync: false
-      # --- CORS: your Vercel frontend + localhost ---
+
+      # --- CORS: Vercel frontend + localhost ---
       - key: CORS_ORIGINS
         value: "https://nexus-health-eight.vercel.app,http://localhost:5173,http://localhost:3000"
+
       # --- Public URL ---
       - key: APP_URL
         value: https://nexushealth-backend.onrender.com
+
       # --- AI (optional) ---
       - key: GEMINI_API_KEY
         sync: false
-      # --- Email / OTP via Brevo REST API (no SMTP server needed) ---
+
+      # --- Email / OTP via Brevo REST API (no SMTP) ---
       # Get a free key: https://app.brevo.com/settings/keys/api
+      # The sender address must be verified in your Brevo account.
       - key: BREVO_API_KEY
         sync: false
-      - key: EMAIL_PROVIDER
-        value: BREVO
-      - key: SMTP_FROM
+      - key: EMAIL_FROM
         value: "NexusHealth Identity <no-reply@nexushealth.in>"

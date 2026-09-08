@@ -87,6 +87,15 @@ public class MedicalRecordService {
         return LocalDate.now();
     }
 
+    private LocalDate parseIsoDate(String dateStr, String fieldName) {
+        if (dateStr == null || dateStr.isBlank()) return today();
+        try {
+            return LocalDate.parse(dateStr.trim());
+        } catch (Exception e) {
+            throw ApiException.badRequest(fieldName + " has an invalid date. Use YYYY-MM-DD format.");
+        }
+    }
+
     private String todayStr() {
         return today().toString();
     }
@@ -256,7 +265,7 @@ public class MedicalRecordService {
                 : (req.getTitle() != null ? req.getTitle() : "Laboratory & Diagnostic Report");
         String displayLab = req.getLaboratoryName() != null ? req.getLaboratoryName()
                 : (doctor != null && doctor.getHospitalName() != null ? doctor.getHospitalName() : "Central Pathology Labs");
-        LocalDate displayDate = req.getTestDate() != null ? LocalDate.parse(req.getTestDate()) : today();
+        LocalDate displayDate = req.getTestDate() != null ? parseIsoDate(req.getTestDate(), "Test date") : today();
 
         String doctorName = doctor != null ? doctor.getName() : "Attending Physician";
         String licenseOrMci = doctor != null && doctor.getLicenseNumber() != null ? doctor.getLicenseNumber() : "MCI";
@@ -348,7 +357,7 @@ public class MedicalRecordService {
         String licenseOrMci = doctor != null && doctor.getLicenseNumber() != null ? doctor.getLicenseNumber() : "MCI";
 
         String vitalsDateStr = vitals.containsKey("date") ? String.valueOf(vitals.get("date")) : null;
-        LocalDate vitalsDate = vitalsDateStr != null ? LocalDate.parse(vitalsDateStr) : today();
+        LocalDate vitalsDate = vitalsDateStr != null ? parseIsoDate(vitalsDateStr, "Vitals date") : today();
         String vitalsNotes = vitals.containsKey("notes") ? String.valueOf(vitals.get("notes")) : "Routine vital check.";
 
         String recId = "rec_vit_" + ts();

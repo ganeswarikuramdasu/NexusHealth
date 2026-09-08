@@ -196,7 +196,6 @@ HTTPS is automatic everywhere (Vercel + Render), so there's **no mixed-content p
    SERVER_PORT          8080
    MYSQL_HOST           <AIVEN_HOST>.aivencloud.com
    MYSQL_PORT           <AIVEN_PORT>
-   MYSQL_DATABASE       nexushealth
    MYSQL_USER           avnadmin
    MYSQL_PASSWORD       <your-aiven-password>
    SUPER_ADMIN_EMAIL    ganeswarikuramdasu@gmail.com
@@ -205,10 +204,11 @@ HTTPS is automatic everywhere (Vercel + Render), so there's **no mixed-content p
    DEMO_SUPER_ADMIN_PASSWORD DemoAdmin@2026
    CORS_ORIGINS         https://nexus-health-eight.vercel.app,http://localhost:5173,http://localhost:3000
    APP_URL              https://<your-service>.onrender.com
+   MYSQL_SSL_MODE       REQUIRED               # Aiven requires TLS
+   MYSQL_DATABASE       defaultdb              # or your created DB name
    GEMINI_API_KEY       <optional>
-   BREVO_API_KEY        <your-brevo-key>   # OTP emails over HTTPS (free: 300/day)
-   EMAIL_PROVIDER       BREVO
-   SMTP_FROM            "NexusHealth Identity <no-reply@nexushealth.in>"
+   BREVO_API_KEY        <your-brevo-key>       # OTP emails over HTTPS (free: 300/day)
+   EMAIL_FROM           "NexusHealth Identity <no-reply@nexushealth.in>"   # verified in Brevo
    ```
 4. Render gives you a public URL: `https://<your-service>.onrender.com`.
    - Health check: `https://<your-service>.onrender.com/api/health`.

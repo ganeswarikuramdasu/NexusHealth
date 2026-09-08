@@ -147,13 +147,15 @@ public class PatientService {
                     .filter(c -> consentId.equals(c.getDoctorId())).findFirst().orElse(null);
         }
         String docName = "Attending Physician";
-        if (consent != null) {
-            consent.setStatus("REVOKED");
-            consent.setRevokedAt(java.time.LocalDateTime.now());
-            consentRepository.save(consent);
-            Doctor doctor = doctorRepository.findById(consent.getDoctorId()).orElse(null);
-            if (doctor != null) docName = doctor.getName();
+        if (consent == null) {
+            throw new ApiException(org.springframework.http.HttpStatus.NOT_FOUND,
+                    "Consent not found: no active consent matches " + consentId + ".");
         }
+        consent.setStatus("REVOKED");
+        consent.setRevokedAt(java.time.LocalDateTime.now());
+        consentRepository.save(consent);
+        Doctor doctor = doctorRepository.findById(consent.getDoctorId()).orElse(null);
+        if (doctor != null) docName = doctor.getName();
         auditLogService.log("Patient", "PATIENT", "CONSENT_REVOKE", null, "Revoked access from " + docName);
         return ApiResponse.ok("Access revoked from " + docName);
     }
@@ -334,7 +336,7 @@ public class PatientService {
         out.put("doctorId", r.getDoctorId());
         out.put("doctorName", doctor != null ? doctor.getName() : "Self / External Facility");
         out.put("hospitalName", hospital != null ? hospital.getName() : "Independent Diagnostic Care");
-        out.put("date", r.getRecordDate().toString());
+        out.put("date", r.getRecordDate() != null ? r.getRecordDate().toString() : null);
         out.put("recordType", r.getRecordType());
         out.put("title", r.getTitle());
         out.put("diagnosis", r.getDiagnosis() != null ? r.getDiagnosis() : "");
@@ -367,7 +369,7 @@ public class PatientService {
         out.put("allowedCategories", c.getScope());
         out.put("validUntil", c.getExpiresAt() != null ? c.getExpiresAt().toString() : null);
         out.put("status", "GRANTED".equals(c.getStatus()) ? "ACTIVE" : c.getStatus());
-        out.put("grantedAt", c.getGrantedAt().toString());
+        out.put("grantedAt", c.getGrantedAt() != null ? c.getGrantedAt().toString() : null);
         return out;
     }
 
