@@ -6,7 +6,7 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "https://nexushealth-backend.onrender.com/api/$1"
+      "destination": "https://nexushealth-backend-2smg.onrender.com/api/$1"
     },
     {
       "source": "/(.*)",

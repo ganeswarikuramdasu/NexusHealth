@@ -52,7 +52,7 @@ services:
 
       # --- Public URL ---
       - key: APP_URL
-        value: https://nexushealth-backend.onrender.com
+        value: https://nexushealth-backend-2smg.onrender.com
 
       # --- AI (optional) ---
       - key: GEMINI_API_KEY
