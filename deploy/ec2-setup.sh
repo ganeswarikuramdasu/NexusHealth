@@ -68,12 +68,12 @@ sudo cp "$JAR" "$APP_DIR/nexushealth-backend.jar"
 ENV_FILE="/opt/nexushealth/.env"
 echo ">> Writing $ENV_FILE (edit with your values)"
 sudo tee "$ENV_FILE" >/dev/null <<'EOF'
-# --- Database ---
-MYSQL_HOST=YOUR_MYSQL_HOST
+# --- Database (AWS RDS MySQL - see deploy/aws-rds-mysql.sh) ---
+MYSQL_HOST=YOUR_RDS_ENDPOINT.rds.amazonaws.com
 MYSQL_PORT=3306
 MYSQL_DATABASE=nexushealth
 MYSQL_USER=YOUR_DB_USER
-MYSQL_PASSWORD=YOUR_DB_PASSWORD
+MYSQL_PASSWORD=YOUR_RDS_PASSWORD
 # --- Super admin ---
 SUPER_ADMIN_EMAIL=YOUR_EMAIL
 SUPER_ADMIN_PASSWORD=YOUR_SUPER_ADMIN_PASSWORD

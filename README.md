@@ -48,9 +48,9 @@ A full-stack final-year project that gives every citizen a unique **Global Healt
 |-------|------------|
 | **Frontend** | React 19 · Vite · TypeScript · Tailwind CSS 4 |
 | **Backend** | Java 17 · Spring Boot 3.3 · Spring Data JPA · Hibernate |
-| **Database** | MySQL 8 |
+| **Database** | MySQL 8 (AWS RDS free tier) |
 | **AI** | Google Gemini API (optional) |
-| **Deploy** | Everything on AWS: S3 + CloudFront (frontend) · EC2 (backend) · RDS (MySQL) · Docker |
+| **Deploy** | **Vercel** (frontend) · **AWS EC2** (backend) · **AWS RDS MySQL** (database) · Docker |
 
 ---
 
@@ -71,8 +71,10 @@ nexushealth/
 │       └── common/         # ApiResponse, exceptions, validation
 ├── Dockerfile              # Backend container image
 ├── deploy/ec2-setup.sh     # AWS EC2 one-time setup (backend)
+├── deploy/aws-rds-mysql.sh # Provision AWS RDS MySQL free tier (database)
+├── deploy/aws-alb-https.sh # Put EC2 backend behind HTTPS (ALB + ACM)
 ├── deploy/aws-frontend.sh  # Publish frontend dist/ to S3 + CloudFront
-├── vercel.json             # Vercel config (alt. frontend + API proxy)
+├── vercel.json             # Vercel config (frontend + optional API proxy)
 └── .env.example            # Sample environment variables
 ```
 
@@ -159,16 +161,16 @@ All responses are wrapped in the standard `ApiResponse` envelope.
 
 ---
 
-## ☁️ Deployment — Everything on AWS (all free tier)
+## ☁️ Deployment — Vercel + AWS EC2 + AWS RDS
 
-The full stack runs entirely on **AWS**, all within the free tier. You'll need an AWS account with a card on file (used only for verification — no charge while you stay in the free tier).
+The stack ships across **Vercel** (frontend), **AWS EC2** (backend), and **AWS RDS MySQL** (database). An AWS account with a card on file is needed only for verification — staying in the free tier keeps it at $0.
 
-| Piece | AWS service | Free tier |
-|-------|-------------|-----------|
-| **Frontend** (React/Vite) | **S3 static + CloudFront CDN** | ✅ |
-| **Backend** (Spring Boot jar) | **EC2 `t2.micro`** + systemd | ✅ 12 months |
-| **Database** (MySQL) | **RDS `db.t3.micro`** | ✅ 12 months |
-| **Domain / HTTPS** | **CloudFront** (free TLS cert via ACM) / **Route 53** | ✅ |
+| Piece | Service | Free tier |
+|-------|---------|-----------|
+| **Frontend** (React/Vite) | **Vercel** | ✅ (hobby) |
+| **Backend** (Spring Boot jar) | **AWS EC2 `t2.micro`** + systemd | ✅ 12 months |
+| **Database** (MySQL) | **AWS RDS `db.t3.micro`** | ✅ 12 months |
+| **HTTPS for API** | **AWS ALB + ACM** cert (recommended) | ✅ 12 months |
 
 ### ⚙️ 1. Backend → AWS EC2 (Free Tier)
 
@@ -208,38 +210,49 @@ The full stack runs entirely on **AWS**, all within the free tier. You'll need a
    ```
    The backend is a **systemd service**, so it auto-starts on reboot and restarts on crash.
 
-### 🗄️ 1b. Hosted MySQL (RDS or Aiven free)
+### 🗄️ 1b. Database → AWS RDS MySQL (Free Tier)
 
-For a deployed backend you need a reachable MySQL. Easiest free options:
-- **Aiven free MySQL** (managed, free tier, web dashboard): create a MySQL service, enable **public access**, and use the host/port/db/user/password in `/opt/nexushealth/.env`.
-- Or **AWS RDS MySQL** (free tier for `db.t3.micro`), if you manage it via AWS.
+Your EC2 backend reads the DB location from `/opt/nexushealth/.env` (env vars `MYSQL_HOST` etc.). Provision a free-tier RDS MySQL:
 
-> ⚠️ EC2 can't reach `localhost` on your own machine — the DB must be reachable over the internet.
+**Option A — helper script (recommended):**
+```bash
+RDS_PASSWORD='YourStrongPass!123' \
+RDS_VPC_SG_ID='sg-<your-backend-ec2-sg>' \
+./deploy/aws-rds-mysql.sh
+```
+This creates a `db.t3.micro` MySQL 8 instance, waits until it's available, prints the endpoint + connection vars, and locks the DB so **only your EC2 security group** can reach it on port 3306.
 
-### 🖥️ 2. Frontend → S3 + CloudFront (static, HTTPS)
+**Option B — AWS Console:**
+1. **RDS → Create database → MySQL 8**, template **Free tier** (`db.t3.micro`, 20 GB).
+2. Set master username + password, DB name = `nexushealth`.
+3. Connectivity → **"Connect to an EC2 compute resource"** → pick your `nexushealth-backend` instance.
 
-With static hosting there is **no server-side proxy**, so the browser must call the EC2 backend directly. The app supports this via the build-time env var `VITE_API_BASE_URL` (all relative `/api/...` calls are rewritten automatically — see `frontend/utils/apiBase.ts`).
+Then fill these into `/opt/nexushealth/.env` and restart:
+```bash
+sudo nano /opt/nexushealth/.env
+   MYSQL_HOST=<your-rds-endpoint>.rds.amazonaws.com
+   MYSQL_PORT=3306
+   MYSQL_DATABASE=nexushealth
+   MYSQL_USER=<db-user>
+   MYSQL_PASSWORD=<db-password>
+sudo systemctl restart nexushealth
+```
 
-1. Build the frontend pointing at your EC2 backend:
-   ```bash
-   VITE_API_BASE_URL=http://<YOUR_EC2_PUBLIC_DNS>:8080 npm run build
-   ```
-   → produces `dist/`.
+> ⚠️ EC2 can't reach `localhost` on your own machine — the DB must be a reachable host like RDS, and your EC2 security group must allow inbound `3306`.
 
-2. **S3 bucket:** create a bucket (names must be globally unique), enable **Static website hosting**, and set **index document** = `index.html`, **error document** = `index.html` (SPA routing).
+### 🖥️ 2. Frontend → Vercel
 
-3. **Upload:** use the AWS CLI / Console to upload `dist/*` into the bucket. Or run the included helper:
-   ```bash
-   BUCKET=<your-bucket> ./deploy/aws-frontend.sh
-   ```
+The backend's **HTTPS API URL** is defined by `VITE_API_BASE_URL` (all relative `/api/...` calls are rewritten — see `frontend/utils/apiBase.ts`). Set it to your EC2/ALB domain **before** building, or use the `vercel.json` `/api/*` proxy rewrite.
 
-4. **CloudFront:** create a distribution with the S3 bucket as origin, and attach a free **ACM TLS certificate** (AWS Certificate Manager, in `us-east-1`). This gives you an `https://<cloudfront-domain>` URL. Add an invalid config if you use a custom domain via Route 53.
+**Recommended (proxy via vercel.json):** the checked-in `vercel.json` rewrites `/api/*` to your backend domain, so no build-time env is needed and there's no mixed-content issue:
+1. Push this repo to GitHub and import it in **Vercel** (framework: **Vite**).
+2. Set the build command `vite build` and output dir `dist`.
+3. In `vercel.json`, replace `https://api.your-domain.com` with your backend URL (e.g. `https://<alb-dns>.amazonaws.com`), and add your Vercel URL to `CORS_ORIGINS` on EC2.
+4. Redeploy and visit your `*.vercel.app` URL.
 
-5. Point the backend at your CloudFront domain (so CORS is allowed):
-   - Set `CORS_ORIGINS=https://<cloudfront-domain>` in `/opt/nexushealth/.env` on EC2.
-   - `sudo systemctl restart nexushealth`.
+> **Mixed-content note:** Vercel serves `https://`. If your EC2 backend is plain `http://`, browsers block the calls. Fix by putting the backend behind an **AWS Application Load Balancer with a free ACM cert** (see `deploy/aws-alb-https.sh`), then set `VITE_API_BASE_URL=https://<alb-dns>` (or the `vercel.json` proxy destination accordingly).
 
-> **Mixed content:** CloudFront serves `https://` and your EC2 backend is `http://`. Browsers block an `https` page calling an `http` API. Recommended fix — put the EC2 backend behind HTTPS too: add an **AWS Application Load Balancer** with an ACM cert (all free tier), and set `VITE_API_BASE_URL=https://<alb-dns>` in step 1. For a quick demo, you can instead serve both over `http://` (access the S3 website endpoint directly, not CloudFront).
+**Alternative — build-time env + S3/CloudFront:** for a fully static S3 + CloudFront frontend instead, build with `VITE_API_BASE_URL=https://<alb-dns> npm run build` and publish `dist/` with `deploy/aws-frontend.sh`.
 
 ---
 
@@ -260,16 +273,15 @@ Key tables the app creates:
 | `audit_logs` | Access / activity audit trail |
 | `record_access_logs` | Per-record access history |
 
-**In production on AWS** — if you used **Aiven**, open the Aiven console → your MySQL service → **Service Overview** for the connection string, and **Query Editor / CLI** to inspect the same tables. If you used **AWS RDS**, check the **MySQL client / RDS console** with the endpoint and credentials from `/opt/nexushealth/.env`.
+**In production on AWS RDS** — connect your MySQL client with the endpoint + credentials from `/opt/nexushealth/.env`. To inspect from a browser, use the **RDS → Databases → your instance → Query Editor** (aws user), or `mysql -h <endpoint> -u <db-user> -p <nexushealth>` from your EC2 instance (your EC2 SG has access).
 
 ---
 
 ## 🛠️ Troubleshooting
 
-- **CORS errors on deployment** → ensure your CloudFront/Vercel domain is in `CORS_ORIGINS` and restart the backend.
-- **Backend can't reach the DB** → verify `MYSQL_*` in `/opt/nexushealth/.env`, the DB host must be internet-reachable, and your DB user/IP allowlist must permit EC2's IP.
-- **Mixed-content (`https` page calling `http` API)** → put the backend behind HTTPS or serve the frontend over `http` for the demo.
-- **`application.yml` holds local dev secrets** → override everything via the `.env` on EC2; rotate/scrub before making the repo public.
+- **CORS errors on deployment** → ensure your Vercel/CloudFront domain is in `CORS_ORIGINS` and restart the backend.
+- **Backend can't reach the DB** → verify `MYSQL_*` in `/opt/nexushealth/.env`, the RDS endpoint is correct, and the EC2 security group allows inbound port `3306` from the EC2 instance (RDS is private by default).
+- **`mysql` client access denied** → make sure the RDS master username/password in the `.env` matches the one you created the instance with; RDS resets schema here via Hibernate `ddl-auto: update`.
 
 ---
 
