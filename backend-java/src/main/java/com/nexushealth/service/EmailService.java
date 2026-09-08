@@ -8,10 +8,30 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
+
+/**
+ * Email delivery for NexusHealth OTP codes.
+ *
+ * Delivery order:
+ *   1. Brevo (formerly Sendinblue) REST API  - used when BREVO_API_KEY is set.
+ *      Works over plain HTTPS, so it runs anywhere (Render, EC2, etc.) with no
+ *      SMTP ports or Vercel constraints.
+ *   2. SMTP (Spring JavaMailSender)           - fallback when SMTP_HOST/USER/PASS are set.
+ *   3. Disabled                                - when neither is configured; the OTP is
+ *                                                logged to the console and treated as
+ *                                                auto-verified (see AuthService).
+ */
 @Service
 public class EmailService {
 
     private static final Logger log = LoggerFactory.getLogger(EmailService.class);
+
+    private static final String BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
 
     private final JavaMailSender mailSender;
 
@@ -19,11 +39,20 @@ public class EmailService {
         this.mailSender = mailSender;
     }
 
+    @Value("${nexushealth.email.provider:SMTP}")
+    private String provider;
+
+    @Value("${nexushealth.email.brevo-api-key:}")
+    private String brevoApiKey;
+
     @Value("${spring.mail.host:}")
     private String smtpHost;
 
     @Value("${spring.mail.username:}")
     private String smtpUser;
+
+    @Value("${spring.mail.password:}")
+    private String smtpPass;
 
     @Value("${nexushealth.email.from:}")
     private String fromAddress;
@@ -31,22 +60,76 @@ public class EmailService {
     public record OtpDispatchResult(boolean sent, String previewUrl, boolean isEthereal) {
     }
 
-    /**
-     * Sends the OTP email over SMTP when SMTP_HOST/SMTP_USER/SMTP_PASSWORD
-     * are configured. Unlike the Node version (which auto-provisions a
-     * throwaway Ethereal test inbox via nodemailer.createTestAccount() when
-     * no SMTP is configured), Spring's JavaMailSender has no equivalent -
-     * so with no SMTP configured this just logs the OTP to the console and
-     * lets the (already-generated) OTP flow continue, matching the Node
-     * catch-branch behaviour of "still allow verification, just without a
-     * real email".
-     */
+    /** True if any email provider (Brevo or SMTP) is configured. */
+    public boolean isEmailConfigured() {
+        return isBrevoConfigured() || isSmtpConfigured();
+    }
+
+    public boolean isBrevoConfigured() {
+        return brevoApiKey != null && !brevoApiKey.isBlank();
+    }
+
+    public boolean isSmtpConfigured() {
+        return smtpHost != null && !smtpHost.isBlank()
+                && smtpUser != null && !smtpUser.isBlank()
+                && smtpPass != null && !smtpPass.isBlank();
+    }
+
     public OtpDispatchResult sendOtpEmail(String toEmail, String otpCode) {
-        if (smtpHost == null || smtpHost.isBlank() || smtpUser == null || smtpUser.isBlank()) {
-            log.info("[EmailService] SMTP not configured - OTP for {} is {} (check console instead of inbox)", toEmail, otpCode);
+        if (isBrevoConfigured()) {
+            return sendBrevo(toEmail, otpCode);
+        }
+        if (isSmtpConfigured()) {
+            return sendSmtp(toEmail, otpCode);
+        }
+        log.info("[EmailService] No email provider configured - OTP for {} is {} (shown in console only)", toEmail, otpCode);
+        return new OtpDispatchResult(false, null, false);
+    }
+
+    // ---------------------------------------------------------------
+    // Brevo REST API (preferred - works over HTTPS, no SMTP needed)
+    // ---------------------------------------------------------------
+    private OtpDispatchResult sendBrevo(String toEmail, String otpCode) {
+        try {
+            String body = """
+                {
+                  "sender": { "name": "NexusHealth", "email": "%s" },
+                  "to": [ { "email": "%s" } ],
+                  "subject": "NexusHealth Verification Code: %s",
+                  "htmlContent": %s
+                }
+                """.formatted(escapeJson(fromAddress == null || fromAddress.isBlank() ? "no-reply@nexushealth.in" : fromAddress),
+                toEmail, otpCode, toJsonString(buildHtmlBody(otpCode)));
+
+            HttpClient client = HttpClient.newBuilder()
+                    .connectTimeout(Duration.ofSeconds(10))
+                    .build();
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(BREVO_API_URL))
+                    .timeout(Duration.ofSeconds(20))
+                    .header("Content-Type", "application/json")
+                    .header("Accept", "application/json")
+                    .header("api-key", brevoApiKey)
+                    .POST(HttpRequest.BodyPublishers.ofString(body))
+                    .build();
+
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() >= 200 && response.statusCode() < 300) {
+                log.info("[EmailService] Brevo OTP email dispatched to {}", toEmail);
+                return new OtpDispatchResult(true, null, false);
+            }
+            log.warn("[EmailService] Brevo returned {} : {}", response.statusCode(), response.body());
+            return new OtpDispatchResult(false, null, false);
+        } catch (Exception ex) {
+            log.error("[EmailService] Brevo send failed", ex);
             return new OtpDispatchResult(false, null, false);
         }
+    }
 
+    // ---------------------------------------------------------------
+    // SMTP fallback via Spring JavaMailSender
+    // ---------------------------------------------------------------
+    private OtpDispatchResult sendSmtp(String toEmail, String otpCode) {
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
@@ -57,10 +140,10 @@ public class EmailService {
             helper.setSubject("NexusHealth Verification Code: " + otpCode);
             helper.setText(buildHtmlBody(otpCode), true);
             mailSender.send(message);
-            log.info("[EmailService] OTP email dispatched to {}", toEmail);
+            log.info("[EmailService] OTP email dispatched to {} via SMTP", toEmail);
             return new OtpDispatchResult(true, null, false);
         } catch (Exception ex) {
-            log.error("[EmailService] Failed to send OTP email", ex);
+            log.error("[EmailService] Failed to send OTP email via SMTP", ex);
             return new OtpDispatchResult(false, null, false);
         }
     }
@@ -84,5 +167,17 @@ public class EmailService {
               </div>
             </div>
             """.formatted(otpCode);
+    }
+
+    private static String toJsonString(String s) {
+        return "\"" + escapeJson(s) + "\"";
+    }
+
+    private static String escapeJson(String s) {
+        if (s == null) return "";
+        return s.replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\n", "\\n")
+                .replace("\r", "\\r");
     }
 }

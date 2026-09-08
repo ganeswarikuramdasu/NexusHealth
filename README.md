@@ -206,6 +206,9 @@ HTTPS is automatic everywhere (Vercel + Render), so there's **no mixed-content p
    CORS_ORIGINS         https://nexus-health-eight.vercel.app,http://localhost:5173,http://localhost:3000
    APP_URL              https://<your-service>.onrender.com
    GEMINI_API_KEY       <optional>
+   BREVO_API_KEY        <your-brevo-key>   # OTP emails over HTTPS (free: 300/day)
+   EMAIL_PROVIDER       BREVO
+   SMTP_FROM            "NexusHealth Identity <no-reply@nexushealth.in>"
    ```
 4. Render gives you a public URL: `https://<your-service>.onrender.com`.
    - Health check: `https://<your-service>.onrender.com/api/health`.
@@ -229,7 +232,7 @@ The app calls relative `/api/...` which **Vercel rewrites** to your Render backe
 
 ### 🔁 One-click Blueprint
 
-A `render.yaml` is included so you can deploy the backend with **Render → New → Blueprint → select repo**. Set the `sync: false` secrets (`MYSQL_PASSWORD`, `SUPER_ADMIN_PASSWORD`, `GEMINI_API_KEY`, `SMTP_*`) in the Render dashboard after provisioning.
+A `render.yaml` is included so you can deploy the backend with **Render → New → Blueprint → select repo**. Set the `sync: false` secrets (`MYSQL_PASSWORD`, `SUPER_ADMIN_PASSWORD`, `GEMINI_API_KEY`, `BREVO_API_KEY`) in the Render dashboard after provisioning.
 
 ---
 

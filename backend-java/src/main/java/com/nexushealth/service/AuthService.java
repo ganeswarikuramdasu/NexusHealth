@@ -75,31 +75,51 @@ public class AuthService {
         }
         String cleanEmail = req.getEmail().trim().toLowerCase();
         String otpCode = String.valueOf(100000 + RANDOM.nextInt(900000));
+        boolean emailEnabled = emailService.isEmailConfigured();
         activeOtps.put(cleanEmail, new OtpEntry(otpCode, LocalDateTime.now().plus(OTP_TTL)));
 
-        // Dispatch the email off the request thread so this endpoint answers
-        // fast even if SMTP is slow. The OTP is already stored above and the
-        // audit log is written synchronously, so verification works regardless.
-        try {
-            final String target = cleanEmail;
-            Thread worker = new Thread(() -> emailService.sendOtpEmail(target, otpCode));
-            worker.setDaemon(true);
-            worker.start();
-        } catch (Exception ignored) {
-            // Thread-start failure must never block account creation; the
-            // code is still verifiable even if the email is not delivered.
-        }
-        auditLogService.log(cleanEmail, "PATIENT", "EMAIL_OTP_DISPATCHED", "N/A",
-                "Verification OTP sent to email inbox " + cleanEmail);
-
+        // If no email provider is configured (Brevo/SMTP off, e.g. Render with
+        // no key), we still accept the OTP flow but mark the email as
+        // auto-verified so registration works without a real mailbox. Return
+        // autoVerified=true so the client knows to skip the OTP entry step.
         Map<String, Object> emailDetails = new LinkedHashMap<>();
         emailDetails.put("to", cleanEmail);
-        emailDetails.put("subject", "NexusHealth Digital Identity Verification - Your OTP Code");
-        emailDetails.put("otpCode", otpCode);
+
+        if (emailEnabled) {
+            // Dispatch the email off the request thread so this endpoint answers
+            // fast even if the provider is slow. The OTP is already stored above
+            // and the audit log is written synchronously, so verification works
+            // regardless.
+            try {
+                final String target = cleanEmail;
+                Thread worker = new Thread(() -> emailService.sendOtpEmail(target, otpCode));
+                worker.setDaemon(true);
+                worker.start();
+            } catch (Exception ignored) {
+                // Thread-start failure must never block account creation; the
+                // code is still verifiable even if the email is not delivered.
+            }
+            auditLogService.log(cleanEmail, "PATIENT", "EMAIL_OTP_DISPATCHED", "N/A",
+                    "Verification OTP sent to email inbox " + cleanEmail);
+            emailDetails.put("subject", "NexusHealth Digital Identity Verification - Your OTP Code");
+            emailDetails.put("otpCode", otpCode);
+            emailDetails.put("previewUrl", null);
+            emailDetails.put("isEthereal", false);
+            emailDetails.put("autoVerified", false);
+
+            return ApiResponse.ok("Verification code sent to " + cleanEmail +
+                    ". Check your inbox for the 6-digit OTP.")
+                    .with("emailDetails", emailDetails);
+        }
+
+        auditLogService.log(cleanEmail, "PATIENT", "EMAIL_OTP_AUTO_VERIFIED", "N/A",
+                "No email provider configured - email treated as verified automatically for " + cleanEmail);
+        emailDetails.put("subject", "NexusHealth Digital Identity Verification");
+        emailDetails.put("otpCode", null);
         emailDetails.put("previewUrl", null);
         emailDetails.put("isEthereal", false);
-
-        return ApiResponse.ok("Verification code sent to " + cleanEmail + ". Check your inbox for the 6-digit OTP.")
+        emailDetails.put("autoVerified", true);
+        return ApiResponse.ok("Email verification is disabled on this deployment - account can be created directly.")
                 .with("emailDetails", emailDetails);
     }
 
@@ -227,7 +247,8 @@ public class AuthService {
                     "' is already registered. Please click 'Sign In' to log in.");
         }
 
-        if (req.getOtpVerified() == null || !req.getOtpVerified()) {
+        if (emailService.isEmailConfigured()
+                && (req.getOtpVerified() == null || !req.getOtpVerified())) {
             throw ApiException.badRequest("Email verification OTP is required before account creation.");
         }
 

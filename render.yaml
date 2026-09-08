@@ -48,14 +48,11 @@ services:
       # --- AI (optional) ---
       - key: GEMINI_API_KEY
         sync: false
-      # --- SMTP (optional) ---
-      - key: SMTP_HOST
-        value: smtp.gmail.com
-      - key: SMTP_PORT
-        value: "587"
-      - key: SMTP_USER
+      # --- Email / OTP via Brevo REST API (no SMTP server needed) ---
+      # Get a free key: https://app.brevo.com/settings/keys/api
+      - key: BREVO_API_KEY
         sync: false
-      - key: SMTP_PASS
-        sync: false
+      - key: EMAIL_PROVIDER
+        value: BREVO
       - key: SMTP_FROM
-        value: "NexusHealth Identity <no-reply@nexushealth.gov.in>"
+        value: "NexusHealth Identity <no-reply@nexushealth.in>"

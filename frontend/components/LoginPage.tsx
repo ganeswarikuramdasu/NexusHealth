@@ -145,9 +145,15 @@ export const LoginPage: React.FC<LoginPageProps> = ({
       if (!isOtpSent) setOtpCode("");
       setIsOtpSent(true);
       setSimulatedEmailNotice(data.emailDetails || data.simulatedEmail);
+      if (data?.emailDetails?.autoVerified) {
+        // No email provider configured (Brevo/SMTP off) -> email is auto-verified.
+        setIsOtpVerified(true);
+        setStatusMessage({ type: "success", text: "Email verification is enabled. You can now complete registration." });
+        return;
+      }
       setStatusMessage({ type: "success", text: `Verification email sent to ${regEmail.trim()}. Use the 6-digit code from your inbox.` });
     } catch (err) {
-      setStatusMessage({ type: "error", text: "Error dispatching OTP code via SMTP. Please try again." });
+      setStatusMessage({ type: "error", text: "Error dispatching OTP code. Please try again." });
     } finally {
       setIsSendingOtp(false);
     }
