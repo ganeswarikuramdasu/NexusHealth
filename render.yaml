@@ -1,0 +1,61 @@
+# ======================================================
+# render.yaml
+# Render Blueprint for the NexusHealth Spring Boot backend.
+#
+# Deploy: new Render Blueprint -> connect this repo, or
+# manually:  Render -> New -> Web Service -> from this repo,
+# pick the Dockerfile, then set the environment variables
+# below (values come from Aiven MySQL + your credentials).
+#
+# NOTE: Render's MySQL is not free. The DATABASE_URL below is
+# a mysql:// URL pointing at your Aiven MySQL free instance.
+# Replace the <...> placeholders with real values.
+# ======================================================
+
+services:
+  - type: web
+    name: nexushealth-backend
+    runtime: docker
+    repo: https://github.com/ganeswarikuramdasu/NexusHealth.git
+    plan: free
+    region: singapore
+    healthCheckPath: /api/health
+    envVars:
+      - key: SERVER_PORT
+        value: 8080
+      # --- MySQL (Aiven free) ---
+      - key: MYSQL_HOST
+        value: <AIVEN_HOST>.aivencloud.com
+      - key: MYSQL_PORT
+        value: "3306"
+      - key: MYSQL_DATABASE
+        value: nexushealth
+      - key: MYSQL_USER
+        value: avnadmin
+      - key: MYSQL_PASSWORD
+        sync: false   # set in Render dashboard (secret)
+      # --- Super admin ---
+      - key: SUPER_ADMIN_EMAIL
+        value: ganeswarikuramdasu@gmail.com
+      - key: SUPER_ADMIN_PASSWORD
+        sync: false
+      # --- CORS: your Vercel frontend + localhost ---
+      - key: CORS_ORIGINS
+        value: "https://nexus-health-eight.vercel.app,http://localhost:5173,http://localhost:3000"
+      # --- Public URL ---
+      - key: APP_URL
+        value: https://nexushealth-backend.onrender.com
+      # --- AI (optional) ---
+      - key: GEMINI_API_KEY
+        sync: false
+      # --- SMTP (optional) ---
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: SMTP_FROM
+        value: "NexusHealth Identity <no-reply@nexushealth.gov.in>"
