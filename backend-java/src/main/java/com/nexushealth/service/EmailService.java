@@ -32,7 +32,7 @@ public class EmailService {
     @Value("${nexushealth.email.brevo-api-key:}")
     private String brevoApiKey;
 
-    @Value("${nexushealth.email.from:NexusHealth Identity <no-reply@nexushealth.in>}")
+    @Value("${nexushealth.email.from:NexusHealth Identity <ganeswarikuramdasu@gmail.com>}")
     private String fromAddress;
 
     /** True when an email provider is configured (Brevo API key set). */
@@ -40,11 +40,11 @@ public class EmailService {
         return brevoApiKey != null && !brevoApiKey.isBlank();
     }
 
-    /** Dispatch an OTP email. Never throws - failures are logged. */
-    public void sendOtpEmail(String toEmail, String otpCode) {
+    /** Dispatch an OTP email. Returns true only when Brevo accepted the send. */
+    public boolean sendOtpEmail(String toEmail, String otpCode) {
         if (!isEmailConfigured()) {
             log.info("[EmailService] No Brevo key configured - OTP for {} is {} (console only)", toEmail, otpCode);
-            return;
+            return false;
         }
 
         String senderEmail = extractEmail(fromAddress);
@@ -73,17 +73,19 @@ public class EmailService {
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() >= 200 && response.statusCode() < 300) {
                 log.info("[EmailService] Brevo OTP email dispatched to {}", toEmail);
-            } else {
-                log.warn("[EmailService] Brevo returned {} : {}", response.statusCode(), response.body());
+                return true;
             }
+            log.warn("[EmailService] Brevo returned {} : {}", response.statusCode(), response.body());
+            return false;
         } catch (Exception ex) {
             log.error("[EmailService] Brevo send failed", ex);
+            return false;
         }
     }
 
     private static String extractEmail(String displayOrEmail) {
         if (displayOrEmail == null || displayOrEmail.isBlank()) {
-            return "no-reply@nexushealth.in";
+            return "ganeswarikuramdasu@gmail.com";
         }
         Matcher m = EMAIL_IN_DISPLAY.matcher(displayOrEmail.trim());
         return m.matches() ? m.group(1).trim() : displayOrEmail.trim();

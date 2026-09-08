@@ -60,8 +60,9 @@ services:
 
       # --- Email / OTP via Brevo REST API (no SMTP) ---
       # Get a free key: https://app.brevo.com/settings/keys/api
-      # The sender address must be verified in your Brevo account.
+      # EMAIL_FROM must be a sender VERIFIED in the Brevo account, otherwise
+      # Brevo accepts the API call but never delivers the email.
       - key: BREVO_API_KEY
         sync: false
       - key: EMAIL_FROM
-        value: "NexusHealth Identity <no-reply@nexushealth.in>"
+        value: "NexusHealth Identity <ganeswarikuramdasu@gmail.com>"

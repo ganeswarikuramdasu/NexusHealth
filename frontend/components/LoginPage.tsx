@@ -132,28 +132,51 @@ export const LoginPage: React.FC<LoginPageProps> = ({
     setIsSendingOtp(true);
     setStatusMessage(null);
     try {
-      const res = await fetch("/api/auth/send-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: regEmail.trim() }),
-      });
-      const data = await parseResponseSafe<any>(res, { success: false, message: "Failed to dispatch OTP." });
-      if (!res.ok || !data || data.success === false) {
-        setStatusMessage({ type: "error", text: data?.message || "Failed to dispatch OTP." });
-        return;
+      // Render's free instance sleeps after ~15 idle minutes and cold-boots in
+      // 60-120s. If a fetch dies on a network error during that window, back off
+      // and retry a few times instead of failing while the OTP may still be sent.
+      const maxAttempts = 3;
+      const retryDelaysMs = [5000, 15000, 30000];
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+          const res = await fetch("/api/auth/send-otp", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: regEmail.trim() }),
+          });
+          const data = await parseResponseSafe<any>(res, { success: false, message: "Failed to dispatch OTP." });
+          if (!res.ok || !data || data.success === false) {
+            setStatusMessage({ type: "error", text: data?.message || "Failed to dispatch OTP." });
+            return;
+          }
+          if (!isOtpSent) setOtpCode("");
+          setIsOtpSent(true);
+          setSimulatedEmailNotice(data.emailDetails || data.simulatedEmail);
+          if (data?.emailDetails?.autoVerified) {
+            // No email provider configured (Brevo/SMTP off) -> email is auto-verified.
+            setIsOtpVerified(true);
+            setStatusMessage({ type: "success", text: "Email verification is enabled. You can now complete registration." });
+            return;
+          }
+          setStatusMessage({ type: "success", text: `Verification email sent to ${regEmail.trim()}. Use the 6-digit code from your inbox.` });
+          return;
+        } catch (err) {
+          const isNetworkError =
+            err instanceof TypeError ||
+            (typeof err === "object" && err !== null && (err as any)?.name === "TypeError");
+          if (attempt >= maxAttempts || !isNetworkError) {
+            setStatusMessage({
+              type: "error",
+              text: isNetworkError
+                ? "The backend is still starting up. If you received the email, enter its code below; otherwise try again in a minute."
+                : "Error dispatching OTP code. Please try again.",
+            });
+            return;
+          }
+          setStatusMessage({ type: "info", text: `Backend is warming up — retrying (${attempt}/${maxAttempts - 1})…` });
+          await new Promise((r) => setTimeout(r, retryDelaysMs[attempt - 1]));
+        }
       }
-      if (!isOtpSent) setOtpCode("");
-      setIsOtpSent(true);
-      setSimulatedEmailNotice(data.emailDetails || data.simulatedEmail);
-      if (data?.emailDetails?.autoVerified) {
-        // No email provider configured (Brevo/SMTP off) -> email is auto-verified.
-        setIsOtpVerified(true);
-        setStatusMessage({ type: "success", text: "Email verification is enabled. You can now complete registration." });
-        return;
-      }
-      setStatusMessage({ type: "success", text: `Verification email sent to ${regEmail.trim()}. Use the 6-digit code from your inbox.` });
-    } catch (err) {
-      setStatusMessage({ type: "error", text: "Error dispatching OTP code. Please try again." });
     } finally {
       setIsSendingOtp(false);
     }

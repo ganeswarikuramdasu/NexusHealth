@@ -208,7 +208,7 @@ HTTPS is automatic everywhere (Vercel + Render), so there's **no mixed-content p
    MYSQL_DATABASE       defaultdb              # or your created DB name
    GEMINI_API_KEY       <optional>
    BREVO_API_KEY        <your-brevo-key>       # OTP emails over HTTPS (free: 300/day)
-   EMAIL_FROM           "NexusHealth Identity <no-reply@nexushealth.in>"   # verified in Brevo
+   EMAIL_FROM           "NexusHealth Identity <ganeswarikuramdasu@gmail.com>"   # must be a sender VERIFIED in Brevo
    ```
 4. Render gives you a public URL: `https://<your-service>.onrender.com`.
    - Health check: `https://<your-service>.onrender.com/api/health`.

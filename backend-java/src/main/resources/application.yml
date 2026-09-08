@@ -56,7 +56,7 @@ nexushealth:
   gemini:
     api-key: ${GEMINI_API_KEY:}
   email:
-    from: ${EMAIL_FROM:NexusHealth Identity <no-reply@nexushealth.in>}
+    from: ${EMAIL_FROM:NexusHealth Identity <ganeswarikuramdasu@gmail.com>}
     brevo-api-key: ${BREVO_API_KEY:}
 
 logging:

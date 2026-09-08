@@ -86,23 +86,23 @@ public class AuthService {
         emailDetails.put("to", cleanEmail);
 
         if (emailEnabled) {
-            // Dispatch the email off the request thread so this endpoint answers
-            // fast even if the provider is slow. The OTP is already stored above
-            // and the audit log is written synchronously, so verification works
-            // regardless.
+            // Send synchronously so a Brevo rejection surfaces to the client
+            // instead of silently pretending the email was dispatched. The OTP
+            // is already stored above, so a retry with a new code overwrites it.
+            boolean dispatched = false;
             try {
-                final String target = cleanEmail;
-                Thread worker = new Thread(() -> emailService.sendOtpEmail(target, otpCode));
-                worker.setDaemon(true);
-                worker.start();
+                dispatched = emailService.sendOtpEmail(cleanEmail, otpCode);
             } catch (Exception ignored) {
-                // Thread-start failure must never block account creation; the
-                // code is still verifiable even if the email is not delivered.
+                // sendOtpEmail never throws - boolean result carries the status.
+            }
+            if (!dispatched) {
+                throw new ApiException(HttpStatus.BAD_GATEWAY,
+                        "We could not dispatch the OTP email right now. The configured Brevo sender must be verified " +
+                                "and authorized - please try again shortly or contact support.");
             }
             auditLogService.log(cleanEmail, "PATIENT", "EMAIL_OTP_DISPATCHED", "N/A",
                     "Verification OTP sent to email inbox " + cleanEmail);
             emailDetails.put("subject", "NexusHealth Digital Identity Verification - Your OTP Code");
-            emailDetails.put("otpCode", otpCode);
             emailDetails.put("previewUrl", null);
             emailDetails.put("isEthereal", false);
             emailDetails.put("autoVerified", false);
