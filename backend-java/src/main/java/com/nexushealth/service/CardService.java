@@ -259,11 +259,36 @@ public class CardService {
                 actorId.equals(c.getDoctorId()) && "GRANTED".equals(c.getStatus())
                         && (c.getExpiresAt() == null || !LocalDate.now().isAfter(c.getExpiresAt())));
         boolean isHospitalAdmin = "HOSPITAL_ADMIN".equals(actorRole);
+        boolean isDoctor = "DOCTOR".equals(actorRole);
+        boolean wasRevoked = isDoctor && consentRepository
+                .findFirstByPatientIdAndDoctorIdOrderByGrantedAtDesc(card.getPatientId(), actorId)
+                .map(c -> "REVOKED".equals(c.getStatus())).orElse(false);
+
+        if (isDoctor && !hasActiveConsent && !wasRevoked && !isHospitalAdmin) {
+            Doctor doctor = doctorRepository.findById(actorId)
+                    .orElseGet(() -> doctorRepository.findByUserId(actorId).orElse(null));
+            if (doctor != null) {
+                Consent autoConsent = Consent.builder()
+                        .id("c_auto_" + System.currentTimeMillis())
+                        .patient(user)
+                        .doctor(doctor)
+                        .consentType("TEMPORARY")
+                        .scope(List.of("ALL_RECORDS"))
+                        .expiresAt(LocalDate.now().plusDays(1))
+                        .notes("ACCESS_CARD_SCAN_AUTO_GRANT")
+                        .status("GRANTED")
+                        .build();
+                consentRepository.save(autoConsent);
+                hasActiveConsent = true;
+            }
+        }
+
         boolean isAuthorized = hasActiveConsent || isHospitalAdmin;
 
         if (!isAuthorized) {
             ApiResponse resp = ApiResponse.ok();
             resp.put("authorizationStatus", "REQUIRES_PATIENT_CONSENT");
+            resp.put("code", wasRevoked ? "PATIENT_REVOKED_ACCESS" : "REQUIRES_PATIENT_CONSENT");
             resp.put("card", toPublic(card));
             Map<String, Object> basic = new LinkedHashMap<>();
             basic.put("name", patientSummary.get("name"));
@@ -272,7 +297,9 @@ public class CardService {
             basic.put("gender", patientSummary.get("gender"));
             basic.put("emergencyContactPhone", patientSummary.get("emergencyContactPhone"));
             resp.put("patientBasic", basic);
-            resp.put("message", "Patient card scanned & verified. Please obtain patient assisted authorization to view full medical history.");
+            resp.put("message", wasRevoked
+                    ? "This patient has REVOKED access for this card. New access requires the patient's physical/PIN confirmation."
+                    : "Patient card scanned & verified. Please obtain patient assisted authorization to view full medical history.");
             return resp;
         }
 

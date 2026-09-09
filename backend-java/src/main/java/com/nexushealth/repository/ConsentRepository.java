@@ -13,4 +13,6 @@ public interface ConsentRepository extends JpaRepository<Consent, String> {
     List<Consent> findActiveForPatient(@Param("patientId") String patientId);
 
     Optional<Consent> findByPatientIdAndDoctorId(String patientId, String doctorId);
+
+    Optional<Consent> findFirstByPatientIdAndDoctorIdOrderByGrantedAtDesc(String patientId, String doctorId);
 }
