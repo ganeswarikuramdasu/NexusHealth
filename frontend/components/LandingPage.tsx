@@ -97,9 +97,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenLogin }) => {
       >
         <nav className="w-full max-w-6xl mx-auto px-5 sm:px-8 h-16 flex items-center justify-between">
           <a href="#top" className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center shadow-lg" style={{ backgroundColor: C.neon, boxShadow: `0 4px 14px ${C.neon}66` }}>
-              <Activity className="w-4.5 h-4.5" style={{ color: "#06130B" }} />
-            </div>
+            <img src="/nexushealth-icon.svg" alt="NexusHealth" className="w-8 h-8 drop-shadow-lg" style={{ filter: `drop-shadow(0 4px 14px ${C.neon}66)` }} />
             <div className="leading-none">
               <span className="text-[17px] font-bold tracking-tight text-white block">NexusHealth</span>
               <span className="text-[9px] font-bold tracking-[0.18em] uppercase block mt-0.5" style={{ color: C.neonBright }}>

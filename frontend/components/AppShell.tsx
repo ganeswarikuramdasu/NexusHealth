@@ -2,7 +2,6 @@ import React from "react";
 import { UserRole } from "../types";
 import {
   LogOut,
-  Activity,
   User,
   Building2,
   Stethoscope,
@@ -67,9 +66,7 @@ export const AppShell: React.FC<AppShellProps> = ({
           className="flex items-center gap-3 px-5 h-16 shrink-0 border-b border-white/10 cursor-pointer hover:bg-white/5 transition-colors text-left"
           title="NexusHealth Home"
         >
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#17C964] to-[#3CE584] flex items-center justify-center shadow-lg shadow-green-900/40 shrink-0">
-            <Activity className="w-5 h-5 text-white" />
-          </div>
+          <img src="/nexushealth-icon.svg" alt="NexusHealth" className="w-9 h-9 rounded-xl shadow-lg shadow-green-900/40 shrink-0" style={{ backgroundColor: "#0B1220" }} />
           <div className="leading-none">
             <span className="text-[15px] font-extrabold tracking-tight text-white block">NexusHealth</span>
             <span className="text-[9px] font-semibold tracking-[0.2em] uppercase text-[#5EF2A0]/90 block mt-0.5">
@@ -151,9 +148,7 @@ export const AppShell: React.FC<AppShellProps> = ({
         {/* Mobile top bar */}
         <header className="hidden max-lg:flex items-center justify-between px-4 h-14 bg-[#0f172a] text-white sticky top-0 z-40">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#17C964] to-[#3CE584] flex items-center justify-center">
-              <Activity className="w-4 h-4 text-white" />
-            </div>
+            <img src="/nexushealth-icon.svg" alt="" className="w-8 h-8 rounded-lg" style={{ backgroundColor: "#0B1220" }} />
             <span className="text-sm font-extrabold">NexusHealth</span>
           </div>
           <span className="text-[11px] font-mono text-[#5EF2A0]">{roleLabel || user.role.replace("_", " ")}</span>

@@ -27,7 +27,6 @@ const C = {
 const DEMO_ACCOUNTS: { role: UserRole; label: string; email: string; password: string }[] = [
   { role: "SUPER_ADMIN", label: "Super Admin", email: "demo.admin@nexusdemo.in", password: "DemoAdmin@2026" },
   { role: "HOSPITAL_ADMIN", label: "Hospital Admin", email: "citycare@nexusdemo.in", password: "CityCare@2026" },
-  { role: "DOCTOR", label: "Doctor", email: "doctor.anand@nexusdemo.in", password: "Doctor@2026" },
   { role: "PATIENT", label: "Patient", email: "patient.demo@nexusdemo.in", password: "Patient@2026" },
 ];
 

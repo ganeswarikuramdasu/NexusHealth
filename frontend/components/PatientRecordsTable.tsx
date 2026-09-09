@@ -24,6 +24,14 @@ export const PatientRecordsTable: React.FC<PatientRecordsTableProps> = ({
   const [filterCategory, setFilterCategory] = useState("ALL");
   const [selectedRecordDetail, setSelectedRecordDetail] = useState<MedicalRecord | null>(null);
 
+  const patientNameFor = (rec: MedicalRecord): string => {
+    if (rec.patientName && rec.patientName.trim() && rec.patientName !== "Patient Citizen") return rec.patientName;
+    const match = patients.find(
+      (p) => p.userId === rec.patientId || p.globalHealthId === rec.patientHealthId || p.id === rec.patientId
+    );
+    return match?.name || rec.patientHealthId || "Patient";
+  };
+
   const filteredRecords = records.filter((r) => {
     const q = searchQuery.toLowerCase().trim();
     const docF = doctorFilter.toLowerCase().trim();
@@ -159,7 +167,7 @@ export const PatientRecordsTable: React.FC<PatientRecordsTableProps> = ({
                 <tr key={rec.id} className="hover:bg-[#EDF1F5] transition">
                   <td className="py-3 px-3 text-slate-500 font-bold">{rec.date}</td>
                   <td className="py-3 px-3 font-bold text-[#17C964]">{rec.patientHealthId}</td>
-                  <td className="py-3 px-3 font-bold text-slate-900">{rec.patientName || "John Doe"}</td>
+                  <td className="py-3 px-3 font-bold text-slate-900">{patientNameFor(rec)}</td>
                   <td className="py-3 px-3">
                     <span className="px-2 py-0.5 bg-[#E9FBF1] border border-[#17C964]/30 text-[#17C964] text-[10px] rounded font-bold">
                       {rec.category || "Consultation"}
