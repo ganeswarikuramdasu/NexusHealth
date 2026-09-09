@@ -95,8 +95,8 @@ public class DoctorService {
         }
 
         String cleanEmail = req.getEmail().trim().toLowerCase();
-        if (userRepository.existsByEmailIgnoreCase(cleanEmail)) {
-            throw ApiException.badRequest("An account with email '" + req.getEmail() + "' is already registered. Please login.");
+        if (userRepository.existsByEmailIgnoreCaseAndRole(cleanEmail, "DOCTOR")) {
+            throw ApiException.badRequest("A DOCTOR account with email '" + req.getEmail() + "' is already registered. Please login.");
         }
 
         Hospital hospital = !isBlank(req.getHospitalId())
@@ -265,8 +265,8 @@ public class DoctorService {
         }
 
         String cleanEmail = req.getEmail().trim().toLowerCase();
-        if (userRepository.existsByEmailIgnoreCase(cleanEmail)) {
-            throw ApiException.badRequest("An account with email '" + req.getEmail() + "' is already registered.");
+        if (userRepository.existsByEmailIgnoreCaseAndRole(cleanEmail, "DOCTOR")) {
+            throw ApiException.badRequest("A DOCTOR account with email '" + req.getEmail() + "' is already registered.");
         }
 
         Hospital hospital = !isBlank(req.getHospitalId()) ? hospitalRepository.findById(req.getHospitalId()).orElse(null) : null;
@@ -554,6 +554,12 @@ public class DoctorService {
                 .map(this::mapMedicalRecordToResponse)
                 .collect(Collectors.toList());
 
+        Map<String, Object> profileMap = resolvedOpt.isPresent()
+                ? patientResolver.toPublicProfile(resolvedOpt.get())
+                : Map.of("id", patientUserId, "name", patientName, "globalHealthId", effectiveHealthId);
+        List<Map<String, Object>> consentsList = consentRepository.findActiveForPatient(patientUserId)
+                .stream().map(this::mapConsentToPublic).collect(Collectors.toList());
+
         // Emergency break-glass
         if (effectiveEmergency) {
             RecordAccessLog accessLog = recordAccessLogService.add(
@@ -571,6 +577,8 @@ public class DoctorService {
             return ApiResponse.ok()
                     .with("granted", true)
                     .with("reason", "EMERGENCY_BREAK_GLASS")
+                    .with("patient", profileMap)
+                    .with("consents", consentsList)
                     .with("records", recordsList)
                     .with("accessLog", logResp)
                     .with("message", "Emergency access logged. Patient and hospital privacy board notified.");
@@ -597,6 +605,8 @@ public class DoctorService {
             return ApiResponse.ok()
                     .with("granted", true)
                     .with("reason", hasConsent ? "EXPLICIT_CONSENT" : "SCHEDULED_APPOINTMENT")
+                    .with("patient", profileMap)
+                    .with("consents", consentsList)
                     .with("records", recordsList)
                     .with("accessLog", logResp);
         }
@@ -1419,7 +1429,26 @@ public class DoctorService {
 
     /** Map a MedicalRecord entity to a response map. */
     @SuppressWarnings("unchecked")
+    private Map<String, Object> mapConsentToPublic(Consent c) {
+        Doctor doctor = c.getDoctorId() != null ? doctorRepository.findById(c.getDoctorId()).orElse(null) : null;
+        Hospital hospital = c.getHospitalId() != null ? hospitalRepository.findById(c.getHospitalId()).orElse(null) : null;
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("id", c.getId());
+        out.put("patientId", c.getPatientId());
+        out.put("doctorId", c.getDoctorId());
+        out.put("doctorName", doctor != null ? doctor.getName() : "Attending Physician");
+        out.put("hospitalName", hospital != null ? hospital.getName() : (doctor != null ? doctor.getHospitalName() : "Medical Center"));
+        out.put("consentType", c.getConsentType());
+        out.put("allowedCategories", c.getScope());
+        out.put("validUntil", c.getExpiresAt() != null ? c.getExpiresAt().toString() : null);
+        out.put("status", "GRANTED".equals(c.getStatus()) ? "ACTIVE" : c.getStatus());
+        out.put("grantedAt", c.getGrantedAt() != null ? c.getGrantedAt().toString() : null);
+        return out;
+    }
+
     private Map<String, Object> mapMedicalRecordToResponse(MedicalRecord r) {
+        Doctor doctor = r.getDoctorId() != null ? doctorRepository.findById(r.getDoctorId()).orElse(null) : null;
+        Hospital hospital = r.getHospitalId() != null ? hospitalRepository.findById(r.getHospitalId()).orElse(null) : null;
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("id", r.getId());
         m.put("patientId", r.getPatientId());
@@ -1435,6 +1464,9 @@ public class DoctorService {
         m.put("fileUrl", r.getFileUrl());
         m.put("createdAt", r.getCreatedAt() != null ? r.getCreatedAt().toString() : null);
         if (r.getExtra() != null) m.putAll(r.getExtra());
+        m.put("doctorName", doctor != null ? doctor.getName() : "Self / External Facility");
+        m.put("hospitalName", hospital != null ? hospital.getName() : "Independent Diagnostic Care");
+        m.put("date", r.getRecordDate() != null ? r.getRecordDate().toString() : null);
         return m;
     }
 

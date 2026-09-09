@@ -29,15 +29,36 @@ export default function App() {
     email: string;
     role: UserRole;
     globalHealthId?: string;
-  } | null>(null);
+  } | null>(() => {
+    try {
+      const raw = localStorage.getItem("nexushealth_session");
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      return parsed && parsed.user ? parsed.user : null;
+    } catch {
+      return null;
+    }
+  });
 
-  const [viewMode, setViewMode] = useState<"LANDING" | "LOGIN" | "WORKSPACE">("LANDING");
+  const [viewMode, setViewMode] = useState<"LANDING" | "LOGIN" | "WORKSPACE">(currentUser ? "WORKSPACE" : "LANDING");
   const [loginInitialRole, setLoginInitialRole] = useState<UserRole>("PATIENT");
   const [loginInitialRegister, setLoginInitialRegister] = useState<boolean>(false);
 
   useEffect(() => {
     document.documentElement.classList.remove("dark");
   }, []);
+
+  useEffect(() => {
+    try {
+      if (currentUser) {
+        localStorage.setItem("nexushealth_session", JSON.stringify({ user: currentUser }));
+      } else {
+        localStorage.removeItem("nexushealth_session");
+      }
+    } catch {
+      // storage unavailable
+    }
+  }, [currentUser]);
 
   // Modals
   const [isCardModalOpen, setIsCardModalOpen] = useState(false);

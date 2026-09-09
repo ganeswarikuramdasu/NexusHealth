@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { DoctorProfile, MedicalRecord, ConsentGrant, PatientProfile, HospitalProfile, Appointment, UserRole } from "../types";
 import { safeFetchJson } from "../utils/api";
 import { AppShell, NavItem } from "./AppShell";
@@ -81,6 +81,8 @@ export const DoctorView: React.FC<DoctorViewProps> = ({
   onLogout,
   onGoToHome,
 }) => {
+  const DOCTOR_TABS = ["DASHBOARD", "PATIENT_ACCESS", "EMERGENCY_ACCESS", "PATIENT_QUEUE", "PATIENT_RECORDS_TABLE", "SCHEDULE_CALENDAR", "PROFILE_SETTINGS", "ACCESS_HISTORY"];
+
   const [activeTab, setActiveTab] = useState<
     | "DASHBOARD"
     | "PATIENT_ACCESS"
@@ -90,7 +92,18 @@ export const DoctorView: React.FC<DoctorViewProps> = ({
     | "SCHEDULE_CALENDAR"
     | "PROFILE_SETTINGS"
     | "ACCESS_HISTORY"
-  >("DASHBOARD");
+  >(() => {
+    const saved = localStorage.getItem("nexushealth_tab_DOCTOR");
+    return saved && DOCTOR_TABS.includes(saved) ? (saved as any) : "DASHBOARD";
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("nexushealth_tab_DOCTOR", activeTab);
+    } catch {
+      // storage unavailable
+    }
+  }, [activeTab]);
 
   // Local state for doctor profile to reflect edits
   const [activeDoctorState, setActiveDoctorState] = useState<DoctorProfile>(doctor);
@@ -166,7 +179,19 @@ export const DoctorView: React.FC<DoctorViewProps> = ({
     setHasSearched(true);
 
     try {
-      const data = await safeFetchJson<any>(`/api/patient/lookup/${encodeURIComponent(rawId)}`, undefined, null);
+      const data = await safeFetchJson<any>(
+        `/api/doctor/access-records`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            doctorId: safeDoctor.id || doctor?.id,
+            doctorName: safeDoctorName,
+            patientHealthId: rawId,
+          }),
+        },
+        null
+      );
 
       if (data && data.success && data.patient) {
         setActivePatient(data.patient);
@@ -182,23 +207,12 @@ export const DoctorView: React.FC<DoctorViewProps> = ({
         );
       }
     } catch {
-      // Direct local verification fallback strictly for exact match
-      const exactMatch = patientProfiles.find(
-        (p) =>
-          (p.globalHealthId && p.globalHealthId.trim().toLowerCase() === rawId.toLowerCase()) ||
-          (p.id && p.id.trim().toLowerCase() === rawId.toLowerCase())
+      setActivePatient(null);
+      setSearchedRecords([]);
+      setSearchedConsents([]);
+      setSearchError(
+        "Patient lookup could not be completed. Patient records are only accessible with active consent, a scheduled appointment, or Emergency Break-Glass authorization."
       );
-      if (exactMatch) {
-        setActivePatient(exactMatch);
-        setSearchedRecords(records.filter((r) => r.patientHealthId === exactMatch.globalHealthId || r.patientId === exactMatch.id));
-        setSearchedConsents(consents.filter((c) => c.patientHealthId === exactMatch.globalHealthId || c.patientId === exactMatch.id));
-        setSearchError(null);
-      } else {
-        setActivePatient(null);
-        setSearchedRecords([]);
-        setSearchedConsents([]);
-        setSearchError(`Patient Not Found: No patient record registered with Global Unique Health ID "${rawId}".`);
-      }
     } finally {
       setIsSearching(false);
     }

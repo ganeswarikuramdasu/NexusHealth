@@ -54,12 +54,15 @@ import {
   Zap,
   Download,
   DownloadCloud,
+  Eye,
   Upload,
   Printer,
   Paperclip,
   FileSpreadsheet,
   CreditCard,
 } from "lucide-react";
+
+type PatientTabKey = "DASHBOARD" | "EMERGENCY_PROFILE" | "ACCESS_CARD" | "RECORDS" | "LAB_REPORTS" | "AI_ASSISTANT" | "VITALS_ANALYTICS" | "MEDICATIONS" | "CONSENTS" | "APPOINTMENTS" | "AUDIT_LOGS" | "ACCOUNT";
 
 interface PatientViewProps {
   profile: PatientProfile;
@@ -98,9 +101,20 @@ export const PatientView: React.FC<PatientViewProps> = ({
   onLogout,
   onGoToHome,
 }) => {
-  const [activeTab, setActiveTab] = useState<
-    "DASHBOARD" | "EMERGENCY_PROFILE" | "ACCESS_CARD" | "RECORDS" | "LAB_REPORTS" | "AI_ASSISTANT" | "VITALS_ANALYTICS" | "MEDICATIONS" | "CONSENTS" | "APPOINTMENTS" | "AUDIT_LOGS"
-  >("DASHBOARD");
+  const PATIENT_TABS: PatientTabKey[] = ["DASHBOARD", "EMERGENCY_PROFILE", "ACCESS_CARD", "RECORDS", "LAB_REPORTS", "AI_ASSISTANT", "VITALS_ANALYTICS", "MEDICATIONS", "CONSENTS", "APPOINTMENTS", "AUDIT_LOGS", "ACCOUNT"];
+
+  const [activeTab, setActiveTab] = useState<PatientTabKey>(() => {
+    const saved = localStorage.getItem("nexushealth_tab_PATIENT");
+    return saved && (PATIENT_TABS as string[]).includes(saved) ? (saved as PatientTabKey) : "DASHBOARD";
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("nexushealth_tab_PATIENT", activeTab);
+    } catch {
+      // storage unavailable
+    }
+  }, [activeTab]);
 
   // Explain Modal state
   const [selectedReportForExplain, setSelectedReportForExplain] = useState<any | null>(null);
@@ -124,6 +138,58 @@ export const PatientView: React.FC<PatientViewProps> = ({
   // Lab Report File Attachment State
   const [uploadAttachment, setUploadAttachment] = useState<{ name: string; size: number; dataUrl: string } | null>(null);
   const labFileInputRef = useRef<HTMLInputElement | null>(null);
+  const [aiAnalyzing, setAiAnalyzing] = useState(false);
+  const [aiAnalyzeError, setAiAnalyzeError] = useState("");
+  const [aiSource, setAiSource] = useState<string | null>(null);
+  const [aiExtractedEmpty, setAiExtractedEmpty] = useState(false);
+
+  // In-app attachment viewer (open without downloading)
+  const [viewAttachment, setViewAttachment] = useState<{ name: string; dataUrl: string } | null>(null);
+
+  const runAiLabAnalysis = async (fileName: string, dataUrl: string) => {
+    setAiAnalyzing(true);
+    setAiAnalyzeError("");
+    setAiSource(null);
+    setAiExtractedEmpty(false);
+    try {
+      const res = await fetch("/api/ai/analyze-lab-attachment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          attachmentName: fileName,
+          attachmentDataUrl: dataUrl,
+          patientHealthId: profile.globalHealthId,
+        }),
+      });
+      const data = await parseResponseSafe<any>(res, { success: false });
+      if (!res.ok || !data || !data.success) {
+        setAiAnalyzeError(data?.message || "AI could not read this report. You can fill the details manually.");
+        return;
+      }
+      const rep = data.report || {};
+      if (rep.title) setUploadTitle(rep.title);
+      if (rep.labName) setUploadLabName(rep.labName);
+      if (rep.date) setUploadDate(rep.date);
+      if (Array.isArray(rep.parameters)) {
+        setUploadParamsList(
+          rep.parameters.map((p: any) => ({
+            name: p.name || "Parameter",
+            value: p.value != null ? String(p.value) : "—",
+            unit: p.unit || "",
+            referenceRange: p.referenceRange || "-",
+            status: p.status || "NORMAL",
+          }))
+        );
+        setAiExtractedEmpty(rep.parameters.length === 0);
+      }
+      setAiSource(data.source || "SIMULATED");
+    } catch (err) {
+      setAiAnalyzeError("Could not reach the AI service. Please fill the details manually.");
+    } finally {
+      setAiAnalyzing(false);
+    }
+  };
+
   const handleLabFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -133,7 +199,9 @@ export const PatientView: React.FC<PatientViewProps> = ({
     }
     const reader = new FileReader();
     reader.onload = () => {
-      setUploadAttachment({ name: file.name, size: file.size, dataUrl: String(reader.result || "") });
+      const dataUrl = String(reader.result || "");
+      setUploadAttachment({ name: file.name, size: file.size, dataUrl });
+      runAiLabAnalysis(file.name, dataUrl);
     };
     reader.readAsDataURL(file);
   };
@@ -289,8 +357,27 @@ export const PatientView: React.FC<PatientViewProps> = ({
   const [isLoadingMeds, setIsLoadingMeds] = useState(false);
 
   useEffect(() => {
-    setVitalsHistory(getDefaultVitalsHistory());
+    setVitalsHistory([]);
   }, [profile.globalHealthId]);
+
+  // Reload vitals saved to the backend after a refresh (stored as VITALS medical records).
+  useEffect(() => {
+    const pid = profile.userId || profile.id;
+    if (!pid) return;
+    const savedVitals = (records || [])
+      .filter((r: any) => r.patientId === pid && r.vitals && typeof r.vitals === "object" && Object.keys(r.vitals).length > 0)
+      .map((r: any) => ({
+        date: (r.vitals && r.vitals.date) || r.date || "",
+        bpSystolic: r.vitals.bpSystolic,
+        bpDiastolic: r.vitals.bpDiastolic,
+        glucose: r.vitals.glucose,
+        heartRate: r.vitals.heartRate,
+        spo2: r.vitals.spo2,
+        weight: r.vitals.weight,
+      }))
+      .sort((a: any, b: any) => (a.date < b.date ? -1 : 1));
+    if (savedVitals.length > 0) setVitalsHistory(savedVitals);
+  }, [records, profile.userId, profile.id, profile.globalHealthId]);
 
   // Fetch Patient Medications
   const fetchPatientMedications = async () => {
@@ -344,6 +431,83 @@ export const PatientView: React.FC<PatientViewProps> = ({
   };
 
   const displayedLabReports = patientUploadedReports;
+
+  // Account & Profile section state
+  const [accountForm, setAccountForm] = useState({
+    name: profile.name || "",
+    email: profile.email || "",
+    phone: profile.phone || "",
+    dob: profile.dob || "",
+    gender: profile.gender || "",
+    bloodGroup: profile.bloodGroup || "",
+    heightCm: profile.heightCm ? String(profile.heightCm) : "",
+    weightKg: profile.weightKg ? String(profile.weightKg) : "",
+    emergencyContactName: profile.emergencyContactName || "",
+    emergencyContactPhone: profile.emergencyContactPhone || "",
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+  const [accountStatus, setAccountStatus] = useState<{ type: "error" | "success"; msg: string } | null>(null);
+  const [accountSaving, setAccountSaving] = useState(false);
+
+  useEffect(() => {
+    if (!profile?.userId) return;
+    setAccountForm((p) => ({
+      ...p,
+      name: profile.name || p.name,
+      email: profile.email || p.email,
+      phone: profile.phone || p.phone,
+      dob: profile.dob || p.dob,
+      gender: profile.gender || p.gender,
+      bloodGroup: profile.bloodGroup || p.bloodGroup,
+      heightCm: profile.heightCm ? String(profile.heightCm) : p.heightCm,
+      weightKg: profile.weightKg ? String(profile.weightKg) : p.weightKg,
+      emergencyContactName: profile.emergencyContactName || p.emergencyContactName,
+      emergencyContactPhone: profile.emergencyContactPhone || p.emergencyContactPhone,
+    }));
+  }, [profile?.userId]);
+
+  const handleSaveAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (accountForm.newPassword && accountForm.newPassword !== accountForm.confirmPassword) {
+      setAccountStatus({ type: "error", msg: "New passwords do not match." });
+      return;
+    }
+    setAccountSaving(true);
+    setAccountStatus(null);
+    try {
+      const res = await fetch("/api/auth/update-profile-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: appUser?.id || profile.userId,
+          name: accountForm.name.trim(),
+          phone: accountForm.phone.trim(),
+          dob: accountForm.dob || undefined,
+          gender: accountForm.gender || undefined,
+          bloodGroup: accountForm.bloodGroup || undefined,
+          heightCm: accountForm.heightCm ? Number(accountForm.heightCm) : undefined,
+          weightKg: accountForm.weightKg ? Number(accountForm.weightKg) : undefined,
+          emergencyContactName: accountForm.emergencyContactName.trim(),
+          emergencyContactPhone: accountForm.emergencyContactPhone.trim(),
+          currentPassword: accountForm.newPassword ? accountForm.currentPassword : undefined,
+          newPassword: accountForm.newPassword || undefined,
+        }),
+      });
+      const data = await parseResponseSafe<any>(res, { success: false, message: "Failed to save account details." });
+      if (!res.ok || !data || !data.success) {
+        setAccountStatus({ type: "error", msg: data?.message || "Failed to save account details." });
+        return;
+      }
+      setAccountStatus({ type: "success", msg: "Account details updated successfully!" });
+      setAccountForm((p) => ({ ...p, currentPassword: "", newPassword: "", confirmPassword: "" }));
+    } catch (err) {
+      setAccountStatus({ type: "error", msg: "Server communication error. Please try again." });
+    } finally {
+      setAccountSaving(false);
+    }
+  };
 
   // Weekly vitals bars derived from the patient's actual vitals log.
   // Newly registered patients have an empty log, so this stays empty and the
@@ -506,6 +670,7 @@ export const PatientView: React.FC<PatientViewProps> = ({
     { key: "MEDICATIONS", label: "Medication Schedule", icon: Pill },
     { key: "CONSENTS", label: "Consent Vault", icon: Lock, count: consents.length },
     { key: "APPOINTMENTS", label: "Book Appointments", icon: Calendar, count: appointments.length },
+    { key: "ACCOUNT", label: "Account & Profile", icon: Settings },
   ];
 
   const navItems: NavItem[] = navTabs.map((t) => ({
@@ -989,7 +1154,7 @@ export const PatientView: React.FC<PatientViewProps> = ({
                       </table>
                     </div>
                   )}
-                  {report.attachmentName && (
+                  {report.attachmentName && report.attachmentDataUrl && (
                     <div className="border-2 border-dashed border-slate-200 rounded-2xl p-3 flex items-center justify-between bg-[#FAFBFC]">
                       <div className="flex items-center space-x-2 min-w-0">
                         <Paperclip className="w-4 h-4 text-[#17C964] shrink-0" />
@@ -998,15 +1163,26 @@ export const PatientView: React.FC<PatientViewProps> = ({
                           <p className="text-[10px] text-slate-500">Attached by patient</p>
                         </div>
                       </div>
-                      {report.attachmentDataUrl && report.attachmentDataUrl.startsWith("data:image") && (
+                      {report.attachmentDataUrl.startsWith("data:image") && (
                         <img src={report.attachmentDataUrl} alt={report.attachmentName} className="w-12 h-12 object-cover rounded-lg border border-slate-200 shrink-0" />
                       )}
-                      {report.attachmentDataUrl && report.attachmentName && /\.pdf$/i.test(report.attachmentName) && (
-                        <a href={report.attachmentDataUrl} download={report.attachmentName}
-                          className="px-2.5 py-1 bg-[#17C964] text-white rounded-lg text-[10px] font-bold shrink-0 no-underline">
-                          View PDF
+                      <div className="flex items-center space-x-2 shrink-0">
+                        <button
+                          onClick={() => setViewAttachment({ name: report.attachmentName, dataUrl: report.attachmentDataUrl })}
+                          className="px-2.5 py-1 bg-[#EDF1F5] hover:bg-slate-200 border border-slate-200 text-slate-800 rounded-lg text-[10px] font-bold flex items-center space-x-1"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          <span>View</span>
+                        </button>
+                        <a
+                          href={report.attachmentDataUrl}
+                          download={report.attachmentName}
+                          className="px-2.5 py-1 bg-[#17C964] text-white rounded-lg text-[10px] font-bold flex items-center space-x-1 no-underline"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          <span>Download</span>
                         </a>
-                      )}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -1901,6 +2077,160 @@ className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2.5 te
           </div>
         )}
 
+        {/* ACCOUNT & PROFILE TAB */}
+        {activeTab === "ACCOUNT" && (
+          <div className="p-6 lg:p-8 space-y-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-2xl bg-[#E23A2E]/10 border border-[#E23A2E]/30 flex items-center justify-center text-[#E23A2E]">
+                  <Settings className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-black text-slate-900">Account & Profile</h2>
+                  <p className="text-xs text-slate-500">View and update every detail of your NexusHealth identity</p>
+                </div>
+              </div>
+              <span className="px-3 py-1 rounded-full text-[10px] font-bold bg-[#17C964]/10 text-[#17C964] border border-[#17C964]/40 font-mono">
+                HEALTH ID: {profile.globalHealthId}
+              </span>
+            </div>
+
+            <form onSubmit={handleSaveAccount} className="bg-white border border-slate-200 rounded-3xl p-6 space-y-5">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-2 mb-4">Personal Details</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-slate-700 font-bold mb-1">Full Name</label>
+                    <input type="text" required value={accountForm.name}
+                      onChange={(e) => setAccountForm((p) => ({ ...p, name: e.target.value }))}
+                      className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900" />
+                  </div>
+                  <div>
+                    <label className="block text-slate-700 font-bold mb-1">Email Address</label>
+                    <input type="email" value={accountForm.email} readOnly
+                      className="w-full bg-[#E2E8F0] border border-slate-200 rounded-xl px-3 py-2 text-slate-600 cursor-not-allowed" />
+                  </div>
+                  <div>
+                    <label className="block text-slate-700 font-bold mb-1">Mobile Number</label>
+                    <input type="tel" required value={accountForm.phone}
+                      onChange={(e) => setAccountForm((p) => ({ ...p, phone: e.target.value }))}
+                      placeholder="+91 98765 43210"
+                      className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900" />
+                  </div>
+                  <div>
+                    <label className="block text-slate-700 font-bold mb-1">Date of Birth</label>
+                    <input type="date" value={accountForm.dob}
+                      onChange={(e) => setAccountForm((p) => ({ ...p, dob: e.target.value }))}
+                      className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900" />
+                  </div>
+                  <div>
+                    <label className="block text-slate-700 font-bold mb-1">Gender</label>
+                    <select value={accountForm.gender}
+                      onChange={(e) => setAccountForm((p) => ({ ...p, gender: e.target.value }))}
+                      className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900">
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-slate-700 font-bold mb-1">Blood Group</label>
+                    <select value={accountForm.bloodGroup}
+                      onChange={(e) => setAccountForm((p) => ({ ...p, bloodGroup: e.target.value }))}
+                      className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900">
+                      {["Don't Know / Not Tested", "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map((bg) => (
+                        <option key={bg} value={bg}>{bg}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-slate-700 font-bold mb-1">Height (cm)</label>
+                    <input type="number" min="2" max="300" value={accountForm.heightCm}
+                      onChange={(e) => setAccountForm((p) => ({ ...p, heightCm: e.target.value }))}
+                      placeholder="e.g. 170"
+                      className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900" />
+                  </div>
+                  <div>
+                    <label className="block text-slate-700 font-bold mb-1">Weight (kg)</label>
+                    <input type="number" min="2" max="300" value={accountForm.weightKg}
+                      onChange={(e) => setAccountForm((p) => ({ ...p, weightKg: e.target.value }))}
+                      placeholder="e.g. 68"
+                      className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900" />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-2 mb-4">Emergency Contact</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-slate-700 font-bold mb-1">Contact Name</label>
+                    <input type="text" value={accountForm.emergencyContactName}
+                      onChange={(e) => setAccountForm((p) => ({ ...p, emergencyContactName: e.target.value }))}
+                      placeholder="Family Emergency"
+                      className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900" />
+                  </div>
+                  <div>
+                    <label className="block text-slate-700 font-bold mb-1">Contact Phone</label>
+                    <input type="tel" value={accountForm.emergencyContactPhone}
+                      onChange={(e) => setAccountForm((p) => ({ ...p, emergencyContactPhone: e.target.value }))}
+                      placeholder="+91 98765 43210"
+                      className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900" />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-2 mb-4 flex items-center space-x-2">
+                  <KeyRound className="w-4 h-4 text-[#E23A2E]" />
+                  <span>Change Password</span>
+                  <span className="text-[10px] font-mono text-slate-400 font-normal">(optional)</span>
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-slate-700 font-bold mb-1">Current Password</label>
+                    <input type="password" value={accountForm.currentPassword}
+                      onChange={(e) => setAccountForm((p) => ({ ...p, currentPassword: e.target.value }))}
+                      placeholder="Required to set a new password"
+                      className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900" />
+                  </div>
+                  <div>
+                    <label className="block text-slate-700 font-bold mb-1">New Password</label>
+                    <input type="password" value={accountForm.newPassword}
+                      onChange={(e) => setAccountForm((p) => ({ ...p, newPassword: e.target.value }))}
+                      placeholder="8+ chars, A-Z, a-z, 0-9, symbol"
+                      className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900" />
+                  </div>
+                  <div>
+                    <label className="block text-slate-700 font-bold mb-1">Confirm New Password</label>
+                    <input type="password" value={accountForm.confirmPassword}
+                      onChange={(e) => setAccountForm((p) => ({ ...p, confirmPassword: e.target.value }))}
+                      placeholder="Re-enter new password"
+                      className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900" />
+                  </div>
+                </div>
+              </div>
+
+              {accountStatus && (
+                <div className={`px-4 py-3 rounded-xl text-sm font-bold border ${
+                  accountStatus.type === "success"
+                    ? "bg-[#17C964]/10 text-[#0EA653] border-[#17C964]/40"
+                    : "bg-[#E23A2E]/10 text-[#C83E1E] border-[#E23A2E]/40"
+                }`}>
+                  {accountStatus.msg}
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-3 pt-1">
+                <button type="submit" disabled={accountSaving}
+                  className="px-6 py-2.5 bg-[#17C964] hover:bg-[#0EA653] disabled:opacity-60 text-white font-bold rounded-xl text-xs transition shadow-lg shadow-[#17C964]/20">
+                  {accountSaving ? "Saving..." : "Save Account Details"}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
         {/* EMERGENCY PROFILE & AUDIT TAB */}
         {activeTab === "EMERGENCY_PROFILE" && (
           <PatientEmergencyProfileView patient={profile} />
@@ -2006,19 +2336,10 @@ className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2.5 te
                   className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900 placeholder-slate-500"
                 />
               </div>
-              <div className="col-span-2">
-                <label className="block text-slate-700 font-bold mb-1">Date</label>
-                <input
-                  type="date"
-                  value={vitalsForm.date}
-                  onChange={(e) => setVitalsForm((p) => ({ ...p, date: e.target.value }))}
-                  className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900"
-                />
               </div>
-            </div>
 
             <button
-              onClick={() => {
+              onClick={async () => {
                 const s = Number(vitalsForm.bpSystolic);
                 const d = Number(vitalsForm.bpDiastolic);
                 const g = Number(vitalsForm.glucose);
@@ -2029,7 +2350,7 @@ className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2.5 te
                   return;
                 }
                 const newLog = {
-                  date: vitalsForm.date || "Today",
+                  date: new Date().toISOString().split("T")[0],
                   bpSystolic: s,
                   bpDiastolic: d,
                   glucose: g,
@@ -2037,9 +2358,29 @@ className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2.5 te
                   spo2: sp,
                   weight: vitalsForm.weight ? Number(vitalsForm.weight) : 0,
                 };
-                setVitalsHistory((prev) => [...prev, newLog]);
-                setShowVitalsModal(false);
-                runCareHealthCheck(newLog);
+                try {
+                  const res = await fetch("/api/medical-records/vitals", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      patientId: profile.userId || profile.id || appUser?.id,
+                      patientName: profile.name || appUser?.name,
+                      patientHealthId: profile.globalHealthId,
+                      vitals: newLog,
+                    }),
+                  });
+                  const data = await parseResponseSafe<any>(res, { success: false });
+                  if (!res.ok || !data || !data.success) {
+                    setVitalsFormError(data?.message || "Failed to save vitals reading. Please try again.");
+                    return;
+                  }
+                  const saved = data.record && data.record.vitals ? { ...data.record.vitals } : newLog;
+                  setVitalsHistory((prev) => [...prev, saved]);
+                  setShowVitalsModal(false);
+                  runCareHealthCheck(newLog);
+                } catch (err) {
+                  setVitalsFormError("Server communication error. Please try again.");
+                }
               }}
               className="w-full py-3 bg-[#17C964] hover:bg-[#0EA653] text-white font-bold rounded-xl transition text-xs shadow-lg shadow-[#17C964]/30"
             >
@@ -2065,9 +2406,33 @@ className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2.5 te
               </div>
               <div>
                 <h3 className="font-bold text-slate-900 text-base">Upload Diagnostic Lab Report</h3>
-                <p className="text-xs text-[#17C964] font-mono">Attach patient-uploaded lab values & diagnostic files</p>
+                <p className="text-xs text-[#17C964] font-mono">Upload a scan — NexusHealth AI reads it and auto-fills the report details</p>
               </div>
             </div>
+
+            {(aiAnalyzing || aiSource || aiAnalyzeError) && (
+              <div className={`rounded-xl px-3 py-2 text-[11px] font-bold border flex items-center space-x-2 ${
+                aiAnalyzeError
+                  ? "bg-[#FDECE8] border-[#F2603C]/40 text-[#E23A2E]"
+                  : aiAnalyzing
+                    ? "bg-[#EDF1F5] border-slate-200 text-slate-600"
+                    : "bg-[#E9FBF1] border-[#17C964]/40 text-[#17C964]"
+              }`}>
+                {aiAnalyzing ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>NexusHealth AI is reading the report and detecting the test details...</span>
+                  </>
+                ) : aiAnalyzeError ? (
+                  <span>{aiAnalyzeError}</span>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>AI auto-detected the report details below{aiSource === "GEMINI" ? " (Gemini vision)" : ""}. Review and save.</span>
+                  </>
+                )}
+              </div>
+            )}
 
             <div className="space-y-3 text-xs">
               <div>
@@ -2221,21 +2586,19 @@ className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2.5 te
 
             <button
               onClick={() => {
-                if (!uploadTitle.trim()) {
-                  alert("Please enter a report title.");
-                  return;
-                }
                 const newReport = {
                   id: `manual_lab_${Date.now()}`,
-                  title: uploadTitle,
+                  title: uploadTitle.trim() || "Diagnostic Lab Report",
                   labName: uploadLabName || "Patient Uploaded Diagnostics",
                   date: uploadDate,
                   status: "COMPLETED",
                   attachmentName: uploadAttachment ? uploadAttachment.name : null,
                   attachmentDataUrl: uploadAttachment ? uploadAttachment.dataUrl : null,
-                  parameters: uploadParamsList.length > 0 ? uploadParamsList : [
-                    { name: "Fasting Blood Sugar", value: "92", unit: "mg/dL", referenceRange: "70 - 99", status: "NORMAL" }
-                  ],
+                  parameters: uploadParamsList.length > 0
+                    ? uploadParamsList
+                    : (aiExtractedEmpty ? [] : [
+                        { name: "Fasting Blood Sugar", value: "92", unit: "mg/dL", referenceRange: "70 - 99", status: "NORMAL" }
+                      ]),
                 };
                 setPatientUploadedReports((prev) => [newReport, ...prev]);
                 setShowManualLabModal(false);
@@ -2243,6 +2606,9 @@ className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2.5 te
                 setUploadLabName("");
                 setUploadParamsList([]);
                 setUploadAttachment(null);
+                setAiAnalyzeError("");
+                setAiSource(null);
+                setAiExtractedEmpty(false);
                 if (labFileInputRef.current) labFileInputRef.current.value = "";
                 alert(uploadAttachment ? "Diagnostic Lab Report and attachment uploaded and linked to Health ID!" : "Diagnostic Lab Report Uploaded and Linked to Health ID!");
               }}
@@ -2250,6 +2616,43 @@ className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2.5 te
             >
               Confirm & Save Lab Report
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ATTACHMENT VIEWER MODAL (view without downloading) */}
+      {viewAttachment && (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+          <div className="bg-[#FFFFFF] border border-[#17C964]/30 rounded-3xl w-full max-w-4xl shadow-2xl relative overflow-hidden text-slate-900 max-h-[92vh] flex flex-col">
+            <div className="flex items-center justify-between px-5 py-3 border-b border-slate-200 shrink-0">
+              <div className="flex items-center space-x-2 min-w-0">
+                <Paperclip className="w-4 h-4 text-[#17C964] shrink-0" />
+                <p className="text-xs font-bold text-slate-800 truncate">{viewAttachment.name}</p>
+              </div>
+              <div className="flex items-center space-x-2 shrink-0">
+                <a
+                  href={viewAttachment.dataUrl}
+                  download={viewAttachment.name}
+                  className="px-3 py-1.5 bg-[#17C964] text-white rounded-xl text-[10px] font-bold flex items-center space-x-1 no-underline"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Download</span>
+                </a>
+                <button
+                  onClick={() => setViewAttachment(null)}
+                  className="p-2 rounded-xl bg-[#EDF1F5] hover:bg-slate-200 text-slate-700"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-auto bg-[#111318] p-4 flex items-center justify-center">
+              {viewAttachment.dataUrl.startsWith("data:image") ? (
+                <img src={viewAttachment.dataUrl} alt={viewAttachment.name} className="max-h-[70vh] max-w-full object-contain rounded-lg" />
+              ) : (
+                <embed src={viewAttachment.dataUrl} type="application/pdf" className="w-full h-[72vh]" />
+              )}
+            </div>
           </div>
         </div>
       )}

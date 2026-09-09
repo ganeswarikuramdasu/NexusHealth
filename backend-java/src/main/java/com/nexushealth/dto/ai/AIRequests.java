@@ -106,4 +106,17 @@ public class AIRequests {
         public List<?> getNearbyProviders() { return nearbyProviders; }
         public void setNearbyProviders(List<?> nearbyProviders) { this.nearbyProviders = nearbyProviders; }
     }
+
+    public static class AnalyzeLabAttachmentRequest {
+        private String attachmentName;
+        private String attachmentDataUrl;
+        private String patientHealthId;
+
+        public String getAttachmentName() { return attachmentName; }
+        public void setAttachmentName(String attachmentName) { this.attachmentName = attachmentName; }
+        public String getAttachmentDataUrl() { return attachmentDataUrl; }
+        public void setAttachmentDataUrl(String attachmentDataUrl) { this.attachmentDataUrl = attachmentDataUrl; }
+        public String getPatientHealthId() { return patientHealthId; }
+        public void setPatientHealthId(String patientHealthId) { this.patientHealthId = patientHealthId; }
+    }
 }

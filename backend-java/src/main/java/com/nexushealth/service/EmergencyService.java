@@ -715,7 +715,7 @@ public class EmergencyService {
         Doctor doctor = doctorRepository.findById(identifier).orElse(null);
         if (doctor == null) doctor = doctorRepository.findByUserId(identifier).orElse(null);
         if (doctor == null) {
-            User user = userRepository.findByEmailIgnoreCase(identifier).orElse(null);
+            User user = userRepository.findByEmailIgnoreCaseAndRole(identifier, "DOCTOR").orElse(null);
             if (user != null) doctor = doctorRepository.findByUserId(user.getId()).orElse(null);
         }
         return doctor;

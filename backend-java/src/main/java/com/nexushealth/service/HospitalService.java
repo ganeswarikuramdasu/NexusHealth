@@ -89,8 +89,8 @@ public class HospitalService {
         }
 
         String cleanEmail = req.getEmail().trim().toLowerCase();
-        if (userRepository.existsByEmailIgnoreCase(cleanEmail)) {
-            throw ApiException.badRequest("An account with email '" + req.getEmail() + "' is already registered.");
+        if (userRepository.existsByEmailIgnoreCaseAndRole(cleanEmail, "HOSPITAL_ADMIN")) {
+            throw ApiException.badRequest("A HOSPITAL ADMIN account with email '" + req.getEmail() + "' is already registered.");
         }
 
         long now = System.currentTimeMillis();
@@ -236,10 +236,10 @@ public class HospitalService {
 
         if (!isBlank(req.getEmail()) && !req.getEmail().trim().equalsIgnoreCase(hospital.getEmail())) {
             String cleanEmail = req.getEmail().trim().toLowerCase();
-            boolean emailTaken = userRepository.findByEmailIgnoreCase(cleanEmail)
+            boolean emailTaken = userRepository.findByEmailIgnoreCaseAndRole(cleanEmail, "HOSPITAL_ADMIN")
                     .map(u -> !u.getId().equals(hospital.getAdminUserId())).orElse(false);
             if (emailTaken) {
-                throw ApiException.badRequest("This email address is already in use by another account.");
+                throw ApiException.badRequest("This email address is already in use by another hospital admin account.");
             }
             hospital.setEmail(cleanEmail);
             if (adminUser != null) adminUser.setEmail(cleanEmail);

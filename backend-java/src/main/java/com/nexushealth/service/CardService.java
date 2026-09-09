@@ -5,12 +5,14 @@ import com.nexushealth.common.ApiResponse;
 import com.nexushealth.dto.card.CardRequests.*;
 import com.nexushealth.entity.AccessCard;
 import com.nexushealth.entity.Consent;
+import com.nexushealth.entity.Doctor;
 import com.nexushealth.entity.MedicalRecord;
 import com.nexushealth.entity.PatientProfile;
 import com.nexushealth.entity.User;
 import com.nexushealth.repository.AccessCardRepository;
 import com.nexushealth.repository.CardAccessLogRepository;
 import com.nexushealth.repository.ConsentRepository;
+import com.nexushealth.repository.DoctorRepository;
 import com.nexushealth.repository.MedicalRecordRepository;
 import com.nexushealth.repository.PatientProfileRepository;
 import com.nexushealth.repository.UserRepository;
@@ -37,6 +39,7 @@ public class CardService {
     private final CardAccessLogRepository cardAccessLogRepository;
     private final PatientProfileRepository patientProfileRepository;
     private final UserRepository userRepository;
+    private final DoctorRepository doctorRepository;
     private final MedicalRecordRepository medicalRecordRepository;
     private final ConsentRepository consentRepository;
     private final AuditLogService auditLogService;
@@ -44,12 +47,14 @@ public class CardService {
 
     public CardService(AccessCardRepository accessCardRepository, CardAccessLogRepository cardAccessLogRepository,
                         PatientProfileRepository patientProfileRepository, UserRepository userRepository,
-                        MedicalRecordRepository medicalRecordRepository, ConsentRepository consentRepository,
+                        DoctorRepository doctorRepository, MedicalRecordRepository medicalRecordRepository,
+                        ConsentRepository consentRepository,
                         AuditLogService auditLogService, PasswordEncoder passwordEncoder) {
         this.accessCardRepository = accessCardRepository;
         this.cardAccessLogRepository = cardAccessLogRepository;
         this.patientProfileRepository = patientProfileRepository;
         this.userRepository = userRepository;
+        this.doctorRepository = doctorRepository;
         this.medicalRecordRepository = medicalRecordRepository;
         this.consentRepository = consentRepository;
         this.auditLogService = auditLogService;
@@ -315,7 +320,17 @@ public class CardService {
                 : (card != null ? card.getPatientHealthId() : profile.getPatientHealthId());
         String targetUserId = card != null ? card.getPatientId() : (profile != null ? profile.getUserId() : "");
         User user = userRepository.findById(targetUserId).orElse(null);
-        String patientName = user != null ? user.getName() : (card != null ? card.getPatientName() : "Patient Citizen");
+        if (user == null) {
+            throw ApiException.notFound("Patient account not found for assisted consent.");
+        }
+        String patientName = user.getName();
+
+        Doctor doctor = req.getDoctorId() != null && !req.getDoctorId().isBlank()
+                ? doctorRepository.findById(req.getDoctorId()).orElse(null)
+                : null;
+        if (doctor == null) {
+            throw ApiException.notFound("Doctor account not found for assisted consent.");
+        }
 
         boolean pinClaimed = Boolean.TRUE.equals(req.getVerifiedByPin());
         if (pinClaimed) {
@@ -328,8 +343,8 @@ public class CardService {
 
         Consent consent = Consent.builder()
                 .id("c_assisted_" + System.currentTimeMillis())
-                .patientId(targetUserId)
-                .doctorId(req.getDoctorId() != null ? req.getDoctorId() : "doc_1")
+                .patient(user)
+                .doctor(doctor)
                 .consentType("TEMPORARY")
                 .scope(List.of("ALL_RECORDS"))
                 .expiresAt(LocalDate.now().plusDays(1))

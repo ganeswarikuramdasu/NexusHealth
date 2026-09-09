@@ -178,20 +178,15 @@ public class AuthService {
             return superAdminResponse;
         }
 
-        User user = userRepository.findByEmailIgnoreCase(cleanEmail).orElse(null);
-        if (user == null) {
-            auditLogService.log(req.getEmail(), req.getRole() != null ? req.getRole() : "ANONYMOUS",
-                    "FAILED_LOGIN_UNKNOWN_ACCOUNT", "N/A",
-                    "Attempted login with unregistered email '" + cleanEmail + "'");
-            throw new ApiException(HttpStatus.UNAUTHORIZED,
-                    "Account not found for '" + req.getEmail() + "'. Please click \"Register New " +
-                            (req.getRole() != null ? req.getRole() : "Account") + "\" to create your account first.");
-        }
+        String loginRole = req.getRole() != null ? req.getRole().trim().toUpperCase() : "PATIENT";
 
-        if (req.getRole() != null && !req.getRole().equals(user.getRole())) {
+        User user = userRepository.findByEmailIgnoreCaseAndRole(cleanEmail, loginRole).orElse(null);
+        if (user == null) {
+            auditLogService.log(req.getEmail(), loginRole, "FAILED_LOGIN_NOT_REGISTERED", "N/A",
+                    "Attempted " + loginRole + " login with an email not registered in that role: '" + cleanEmail + "'");
             throw new ApiException(HttpStatus.UNAUTHORIZED,
-                    "Role Mismatch: Account '" + req.getEmail() + "' is registered as a " + user.getRole() +
-                            ", not a " + req.getRole() + ". Please switch to the " + user.getRole() + " login tab.");
+                    "Account not registered as a " + loginRole + " with email '" + req.getEmail()
+                            + "'. Please click \"Register New " + loginRole + "\" to create this account first.");
         }
 
         if (!passwordEncoder.matches(req.getPassword(), user.getPasswordHash())) {
@@ -232,8 +227,8 @@ public class AuthService {
         }
 
         String cleanEmail = req.getEmail().trim().toLowerCase();
-        if (userRepository.existsByEmailIgnoreCase(cleanEmail)) {
-            throw ApiException.badRequest("An account with email '" + req.getEmail() +
+        if (userRepository.existsByEmailIgnoreCaseAndRole(cleanEmail, "PATIENT")) {
+            throw ApiException.badRequest("A PATIENT account with email '" + req.getEmail() +
                     "' is already registered. Please click 'Sign In' to log in.");
         }
 
@@ -259,6 +254,7 @@ public class AuthService {
                 .id(userId)
                 .name(name)
                 .email(cleanEmail)
+                .phone(req.getPhone() != null ? req.getPhone().trim() : null)
                 .passwordHash(passwordEncoder.encode(req.getPassword()))
                 .role("PATIENT")
                 .gender(gender)
@@ -306,6 +302,7 @@ public class AuthService {
         userOut.put("id", userId);
         userOut.put("name", name);
         userOut.put("email", cleanEmail);
+        userOut.put("phone", user.getPhone());
         userOut.put("role", "PATIENT");
         userOut.put("isVerified", true);
         userOut.put("globalHealthId", globalHealthId);
@@ -383,12 +380,28 @@ public class AuthService {
         if (!isBlank(req.getName())) {
             user.setName(req.getName().trim());
         }
+        if (!isBlank(req.getPhone())) {
+            user.setPhone(req.getPhone().trim());
+        }
+        if (!isBlank(req.getGender())) {
+            user.setGender(req.getGender().trim());
+        }
+        if (!isBlank(req.getDob())) {
+            user.setDateOfBirth(parseDob(req.getDob()));
+        }
 
         String globalHealthId = null;
         if ("PATIENT".equals(user.getRole())) {
             PatientProfile profile = patientProfileRepository.findById(user.getId()).orElse(null);
             if (profile != null) {
                 if (req.getBloodGroup() != null) profile.setBloodGroup(req.getBloodGroup());
+                if (req.getHeightCm() != null) profile.setHeightCm(java.math.BigDecimal.valueOf(req.getHeightCm()));
+                if (req.getWeightKg() != null) profile.setWeightKg(java.math.BigDecimal.valueOf(req.getWeightKg()));
+                if (!isBlank(req.getEmergencyContactName()) || !isBlank(req.getEmergencyContactPhone())) {
+                    profile.setEmergencyNotes("Emergency contact: "
+                            + (isBlank(req.getEmergencyContactName()) ? "Family Contact" : req.getEmergencyContactName().trim())
+                            + " " + (req.getEmergencyContactPhone() != null ? req.getEmergencyContactPhone().trim() : ""));
+                }
                 patientProfileRepository.save(profile);
                 globalHealthId = profile.getPatientHealthId();
             }
@@ -406,6 +419,7 @@ public class AuthService {
         userOut.put("id", user.getId());
         userOut.put("name", user.getName());
         userOut.put("email", user.getEmail());
+        userOut.put("phone", user.getPhone());
         userOut.put("role", user.getRole());
         userOut.put("globalHealthId", globalHealthId);
 
@@ -417,6 +431,7 @@ public class AuthService {
         out.put("id", user.getId());
         out.put("name", user.getName());
         out.put("email", user.getEmail());
+        out.put("phone", user.getPhone());
         out.put("role", user.getRole());
         out.put("isVerified", true);
         return out;

@@ -46,6 +46,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
   // Patient Registration States
   const [regName, setRegName] = useState("");
   const [regEmail, setRegEmail] = useState("");
+  const [regPhone, setRegPhone] = useState("+91 ");
   const [regPassword, setRegPassword] = useState("");
   const [regConfirmPassword, setRegConfirmPassword] = useState("");
   const [regDob, setRegDob] = useState("1998-05-14");
@@ -265,6 +266,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
         body: JSON.stringify({
           name: regName,
           email: regEmail,
+          phone: regPhone.trim(),
           password: regPassword,
           dob: regDob,
           gender: regGender,
@@ -546,6 +548,13 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                     <input type="email" required disabled={isOtpSent} value={regEmail} onChange={(e) => setRegEmail(e.target.value)}
                       placeholder="aarav@example.com"
                       className="w-full bg-white border rounded-xl px-3 py-2 text-sm text-slate-900 placeholder-slate-400 outline-none disabled:opacity-60"
+                      style={{ borderColor: C.line }} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1.5">Mobile number</label>
+                    <input type="tel" required value={regPhone} onChange={(e) => setRegPhone(e.target.value)}
+                      placeholder="+91 98765 43210"
+                      className="w-full bg-white border rounded-xl px-3 py-2 text-sm text-slate-900 placeholder-slate-400 outline-none"
                       style={{ borderColor: C.line }} />
                   </div>
                 </div>

@@ -35,6 +35,11 @@ public class AIController {
         return aiService.explainLabReport(req);
     }
 
+    @PostMapping("/analyze-lab-attachment")
+    public ApiResponse analyzeLabAttachment(@RequestBody AnalyzeLabAttachmentRequest req) {
+        return aiService.analyzeLabAttachment(req);
+    }
+
     @PostMapping("/generate-diet-plan")
     public ApiResponse generateDietPlan(@RequestBody GenerateDietPlanRequest req) {
         return aiService.generateDietPlan(req);

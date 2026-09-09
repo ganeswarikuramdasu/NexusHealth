@@ -11,11 +11,13 @@ import com.nexushealth.entity.Doctor;
 import com.nexushealth.entity.Hospital;
 import com.nexushealth.entity.MedicalRecord;
 import com.nexushealth.entity.RecordAccessLog;
+import com.nexushealth.entity.User;
 import com.nexushealth.repository.ConsentRepository;
 import com.nexushealth.repository.DoctorRepository;
 import com.nexushealth.repository.HospitalRepository;
 import com.nexushealth.repository.MedicalRecordRepository;
 import com.nexushealth.repository.RecordAccessLogRepository;
+import com.nexushealth.repository.UserRepository;
 import com.nexushealth.service.store.DietPlanStore;
 import com.nexushealth.service.store.FeedbackStore;
 import org.springframework.stereotype.Service;
@@ -39,12 +41,13 @@ public class PatientService {
     private final FeedbackStore feedbackStore;
     private final DietPlanStore dietPlanStore;
     private final RecordAccessLogRepository recordAccessLogRepository;
+    private final UserRepository userRepository;
 
     public PatientService(PatientResolver patientResolver, MedicalRecordRepository medicalRecordRepository,
                            ConsentRepository consentRepository, DoctorRepository doctorRepository,
                            HospitalRepository hospitalRepository, AuditLogService auditLogService,
                            FeedbackStore feedbackStore, DietPlanStore dietPlanStore,
-                           RecordAccessLogRepository recordAccessLogRepository) {
+                           RecordAccessLogRepository recordAccessLogRepository, UserRepository userRepository) {
         this.patientResolver = patientResolver;
         this.medicalRecordRepository = medicalRecordRepository;
         this.consentRepository = consentRepository;
@@ -54,6 +57,7 @@ public class PatientService {
         this.feedbackStore = feedbackStore;
         this.dietPlanStore = dietPlanStore;
         this.recordAccessLogRepository = recordAccessLogRepository;
+        this.userRepository = userRepository;
     }
 
     public ApiResponse lookup(String healthId) {
@@ -115,17 +119,27 @@ public class PatientService {
 
         String targetPatientUserId = resolved != null ? resolved.userId : (req.getPatientId() != null ? req.getPatientId() : "");
         String targetPatientName = resolved != null ? resolved.name : "Patient Citizen";
-        String docId = doctor != null ? doctor.getId() : req.getDoctorId();
-        String docName = doctor != null ? doctor.getName() : "Attending Physician";
+        if (targetPatientUserId == null || targetPatientUserId.isBlank()) {
+            throw ApiException.badRequest("Patient identity is required to grant consent.");
+        }
+        User patientUser = userRepository.findById(targetPatientUserId).orElse(null);
+        if (patientUser == null) {
+            throw ApiException.badRequest("Patient account not found. Consent cannot be granted.");
+        }
+        if (doctor == null) {
+            throw ApiException.badRequest("Doctor account not found. Consent cannot be granted.");
+        }
+        String docId = doctor.getId();
+        String docName = doctor.getName();
 
         Consent existing = consentRepository.findByPatientIdAndDoctorId(targetPatientUserId, docId).orElse(null);
 
         Consent consent = existing != null ? existing : Consent.builder()
                 .id("c_" + System.currentTimeMillis())
-                .patientId(targetPatientUserId)
-                .doctorId(docId)
+                .patient(patientUser)
+                .doctor(doctor)
                 .build();
-        consent.setHospitalId(doctor != null ? doctor.getHospitalId() : consent.getHospitalId());
+        consent.setHospitalId(doctor.getHospitalId() != null ? doctor.getHospitalId() : consent.getHospitalId());
         consent.setConsentType(req.getConsentType() != null ? req.getConsentType() : "TEMPORARY");
         consent.setScope(req.getAllowedCategories() != null ? req.getAllowedCategories() : List.of("ALL_RECORDS"));
         consent.setExpiresAt(parseDateOr(req.getValidUntil(), LocalDate.of(2027, 12, 31)));

@@ -221,6 +221,41 @@ public class AIService {
         return ApiResponse.ok().with("explanation", (aiExplanation != null) ? aiExplanation : fallbackExplanation);
     }
 
+    public ApiResponse analyzeLabAttachment(AnalyzeLabAttachmentRequest req) {
+        String fileName = req.getAttachmentName() != null ? req.getAttachmentName() : "lab_report";
+        String dataUrl = req.getAttachmentDataUrl();
+        if (dataUrl == null || dataUrl.isBlank()) {
+            throw ApiException.badRequest("An attachment scan (image or PDF) is required for AI analysis.");
+        }
+
+        String mime = "image/png";
+        String base64 = dataUrl;
+        int comma = dataUrl.indexOf(',');
+        if (comma >= 0) {
+            String meta = dataUrl.substring(0, comma);
+            if (meta.contains("data:")) {
+                String mt = meta.substring(meta.indexOf("data:") + 5);
+                int semi = mt.indexOf(';');
+                if (semi >= 0) mt = mt.substring(0, semi);
+                if (!mt.isBlank()) mime = mt;
+            }
+            base64 = dataUrl.substring(comma + 1);
+        }
+
+        Map<String, Object> extracted = null;
+        String vision = callGeminiVision(mime, base64);
+        if (vision != null) {
+            extracted = parseExtractedLabReport(vision);
+        }
+        if (extracted == null) {
+            extracted = simulateLabExtraction(fileName);
+        }
+
+        return ApiResponse.ok()
+                .with("report", extracted)
+                .with("source", vision != null ? "GEMINI" : "SIMULATED");
+    }
+
     public ApiResponse generateDietPlan(GenerateDietPlanRequest req) {
         Map<String, Object> dietPlan = new LinkedHashMap<>();
         dietPlan.put("title", "Personalized Anti-Inflammatory Nutrition Plan");
@@ -533,6 +568,208 @@ public class AIService {
      * can reach the live model. When false, all replies fall back to the
      * built-in deterministic guidance (so the app never breaks offline).
      */
+    private Map<String, Object> parseExtractedLabReport(String text) {
+        if (text == null || text.isBlank()) return null;
+        String json = text.trim();
+        if (json.startsWith("```")) {
+            int first = json.indexOf('\n');
+            int last = json.lastIndexOf("```");
+            json = (first >= 0 && last > first) ? json.substring(first + 1, last).trim() : json.replace("`", "").trim();
+        }
+        int open = json.indexOf('{');
+        int close = json.lastIndexOf('}');
+        if (open >= 0 && close > open) json = json.substring(open, close + 1);
+        try {
+            JsonNode node = objectMapper.readTree(json);
+            Map<String, Object> report = new LinkedHashMap<>();
+            report.put("title", node.path("title").asText(null));
+            report.put("labName", node.path("labName").asText(null));
+            String dateStr = node.path("date").asText(null);
+            report.put("date", dateStr != null && !dateStr.isBlank() ? dateStr : java.time.LocalDate.now().toString());
+            JsonNode diagNode = node.path("diagnosis");
+            if (!diagNode.isMissingNode() && !diagNode.isNull() && !diagNode.asText("").isBlank()) {
+                report.put("diagnosis", diagNode.asText());
+            }
+            List<Map<String, Object>> params = new ArrayList<>();
+            JsonNode pArr = node.path("parameters");
+            if (pArr.isArray()) {
+                for (JsonNode p : pArr) {
+                    Map<String, Object> pm = new LinkedHashMap<>();
+                    pm.put("name", p.path("name").asText("Parameter"));
+                    pm.put("value", p.path("value").asText("—"));
+                    pm.put("unit", p.path("unit").asText(""));
+                    pm.put("referenceRange", p.path("referenceRange").asText("-"));
+                    pm.put("status", p.path("status").asText("NORMAL"));
+                    params.add(pm);
+                }
+            }
+            report.put("parameters", params);
+            return report;
+        } catch (Exception e) {
+            log.warn("[Gemini] failed to parse lab extraction: {}", truncate(text));
+            return null;
+        }
+    }
+
+    private String callGeminiVision(String mimeType, String base64Image) {
+        if (!geminiEnabled()) {
+            log.warn("[Gemini] disabled: key len={}", geminiApiKey == null ? -1 : geminiApiKey.length());
+            return null;
+        }
+        if (base64Image == null || base64Image.isBlank()) return null;
+
+        Map<String, Object> body = new LinkedHashMap<>();
+        Map<String, Object> sys = new LinkedHashMap<>();
+        sys.put("parts", List.of(Map.of("text",
+                "You are NexusHealth's diagnostic AI. Read the uploaded lab report / diagnostic scan image. "
+                        + "Extract its details and return a SINGLE compact JSON object containing exactly: "
+                        + "{\"title\": string, \"labName\": string, \"date\": \"YYYY-MM-DD\" or null if not visible, "
+                        + "\"parameters\": [{\"name\": string, \"value\": string, \"unit\": string, \"referenceRange\": string, \"status\": \"NORMAL\"|\"HIGH\"|\"LOW\"}]}. "
+                        + "For X-ray/MRI/CT/ultrasound scans that have no numeric parameters, return parameters as an empty array and set \"diagnosis\" to a short summary of the visible findings. "
+                        + "Return ONLY valid JSON, no markdown, no commentary.")));
+        body.put("systemInstruction", sys);
+
+        List<Map<String, Object>> parts = new ArrayList<>();
+        parts.add(Map.of("text", "Analyze this uploaded diagnostic report and extract the structured JSON described."));
+        Map<String, Object> inline = new LinkedHashMap<>();
+        inline.put("mime_type", mimeType);
+        inline.put("data", base64Image);
+        parts.add(Map.of("inline_data", inline));
+        body.put("contents", List.of(Map.of("role", "user", "parts", parts)));
+        body.put("generationConfig", Map.of(
+                "temperature", 0.2,
+                "maxOutputTokens", 1500,
+                "topP", 0.9
+        ));
+
+        return postGemini(body);
+    }
+
+    private String postGemini(Map<String, Object> body) {
+        String jsonBody = null;
+        try {
+            jsonBody = objectMapper.writeValueAsString(body);
+        } catch (Exception e) {
+            log.warn("[Gemini] serialize failed: {}", e.toString());
+            return null;
+        }
+
+        String[] models = {
+                "gemini-3.6-flash",
+                "gemini-3.5-flash",
+                "gemini-flash-latest"
+        };
+
+        for (String model : models) {
+            String url = "https://generativelanguage.googleapis.com/v1beta/models/" + model
+                    + ":generateContent?key="
+                    + java.net.URLEncoder.encode(geminiApiKey, java.nio.charset.StandardCharsets.UTF_8);
+            try {
+                HttpRequest request = HttpRequest.newBuilder()
+                        .uri(URI.create(url))
+                        .timeout(Duration.ofSeconds(120))
+                        .header("Content-Type", "application/json")
+                        .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
+                        .build();
+                HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+                if (response.statusCode() >= 200 && response.statusCode() < 300) {
+                    JsonNode root = objectMapper.readTree(response.body());
+                    JsonNode promptFeedback = root.path("promptFeedback").path("blockReason");
+                    if (promptFeedback != null && !promptFeedback.isMissingNode() && !promptFeedback.asText("").isBlank()) {
+                        log.warn("[Gemini] {} blocked: {}", model, promptFeedback.asText());
+                        continue;
+                    }
+                    JsonNode candidates = root.path("candidates");
+                    if (candidates.isArray() && !candidates.isEmpty()) {
+                        JsonNode parts = candidates.get(0).path("content").path("parts");
+                        if (parts.isArray()) {
+                            StringBuilder merged = new StringBuilder();
+                            for (JsonNode part : parts) {
+                                String t = part.path("text").asText(null);
+                                if (t != null && !t.isBlank()) merged.append(t.trim()).append("\n\n");
+                            }
+                            if (!merged.toString().isBlank()) return merged.toString().trim();
+                        }
+                    }
+                    log.warn("[Gemini] {} 2xx but no text parsed. Body: {}", model, truncate(response.body()));
+                } else {
+                    log.warn("[Gemini] {} HTTP {}. Body: {}", model, response.statusCode(), truncate(response.body()));
+                }
+            } catch (Exception e) {
+                log.warn("[Gemini] {} call failed: {}", model, e.toString());
+            }
+        }
+        return null;
+    }
+
+    private Map<String, Object> simulateLabExtraction(String fileName) {
+        String name = fileName != null ? fileName.toLowerCase() : "";
+        String title;
+        String labName = "Central Diagnostic Pathology Labs";
+        List<Map<String, Object>> params = new ArrayList<>();
+
+        if (name.contains("thyroid")) {
+            title = "Thyroid Panel (T3 / T4 / TSH)";
+            params.add(param("T3 (Triiodothyronine)", "1.2", "ng/mL", "0.8 - 2.0", "NORMAL"));
+            params.add(param("T4 (Thyroxine)", "8.1", "ug/dL", "5.1 - 11.9", "NORMAL"));
+            params.add(param("TSH (Thyroid Stimulating Hormone)", "2.1", "uIU/mL", "0.4 - 4.0", "NORMAL"));
+        } else if (name.contains("lipid") || name.contains("cholesterol")) {
+            title = "Lipid Profile";
+            params.add(param("Total Cholesterol", "182", "mg/dL", "< 200", "NORMAL"));
+            params.add(param("Triglycerides", "131", "mg/dL", "< 150", "NORMAL"));
+            params.add(param("HDL Cholesterol", "48", "mg/dL", "> 40", "NORMAL"));
+            params.add(param("LDL Cholesterol", "112", "mg/dL", "< 100", "HIGH"));
+        } else if (name.contains("liver") || name.contains("sgot") || name.contains("sgpt") || name.contains("alt") || name.contains("ast") || name.contains("bilirubin")) {
+            title = "Liver Function Test";
+            params.add(param("SGOT / AST", "31", "U/L", "10 - 40", "NORMAL"));
+            params.add(param("SGPT / ALT", "34", "U/L", "7 - 56", "NORMAL"));
+            params.add(param("Total Bilirubin", "0.8", "mg/dL", "0.1 - 1.2", "NORMAL"));
+            params.add(param("Alkaline Phosphatase", "98", "U/L", "44 - 147", "NORMAL"));
+        } else if (name.contains("hba1c") || name.contains("glucose") || name.contains("sugar") || name.contains("diabetes") || name.contains("fbs")) {
+            title = "Blood Sugar & HbA1c Panel";
+            params.add(param("Fasting Blood Sugar", "94", "mg/dL", "70 - 99", "NORMAL"));
+            params.add(param("Post-Prandial Blood Sugar", "128", "mg/dL", "< 140", "NORMAL"));
+            params.add(param("HbA1c", "5.4", "%", "< 5.7", "NORMAL"));
+        } else if (name.contains("xray") || name.contains("x-ray") || name.contains("mri") || name.contains("ct scan") || name.contains("ultrasound") || name.contains("sonography") || name.contains("scan")) {
+            title = "Diagnostic Imaging Report";
+            Map<String, Object> report = new LinkedHashMap<>();
+            report.put("title", title);
+            report.put("labName", "NexusHealth Imaging & Diagnostics Centre");
+            report.put("date", java.time.LocalDate.now().toString());
+            report.put("parameters", List.of());
+            report.put("diagnosis", "No acute abnormalities detected. Findings correlate with the clinical history.");
+            return report;
+        } else if (name.contains("cbc") || name.contains("blood count") || name.contains("hemoglobin") || name.contains("plat") || name.contains("complete")) {
+            title = "Complete Blood Count (CBC)";
+            params.add(param("Hemoglobin", "13.8", "g/dL", "12.0 - 16.0", "NORMAL"));
+            params.add(param("Total WBC Count", "7200", "cells/uL", "4000 - 11000", "NORMAL"));
+            params.add(param("RBC Count", "4.8", "million/uL", "4.2 - 5.4", "NORMAL"));
+            params.add(param("Platelet Count", "2.6", "lakh/uL", "1.5 - 4.1", "NORMAL"));
+        } else {
+            title = "Pathology Lab Report";
+            params.add(param("Fasting Blood Sugar", "92", "mg/dL", "70 - 99", "NORMAL"));
+            params.add(param("Total Cholesterol", "178", "mg/dL", "< 200", "NORMAL"));
+            params.add(param("Hemoglobin", "13.5", "g/dL", "12.0 - 16.0", "NORMAL"));
+        }
+
+        Map<String, Object> report = new LinkedHashMap<>();
+        report.put("title", title);
+        report.put("labName", labName);
+        report.put("date", java.time.LocalDate.now().toString());
+        report.put("parameters", params);
+        return report;
+    }
+
+    private static Map<String, Object> param(String name, String value, String unit, String ref, String status) {
+        Map<String, Object> p = new LinkedHashMap<>();
+        p.put("name", name);
+        p.put("value", value);
+        p.put("unit", unit);
+        p.put("referenceRange", ref);
+        p.put("status", status);
+        return p;
+    }
+
     private boolean geminiEnabled() {
         return geminiApiKey != null && !geminiApiKey.isBlank();
     }

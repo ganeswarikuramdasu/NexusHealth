@@ -56,7 +56,20 @@ export const SuperAdminView: React.FC<SuperAdminViewProps> = ({
   onLogout,
   onGoToHome,
 }) => {
-  const [activeTab, setActiveTab] = useState<"HOSPITALS" | "DOCTORS" | "AUDIT_LOGS" | "PATIENTS" | "RECORDS">("HOSPITALS");
+  const SUPER_ADMIN_TABS = ["HOSPITALS", "DOCTORS", "AUDIT_LOGS", "PATIENTS", "RECORDS"];
+
+  const [activeTab, setActiveTab] = useState<"HOSPITALS" | "DOCTORS" | "AUDIT_LOGS" | "PATIENTS" | "RECORDS">(() => {
+    const saved = localStorage.getItem("nexushealth_tab_SUPER_ADMIN");
+    return saved && SUPER_ADMIN_TABS.includes(saved) ? (saved as any) : "HOSPITALS";
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("nexushealth_tab_SUPER_ADMIN", activeTab);
+    } catch {
+      // storage unavailable
+    }
+  }, [activeTab]);
   const [patientsList, setPatientsList] = useState<any[]>([]);
   const [selectedHospForDetail, setSelectedHospForDetail] = useState<HospitalProfile | null>(null);
 

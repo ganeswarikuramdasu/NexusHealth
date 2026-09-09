@@ -21,6 +21,8 @@ export interface PatientProfile {
   dob: string;
   emergencyContactName?: string;
   emergencyContactPhone?: string;
+  heightCm?: number;
+  weightKg?: number;
   allergies?: string[];
   chronicConditions?: string[];
   latitude?: number;

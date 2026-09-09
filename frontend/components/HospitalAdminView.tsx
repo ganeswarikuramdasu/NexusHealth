@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { HospitalProfile, DoctorProfile, MedicalRecord, PatientProfile, UserRole } from "../types";
 import { PatientRecordsTable } from "./PatientRecordsTable";
 import { HierarchicalAuditLogViewer } from "./HierarchicalAuditLogViewer";
@@ -61,7 +61,20 @@ export const HospitalAdminView: React.FC<HospitalAdminViewProps> = ({
   onLogout,
   onGoToHome,
 }) => {
-  const [activeTab, setActiveTab] = useState<"ROSTER" | "DEPARTMENTS" | "PATIENT_RECORDS" | "AUDIT_LOGS" | "SETTINGS">("ROSTER");
+  const HOSPITAL_ADMIN_TABS = ["ROSTER", "DEPARTMENTS", "PATIENT_RECORDS", "AUDIT_LOGS", "SETTINGS"];
+
+  const [activeTab, setActiveTab] = useState<"ROSTER" | "DEPARTMENTS" | "PATIENT_RECORDS" | "AUDIT_LOGS" | "SETTINGS">(() => {
+    const saved = localStorage.getItem("nexushealth_tab_HOSPITAL_ADMIN");
+    return saved && HOSPITAL_ADMIN_TABS.includes(saved) ? (saved as any) : "ROSTER";
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("nexushealth_tab_HOSPITAL_ADMIN", activeTab);
+    } catch {
+      // storage unavailable
+    }
+  }, [activeTab]);
 
   // Search & Filter States
   const [docSearch, setDocSearch] = useState("");

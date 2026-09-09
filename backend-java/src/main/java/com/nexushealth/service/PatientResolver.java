@@ -41,7 +41,7 @@ public class PatientResolver {
         if (profile != null) {
             user = userRepository.findById(profile.getUserId()).orElse(null);
         } else {
-            user = userRepository.findByEmailIgnoreCase(identifier).orElse(null);
+            user = userRepository.findByEmailIgnoreCaseAndRole(identifier, "PATIENT").orElse(null);
             if (user != null) profile = patientProfileRepository.findById(user.getId()).orElse(null);
         }
         if (profile == null || user == null) return Optional.empty();
@@ -63,6 +63,7 @@ public class PatientResolver {
         out.put("id", r.userId);
         out.put("name", r.name);
         out.put("email", r.email);
+        out.put("phone", r.user.getPhone());
         out.put("dob", r.user.getDateOfBirth());
         out.put("gender", r.user.getGender());
         out.put("bloodGroup", r.profile.getBloodGroup());
