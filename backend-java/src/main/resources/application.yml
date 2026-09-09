@@ -24,19 +24,16 @@ spring:
 
   jpa:
     hibernate:
-      # validate: Flyway manages the schema; Hibernate only validates consistency
-      ddl-auto: validate
+      # update: Hibernate auto-creates/updates tables from entities.
+      # Safe for adding new tables/columns. Won't drop or rename anything.
+      ddl-auto: update
     show-sql: false
     properties:
       hibernate:
         format_sql: true
 
   flyway:
-    enabled: true
-    locations: classpath:db/migration
-    baseline-on-migrate: true
-    baseline-version: 0
-    validate-on-migrate: true
+    enabled: false
 
   jackson:
     default-property-inclusion: non_null
