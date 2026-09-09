@@ -39,12 +39,6 @@ public class Hospital {
     @Column(name = "license_number")
     private String licenseNumber;
 
-    @Column(name = "total_beds")
-    private Integer totalBeds = 0;
-
-    @Column(name = "available_beds")
-    private Integer availableBeds = 0;
-
     @Column(nullable = false, length = 16)
     private String status = "PENDING_APPROVAL";
 
@@ -84,10 +78,6 @@ public class Hospital {
     public void setAddress(String address) { this.address = address; }
     public String getLicenseNumber() { return licenseNumber; }
     public void setLicenseNumber(String licenseNumber) { this.licenseNumber = licenseNumber; }
-    public Integer getTotalBeds() { return totalBeds; }
-    public void setTotalBeds(Integer totalBeds) { this.totalBeds = totalBeds; }
-    public Integer getAvailableBeds() { return availableBeds; }
-    public void setAvailableBeds(Integer availableBeds) { this.availableBeds = availableBeds; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
     public LocalDateTime getCreatedAt() { return createdAt; }
@@ -111,8 +101,6 @@ public class Hospital {
         public Builder phone(String phone) { h.phone = phone; return this; }
         public Builder address(String address) { h.address = address; return this; }
         public Builder licenseNumber(String licenseNumber) { h.licenseNumber = licenseNumber; return this; }
-        public Builder totalBeds(Integer totalBeds) { h.totalBeds = totalBeds; return this; }
-        public Builder availableBeds(Integer availableBeds) { h.availableBeds = availableBeds; return this; }
         public Builder status(String status) { h.status = status; return this; }
         public Builder extra(Map<String, Object> extra) { h.extra = extra; return this; }
         public Hospital build() { return h; }

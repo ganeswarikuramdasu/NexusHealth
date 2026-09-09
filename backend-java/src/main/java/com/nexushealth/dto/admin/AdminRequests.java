@@ -9,7 +9,6 @@ public class AdminRequests {
         private String licenseNumber;
         private String address;
         private String phone;
-        private Integer totalBeds;
         private String location;
         private String city;
         private String state;
@@ -29,8 +28,6 @@ public class AdminRequests {
         public void setAddress(String address) { this.address = address; }
         public String getPhone() { return phone; }
         public void setPhone(String phone) { this.phone = phone; }
-        public Integer getTotalBeds() { return totalBeds; }
-        public void setTotalBeds(Integer totalBeds) { this.totalBeds = totalBeds; }
         public String getLocation() { return location; }
         public void setLocation(String location) { this.location = location; }
         public String getCity() { return city; }
@@ -69,8 +66,6 @@ public class AdminRequests {
         private String licenseNumber;
         private String address;
         private String phone;
-        private Integer totalBeds;
-        private Integer availableBeds;
         private String status;
         private String location;
         private String city;
@@ -91,10 +86,6 @@ public class AdminRequests {
         public void setAddress(String address) { this.address = address; }
         public String getPhone() { return phone; }
         public void setPhone(String phone) { this.phone = phone; }
-        public Integer getTotalBeds() { return totalBeds; }
-        public void setTotalBeds(Integer totalBeds) { this.totalBeds = totalBeds; }
-        public Integer getAvailableBeds() { return availableBeds; }
-        public void setAvailableBeds(Integer availableBeds) { this.availableBeds = availableBeds; }
         public String getStatus() { return status; }
         public void setStatus(String status) { this.status = status; }
         public String getLocation() { return location; }

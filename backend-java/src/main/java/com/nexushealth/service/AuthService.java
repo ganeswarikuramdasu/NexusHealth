@@ -285,7 +285,7 @@ public class AuthService {
 
         AccessCard card = AccessCard.builder()
                 .id(cardId)
-                .patientId(userId)
+                .patient(user)
                 .patientHealthId(globalHealthId)
                 .patientName(name)
                 .cardIdentifier(cardIdentifier)

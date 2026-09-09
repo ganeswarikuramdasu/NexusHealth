@@ -128,6 +128,7 @@ export interface DoctorProfile {
   consultationType?: "IN_PERSON";
   licenseNumber: string;
   experienceYears: number;
+  age?: number;
   hospitalId: string | null;
   hospitalName: string | null;
   status: "PENDING_APPROVAL" | "APPROVED" | "REJECTED" | "SUSPENDED";
@@ -184,8 +185,6 @@ export interface HospitalProfile {
   phone: string;
   email: string;
   departments: string[];
-  totalBeds: number;
-  availableBeds: number;
   status: "PENDING_APPROVAL" | "APPROVED" | "REJECTED" | "SUSPENDED";
   location?: string;
   city?: string;

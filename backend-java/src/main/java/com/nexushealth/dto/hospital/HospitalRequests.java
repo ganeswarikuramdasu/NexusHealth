@@ -19,6 +19,8 @@ public class HospitalRequests {
         private List<String> workingDays;
         private String phone;
         private String qualification;
+        private Integer age;
+        private String gender;
 
         public String getHospitalId() { return hospitalId; }
         public void setHospitalId(String hospitalId) { this.hospitalId = hospitalId; }
@@ -46,6 +48,10 @@ public class HospitalRequests {
         public void setPhone(String phone) { this.phone = phone; }
         public String getQualification() { return qualification; }
         public void setQualification(String qualification) { this.qualification = qualification; }
+        public Integer getAge() { return age; }
+        public void setAge(Integer age) { this.age = age; }
+        public String getGender() { return gender; }
+        public void setGender(String gender) { this.gender = gender; }
     }
 
     public static class ToggleHospitalStatusRequest {
@@ -69,6 +75,17 @@ public class HospitalRequests {
         public void setDepartmentName(String departmentName) { this.departmentName = departmentName; }
         public String getStatus() { return status; }
         public void setStatus(String status) { this.status = status; }
+    }
+
+    /** POST /api/hospital/add-department - hospital admin creates a new clinical department. */
+    public static class AddDepartmentRequest {
+        private String hospitalId;
+        private String departmentName;
+
+        public String getHospitalId() { return hospitalId; }
+        public void setHospitalId(String hospitalId) { this.hospitalId = hospitalId; }
+        public String getDepartmentName() { return departmentName; }
+        public void setDepartmentName(String departmentName) { this.departmentName = departmentName; }
     }
 
     public static class UpdateHospitalSettingsRequest {
@@ -105,6 +122,8 @@ public class HospitalRequests {
         private String qualification;
         private List<String> workingDays;
         private String status;
+        private Integer age;
+        private String gender;
 
         public String getDoctorId() { return doctorId; }
         public void setDoctorId(String doctorId) { this.doctorId = doctorId; }
@@ -128,6 +147,10 @@ public class HospitalRequests {
         public void setWorkingDays(List<String> workingDays) { this.workingDays = workingDays; }
         public String getStatus() { return status; }
         public void setStatus(String status) { this.status = status; }
+        public Integer getAge() { return age; }
+        public void setAge(Integer age) { this.age = age; }
+        public String getGender() { return gender; }
+        public void setGender(String gender) { this.gender = gender; }
     }
 
     public static class ApproveDoctorRequest {

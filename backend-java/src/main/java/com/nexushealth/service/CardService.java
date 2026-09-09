@@ -393,7 +393,8 @@ public class CardService {
         String suffix = healthId != null ? healthId.replace("NH-IND-2026-", "") : "0000";
         String cardIdentifier = "NX-CARD-" + suffix + "-" + cardSeq;
         String secureToken = "NXAC-" + randomHex(24);
-        return AccessCard.builder()
+
+        AccessCard.Builder builder = AccessCard.builder()
                 .id("card_" + System.currentTimeMillis())
                 .patientId(userId)
                 .patientHealthId(healthId)
@@ -402,8 +403,12 @@ public class CardService {
                 .secureToken(secureToken)
                 .secureTokenHash(passwordEncoder.encode(secureToken))
                 .status("ACTIVE")
-                .pinCode(pinCode)
-                .build();
+                .pinCode(pinCode);
+
+        User patient = userId != null ? userRepository.findById(userId).orElse(null) : null;
+        if (patient != null) builder.patient(patient);
+
+        return builder.build();
     }
 
     private Map<String, Object> buildPatientSummary(AccessCard card, PatientProfile profile, User user) {

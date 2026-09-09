@@ -36,6 +36,11 @@ public class HospitalController {
         return hospitalService.toggleDepartment(req);
     }
 
+    @PostMapping("/add-department")
+    public ApiResponse addDepartment(@RequestBody AddDepartmentRequest req) {
+        return hospitalService.addDepartment(req);
+    }
+
     @PostMapping("/add-doctor")
     public ApiResponse addDoctor(@RequestBody AddDoctorRequest req) {
         return doctorService.addDoctorByHospitalAdmin(req);

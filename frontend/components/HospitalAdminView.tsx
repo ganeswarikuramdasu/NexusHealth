@@ -81,10 +81,7 @@ export const HospitalAdminView: React.FC<HospitalAdminViewProps> = ({
   const [settingsStatus, setSettingsStatus] = useState<{ type: "success" | "error"; msg: string } | null>(null);
 
   // Departments State
-  const defaultDepts = ["Cardiology", "Neurology", "Orthopedics", "Emergency ER", "General Medicine", "Pediatrics", "Oncology", "Surgery"];
-  const [departments, setDepartments] = useState<string[]>(
-    hospital.departments && hospital.departments.length > 0 ? hospital.departments : defaultDepts
-  );
+  const [departments, setDepartments] = useState<string[]>(hospital.departments || []);
   const [deptStatuses, setDeptStatuses] = useState<Record<string, "ACTIVE" | "INACTIVE">>(hospital.departmentStatuses || {});
   const [newDeptName, setNewDeptName] = useState("");
   const [showAddDeptModal, setShowAddDeptModal] = useState(false);
@@ -96,10 +93,12 @@ export const HospitalAdminView: React.FC<HospitalAdminViewProps> = ({
   const [newDocPassword, setNewDocPassword] = useState("");
   const [newDocSpec, setNewDocSpec] = useState("Cardiology");
   const [newDocDept, setNewDocDept] = useState("Cardiology");
-  const [newDocLicense, setNewDocLicense] = useState(`MCI-2026-${Math.floor(10000 + Math.random() * 90000)}`);
-  const [newDocExp, setNewDocExp] = useState(6);
+  const [newDocLicense, setNewDocLicense] = useState("");
+  const [newDocExp, setNewDocExp] = useState("");
   const [newDocFee, setNewDocFee] = useState(800);
-  const [newDocPhone, setNewDocPhone] = useState("+91 98765 43210");
+  const [newDocPhone, setNewDocPhone] = useState("");
+  const [newDocAge, setNewDocAge] = useState("");
+  const [newDocGender, setNewDocGender] = useState("");
   const [newDocQualification, setNewDocQualification] = useState("MBBS, MD, DM");
   const [newDocWorkingDays, setNewDocWorkingDays] = useState<string[]>(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]);
   const [addDocStatus, setAddDocStatus] = useState<{ type: "success" | "error"; msg: string } | null>(null);
@@ -114,6 +113,8 @@ export const HospitalAdminView: React.FC<HospitalAdminViewProps> = ({
   const [editDocPhone, setEditDocPhone] = useState("");
   const [editDocQualification, setEditDocQualification] = useState("");
   const [editDocWorkingDays, setEditDocWorkingDays] = useState<string[]>([]);
+  const [editDocAge, setEditDocAge] = useState("");
+  const [editDocGender, setEditDocGender] = useState("");
   const [editDocStatusMsg, setEditDocStatusMsg] = useState<{ type: "success" | "error"; msg: string } | null>(null);
 
   const availableDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -134,12 +135,14 @@ export const HospitalAdminView: React.FC<HospitalAdminViewProps> = ({
           password: newDocPassword,
           specialization: newDocSpec,
           department: newDocDept || newDocSpec,
-          licenseNumber: newDocLicense,
-          experienceYears: newDocExp,
+          licenseNumber: newDocLicense.trim(),
+          experienceYears: parseInt(newDocExp as string) || 0,
           fee: newDocFee,
-          phone: newDocPhone,
+          phone: newDocPhone.trim(),
           qualification: newDocQualification,
           workingDays: newDocWorkingDays,
+          age: newDocAge ? parseInt(newDocAge as string) : undefined,
+          gender: newDocGender || undefined,
         }),
       });
       const data = await parseResponseSafe<any>(res, { success: false, message: "Failed to provision doctor account." });
@@ -156,6 +159,11 @@ export const HospitalAdminView: React.FC<HospitalAdminViewProps> = ({
         setShowAddDocModal(false);
         setNewDocName("");
         setNewDocEmail("");
+        setNewDocLicense("");
+        setNewDocPhone("");
+        setNewDocExp("");
+        setNewDocAge("");
+        setNewDocGender("");
         setAddDocStatus(null);
       }, 1500);
     } catch (err) {
@@ -174,6 +182,8 @@ export const HospitalAdminView: React.FC<HospitalAdminViewProps> = ({
     setEditDocLicense(doc.licenseNumber);
     setEditDocPhone((doc as any).phone || "+91 98765 00000");
     setEditDocQualification((doc as any).qualification || "MBBS, MD");
+    setEditDocAge((doc as any).age !== undefined && (doc as any).age !== null ? String((doc as any).age) : "");
+    setEditDocGender((doc as any).gender || "");
     setEditDocWorkingDays(doc.workingDays || ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]);
     setEditDocStatusMsg(null);
   };
@@ -198,6 +208,8 @@ export const HospitalAdminView: React.FC<HospitalAdminViewProps> = ({
           phone: editDocPhone,
           qualification: editDocQualification,
           workingDays: editDocWorkingDays,
+          age: editDocAge ? parseInt(editDocAge) : undefined,
+          gender: editDocGender || undefined,
         }),
       });
       const data = await parseResponseSafe<any>(res, { success: false, message: "Failed to update doctor info." });
@@ -218,6 +230,8 @@ export const HospitalAdminView: React.FC<HospitalAdminViewProps> = ({
         target.licenseNumber = editDocLicense;
         (target as any).phone = editDocPhone;
         (target as any).qualification = editDocQualification;
+        (target as any).age = editDocAge ? parseInt(editDocAge) : undefined;
+        (target as any).gender = editDocGender;
         target.workingDays = editDocWorkingDays;
       }
       if (onRefreshData) onRefreshData();
@@ -280,7 +294,7 @@ export const HospitalAdminView: React.FC<HospitalAdminViewProps> = ({
   };
 
   // Add New Custom Department
-  const handleAddDepartment = (e: React.FormEvent) => {
+  const handleAddDepartment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newDeptName.trim()) return;
     const cleanName = newDeptName.trim();
@@ -288,10 +302,25 @@ export const HospitalAdminView: React.FC<HospitalAdminViewProps> = ({
       alert("Department already exists!");
       return;
     }
-    setDepartments((prev) => [...prev, cleanName]);
-    setDeptStatuses((prev) => ({ ...prev, [cleanName]: "ACTIVE" }));
-    setNewDeptName("");
-    setShowAddDeptModal(false);
+    try {
+      const res = await fetch("/api/hospital/add-department", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ hospitalId: hospital.id, departmentName: cleanName }),
+      });
+      const data = await parseResponseSafe<any>(res, { success: false, message: "Failed to add department." });
+      if (!res.ok || !data || !data.success) {
+        alert(data?.message || "Failed to add department.");
+        return;
+      }
+      const persisted = Array.isArray(data.departments) ? data.departments : [...departments, cleanName];
+      setDepartments(persisted);
+      setDeptStatuses((prev) => ({ ...prev, [cleanName]: "ACTIVE" }));
+      setNewDeptName("");
+      setShowAddDeptModal(false);
+    } catch (err) {
+      alert("Server communication error. Department not saved.");
+    }
   };
 
   // Save Hospital Settings Handler
@@ -467,6 +496,8 @@ export const HospitalAdminView: React.FC<HospitalAdminViewProps> = ({
                   const docDept = (doc as any).department || doc.specialization;
                   const docPhone = (doc as any).phone || "+91 98765 00000";
                   const docQual = (doc as any).qualification || "MBBS, MD";
+                  const docAge = (doc as any).age !== undefined && (doc as any).age !== null ? (doc as any).age : "N/A";
+                  const docGender = (doc as any).gender || "N/A";
                   const accessedRecords = records.filter(
                     (r) => r.doctorId === doc.id || r.doctorName.toLowerCase() === doc.name.toLowerCase()
                   );
@@ -496,6 +527,8 @@ export const HospitalAdminView: React.FC<HospitalAdminViewProps> = ({
                           <div>License: <strong className="text-[#17C964]">{doc.licenseNumber}</strong></div>
                           <div>Email: <strong className="text-slate-800">{doc.email}</strong></div>
                           <div>Phone: <strong className="text-slate-800">{docPhone}</strong></div>
+                          <div>Gender: <strong className="text-slate-800">{docGender}</strong></div>
+                          <div>Age: <strong className="text-slate-800">{docAge} yrs</strong></div>
                           <div>Experience: <strong className="text-[#17C964]">{doc.experienceYears} Years</strong></div>
                           <div>Consultation Fee: <strong className="text-[#17C964]">₹{doc.fee}</strong></div>
                         </div>
@@ -914,6 +947,7 @@ export const HospitalAdminView: React.FC<HospitalAdminViewProps> = ({
                     required
                     value={newDocLicense}
                     onChange={(e) => setNewDocLicense(e.target.value)}
+                    placeholder="e.g. MCI-2026-DL-1042"
                     className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-[#17C964] font-mono"
                   />
                 </div>
@@ -923,8 +957,10 @@ export const HospitalAdminView: React.FC<HospitalAdminViewProps> = ({
                   <input
                     type="number"
                     required
+                    min={0}
                     value={newDocExp}
-                    onChange={(e) => setNewDocExp(parseInt(e.target.value) || 1)}
+                    onChange={(e) => setNewDocExp(e.target.value)}
+                    placeholder="e.g. 12"
                     className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900"
                   />
                 </div>
@@ -941,15 +977,46 @@ export const HospitalAdminView: React.FC<HospitalAdminViewProps> = ({
                 </div>
               </div>
 
-              <div>
-                <label className="block text-slate-700 font-bold mb-1">Phone Number</label>
-                <input
-                  type="text"
-                  required
-                  value={newDocPhone}
-                  onChange={(e) => setNewDocPhone(e.target.value)}
-                  className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1">Gender</label>
+                  <select
+                    required
+                    value={newDocGender}
+                    onChange={(e) => setNewDocGender(e.target.value)}
+                    className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900 outline-none focus:border-[#17C964]"
+                  >
+                    <option value="" disabled>Select Gender</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1">Age (Years)</label>
+                  <input
+                    type="number"
+                    required
+                    min={22}
+                    value={newDocAge}
+                    onChange={(e) => setNewDocAge(e.target.value)}
+                    placeholder="e.g. 45"
+                    className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1">Phone Number</label>
+                  <input
+                    type="text"
+                    required
+                    value={newDocPhone}
+                    onChange={(e) => setNewDocPhone(e.target.value)}
+                    placeholder="e.g. +91 98765 43210"
+                    className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900"
+                  />
+                </div>
               </div>
 
               <div>
@@ -1105,15 +1172,44 @@ export const HospitalAdminView: React.FC<HospitalAdminViewProps> = ({
                 </div>
               </div>
 
-              <div>
-                <label className="block text-slate-700 font-bold mb-1">Contact Phone</label>
-                <input
-                  type="text"
-                  required
-                  value={editDocPhone}
-                  onChange={(e) => setEditDocPhone(e.target.value)}
-                  className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1">Gender</label>
+                  <select
+                    value={editDocGender}
+                    onChange={(e) => setEditDocGender(e.target.value)}
+                    className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900 outline-none focus:border-[#17C964]"
+                  >
+                    <option value="" disabled>Select Gender</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1">Age (Years)</label>
+                  <input
+                    type="number"
+                    required
+                    min={22}
+                    value={editDocAge}
+                    onChange={(e) => setEditDocAge(e.target.value)}
+                    placeholder="e.g. 45"
+                    className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1">Contact Phone</label>
+                  <input
+                    type="text"
+                    required
+                    value={editDocPhone}
+                    onChange={(e) => setEditDocPhone(e.target.value)}
+                    className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900"
+                  />
+                </div>
               </div>
 
               <div>

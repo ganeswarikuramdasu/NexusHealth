@@ -212,6 +212,10 @@ public class AppointmentService {
         if (isBlank(targetPatientId)) {
             throw ApiException.badRequest("Valid patient identity is required to book an appointment.");
         }
+        User patientUser = userRepository.findById(targetPatientId).orElse(null);
+        if (patientUser == null) {
+            throw ApiException.badRequest("Valid patient identity is required to book an appointment.");
+        }
         String targetPatientHealthId = req.getPatientHealthId();
 
         int durationMin = intOr(extra.get("slotDurationMin"), 15);
@@ -241,18 +245,18 @@ public class AppointmentService {
         aptExtra.put("priority", req.getPriority() != null ? req.getPriority() : "NORMAL");
         aptExtra.put("queueType", "DOCTOR_QUEUE");
 
-        Appointment appointment = Appointment.builder()
+        Appointment.Builder aptBuilder = Appointment.builder()
                 .id("apt_" + System.currentTimeMillis())
-                .patientId(targetPatientId)
-                .doctorId(doctor.getId())
-                .hospitalId(!isBlank(resolvedHospitalId) ? resolvedHospitalId : "hosp_gen")
+                .patient(patientUser)
+                .doctor(doctor)
                 .appointmentDate(appointmentDate)
                 .appointmentTime(appointmentTime)
                 .reason(!isBlank(req.getSymptoms()) ? req.getSymptoms() : "Consultation request")
                 .appointmentType(!isBlank(req.getAppointmentType()) ? req.getAppointmentType() : "ROUTINE_CONSULTATION")
                 .status("SCHEDULED")
-                .extra(aptExtra)
-                .build();
+                .extra(aptExtra);
+        if (hospital != null) aptBuilder.hospital(hospital);
+        Appointment appointment = aptBuilder.build();
         appointmentRepository.save(appointment);
 
         auditLogService.log(req.getPatientName() != null ? req.getPatientName() : "Patient", "PATIENT", "APPOINTMENT_BOOK",

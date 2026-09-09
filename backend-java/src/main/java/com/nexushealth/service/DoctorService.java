@@ -118,21 +118,6 @@ public class DoctorService {
         extra.put("workingDays", List.of("Monday", "Wednesday", "Friday"));
         extra.put("slotDurationMin", 20);
 
-        Doctor doctor = Doctor.builder()
-                .id(doctorId)
-                .userId(userId)
-                .hospitalId(req.getHospitalId())
-                .hospitalName(hospitalName)
-                .name(req.getName())
-                .email(cleanEmail)
-                .specialization(req.getSpecialization() != null ? req.getSpecialization() : "General Medicine")
-                .licenseNumber(licenseNumber)
-                .fee(BigDecimal.valueOf(req.getFee() != null ? req.getFee() : 1000))
-                .status(status)
-                .isActive(true)
-                .extra(extra)
-                .build();
-
         User user = User.builder()
                 .id(userId)
                 .name(req.getName())
@@ -143,6 +128,21 @@ public class DoctorService {
                 .build();
         userRepository.save(user);
 
+        Doctor.Builder doctorBuilder = Doctor.builder()
+                .id(doctorId)
+                .user(user)
+                .hospitalId(req.getHospitalId())
+                .hospitalName(hospitalName)
+                .name(req.getName())
+                .email(cleanEmail)
+                .specialization(req.getSpecialization() != null ? req.getSpecialization() : "General Medicine")
+                .licenseNumber(licenseNumber)
+                .fee(BigDecimal.valueOf(req.getFee() != null ? req.getFee() : 1000))
+                .status(status)
+                .isActive(true)
+                .extra(extra);
+        if (hospital != null) doctorBuilder.hospital(hospital);
+        Doctor doctor = doctorBuilder.build();
         doctorRepository.save(doctor);
 
         auditLogService.log(req.getName(), "DOCTOR", "DOCTOR_REGISTER", null,
@@ -257,6 +257,12 @@ public class DoctorService {
         if (!pwdCheck.valid()) {
             throw ApiException.badRequest("Weak Password: " + pwdCheck.message());
         }
+        if (isBlank(req.getLicenseNumber())) {
+            throw ApiException.badRequest("Doctor MCI License Number is required.");
+        }
+        if (isBlank(req.getPhone())) {
+            throw ApiException.badRequest("Doctor Phone Number is required.");
+        }
 
         String cleanEmail = req.getEmail().trim().toLowerCase();
         if (userRepository.existsByEmailIgnoreCase(cleanEmail)) {
@@ -272,15 +278,16 @@ public class DoctorService {
         long now = System.currentTimeMillis();
         String doctorId = "doc_" + now;
         String userId = "u_doc_" + now;
-        String licenseNumber = req.getLicenseNumber() != null ? req.getLicenseNumber()
-                : "MCI-2026-" + (10000 + RANDOM.nextInt(90000));
+        String licenseNumber = req.getLicenseNumber().trim();
         String specialization = req.getSpecialization() != null ? req.getSpecialization() : "General Medicine";
 
         Map<String, Object> extra = new LinkedHashMap<>();
         extra.put("department", req.getDepartment() != null ? req.getDepartment() : specialization);
         extra.put("experienceYears", req.getExperienceYears() != null ? req.getExperienceYears() : 5);
-        extra.put("phone", req.getPhone() != null ? req.getPhone() : "+91 98765 00000");
+        extra.put("phone", req.getPhone().trim());
         extra.put("qualification", req.getQualification() != null ? req.getQualification() : "MBBS, MD");
+        if (req.getAge() != null) extra.put("age", req.getAge());
+        if (!isBlank(req.getGender())) extra.put("gender", req.getGender().trim());
         extra.put("rating", 5.0);
         extra.put("workingDays", req.getWorkingDays() != null && !req.getWorkingDays().isEmpty()
                 ? req.getWorkingDays()
@@ -293,9 +300,19 @@ public class DoctorService {
         extra.put("morningShiftCapacity", 20);
         extra.put("afternoonShiftCapacity", 15);
 
-        Doctor doctor = Doctor.builder()
+        User user = User.builder()
+                .id(userId)
+                .name(req.getName().trim())
+                .email(cleanEmail)
+                .passwordHash(passwordEncoder.encode(req.getPassword()))
+                .role("DOCTOR")
+                .status("ACTIVE")
+                .build();
+        userRepository.save(user);
+
+        Doctor.Builder doctorBuilder = Doctor.builder()
                 .id(doctorId)
-                .userId(userId)
+                .user(user)
                 .hospitalId(resolvedHospitalId)
                 .hospitalName(resolvedHospitalName)
                 .name(req.getName().trim())
@@ -305,18 +322,9 @@ public class DoctorService {
                 .fee(BigDecimal.valueOf(req.getFee() != null ? req.getFee() : 800))
                 .status("APPROVED")
                 .isActive(hospitalActive)
-                .extra(extra)
-                .build();
-
-        User user = User.builder()
-                .id(userId)
-                .name(doctor.getName())
-                .email(cleanEmail)
-                .passwordHash(passwordEncoder.encode(req.getPassword()))
-                .role("DOCTOR")
-                .status("ACTIVE")
-                .build();
-        userRepository.save(user);
+                .extra(extra);
+        if (hospital != null) doctorBuilder.hospital(hospital);
+        Doctor doctor = doctorBuilder.build();
 
         doctorRepository.save(doctor);
 
@@ -345,6 +353,8 @@ public class DoctorService {
         if (req.getExperienceYears() != null) extra.put("experienceYears", req.getExperienceYears());
         if (!isBlank(req.getPhone())) extra.put("phone", req.getPhone().trim());
         if (!isBlank(req.getQualification())) extra.put("qualification", req.getQualification().trim());
+        if (req.getAge() != null) extra.put("age", req.getAge());
+        if (!isBlank(req.getGender())) extra.put("gender", req.getGender().trim());
         if (req.getWorkingDays() != null && !req.getWorkingDays().isEmpty()) extra.put("workingDays", req.getWorkingDays());
         doctor.setExtra(extra);
         doctorRepository.save(doctor);

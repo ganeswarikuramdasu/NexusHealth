@@ -231,8 +231,6 @@ export default function App() {
     phone: "+91 11 4000 0000",
     email: currentUser?.email || "admin@hospital.org",
     departments: ["General Medicine", "Emergency ER", "Cardiology"],
-    totalBeds: 100,
-    availableBeds: 20,
     status: "APPROVED",
   };
 

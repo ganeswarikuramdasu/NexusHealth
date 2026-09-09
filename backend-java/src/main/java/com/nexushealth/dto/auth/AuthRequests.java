@@ -91,8 +91,6 @@ public class AuthRequests {
         private Double fee;
         private String hospitalName;
         private String address;
-        private Integer totalBeds;
-        private Integer availableBeds;
 
         public String getUserId() { return userId; }
         public void setUserId(String userId) { this.userId = userId; }
@@ -122,10 +120,6 @@ public class AuthRequests {
         public void setHospitalName(String hospitalName) { this.hospitalName = hospitalName; }
         public String getAddress() { return address; }
         public void setAddress(String address) { this.address = address; }
-        public Integer getTotalBeds() { return totalBeds; }
-        public void setTotalBeds(Integer totalBeds) { this.totalBeds = totalBeds; }
-        public Integer getAvailableBeds() { return availableBeds; }
-        public void setAvailableBeds(Integer availableBeds) { this.availableBeds = availableBeds; }
     }
 }
 

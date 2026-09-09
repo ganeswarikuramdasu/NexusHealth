@@ -74,8 +74,6 @@ export const SuperAdminView: React.FC<SuperAdminViewProps> = ({
   const [editHospLicense, setEditHospLicense] = useState("");
   const [editHospAddress, setEditHospAddress] = useState("");
   const [editHospPhone, setEditHospPhone] = useState("");
-  const [editHospTotalBeds, setEditHospTotalBeds] = useState(150);
-  const [editHospAvailBeds, setEditHospAvailBeds] = useState(30);
   const [editHospCity, setEditHospCity] = useState("");
   const [editHospState, setEditHospState] = useState("");
   const [editHospPincode, setEditHospPincode] = useState("");
@@ -88,10 +86,8 @@ export const SuperAdminView: React.FC<SuperAdminViewProps> = ({
   const [newHospName, setNewHospName] = useState("");
   const [newHospEmail, setNewHospEmail] = useState("");
   const [newHospPassword, setNewHospPassword] = useState("");
-  const [newHospLicense, setNewHospLicense] = useState("HOSP-2026-DL-801");
-  const [newHospAddress, setNewHospAddress] = useState("Central Medical Enclave, Health City");
-  const [newHospPhone, setNewHospPhone] = useState("+91 11 4000 7000");
-  const [newHospBeds, setNewHospBeds] = useState(200);
+  const [newHospLicense, setNewHospLicense] = useState("");
+  const [newHospPhone, setNewHospPhone] = useState("");
   const [newHospCity, setNewHospCity] = useState("");
   const [newHospState, setNewHospState] = useState("");
   const [newHospPincode, setNewHospPincode] = useState("");
@@ -106,8 +102,6 @@ export const SuperAdminView: React.FC<SuperAdminViewProps> = ({
     setEditHospLicense(hosp.licenseNumber || "");
     setEditHospAddress(hosp.address || "");
     setEditHospPhone(hosp.phone || "");
-    setEditHospTotalBeds(hosp.totalBeds || 150);
-    setEditHospAvailBeds(hosp.availableBeds || 30);
     setEditHospCity(hosp.city || "");
     setEditHospState(hosp.state || "");
     setEditHospPincode(hosp.pincode || "");
@@ -131,8 +125,6 @@ export const SuperAdminView: React.FC<SuperAdminViewProps> = ({
           licenseNumber: editHospLicense,
           address: editHospAddress,
           phone: editHospPhone,
-          totalBeds: editHospTotalBeds,
-          availableBeds: editHospAvailBeds,
           location: editHospCity,
           city: editHospCity,
           state: editHospState,
@@ -152,8 +144,6 @@ export const SuperAdminView: React.FC<SuperAdminViewProps> = ({
       editingHospital.licenseNumber = editHospLicense;
       editingHospital.address = editHospAddress;
       editingHospital.phone = editHospPhone;
-      editingHospital.totalBeds = editHospTotalBeds;
-      editingHospital.availableBeds = editHospAvailBeds;
       editingHospital.location = editHospCity;
       editingHospital.city = editHospCity;
       editingHospital.state = editHospState;
@@ -201,14 +191,11 @@ export const SuperAdminView: React.FC<SuperAdminViewProps> = ({
           name: newHospName,
           email: newHospEmail,
           password: newHospPassword,
-          licenseNumber: newHospLicense,
-          address: newHospAddress,
-          phone: newHospPhone,
-          totalBeds: newHospBeds,
-          location: newHospAddress,
-          city: newHospCity,
-          state: newHospState,
-          pincode: newHospPincode,
+          licenseNumber: newHospLicense || undefined,
+          phone: newHospPhone || undefined,
+          city: newHospCity || undefined,
+          state: newHospState || undefined,
+          pincode: newHospPincode || undefined,
           latitude: newHospLat ? Number(newHospLat) : undefined,
           longitude: newHospLng ? Number(newHospLng) : undefined,
         }),
@@ -348,8 +335,8 @@ export const SuperAdminView: React.FC<SuperAdminViewProps> = ({
 
                     <div className="grid grid-cols-2 gap-2 text-xs text-slate-700 font-mono">
                       <div>License: <strong className="text-[#17C964]">{hosp.licenseNumber}</strong></div>
-                      <div>Capacity: <strong className="text-[#17C964]">{hosp.availableBeds}/{hosp.totalBeds} Beds</strong></div>
-                      <div className="col-span-2 text-slate-500 text-[10px]">{hosp.address}</div>
+                      <div>Phone: <strong className="text-[#17C964]">{hosp.phone || "N/A"}</strong></div>
+                      <div className="col-span-2 text-slate-500 text-[10px]">{hosp.city || ""}{hosp.state ? `, ${hosp.state}` : ""}{hosp.pincode ? ` - ${hosp.pincode}` : ""}</div>
                     </div>
 
                     <div className="pt-2 border-t border-slate-200 flex justify-between items-center gap-2">
@@ -600,6 +587,31 @@ export const SuperAdminView: React.FC<SuperAdminViewProps> = ({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
+                  <label className="block text-slate-700 font-bold mb-1">License Number</label>
+                  <input
+                    type="text"
+                    required
+                    value={newHospLicense}
+                    onChange={(e) => setNewHospLicense(e.target.value)}
+                    placeholder="e.g. HOSP-2026-DL-801"
+                    className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-mono outline-none focus:border-[#17C964]/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1">Landline / Phone</label>
+                  <input
+                    type="text"
+                    required
+                    value={newHospPhone}
+                    onChange={(e) => setNewHospPhone(e.target.value)}
+                    placeholder="e.g. +91 11 4000 7000"
+                    className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-mono outline-none focus:border-[#17C964]/50"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
                   <label className="block text-slate-700 font-bold mb-1">City / Area</label>
                   <input
                     type="text"
@@ -691,20 +703,24 @@ export const SuperAdminView: React.FC<SuperAdminViewProps> = ({
             <div className="space-y-3 text-xs font-mono">
               <div className="bg-[#EDF1F5] p-4 rounded-2xl border border-slate-200 space-y-2">
                 <div>Hospital Admin Login: <strong className="text-[#17C964]">{selectedHospForDetail.email}</strong></div>
-                <div>Emergency Helpline: <strong className="text-[#17C964]">{selectedHospForDetail.phone || "+91 1800-425-9999"}</strong></div>
-                <div>Physical Address: <strong className="text-slate-800">{selectedHospForDetail.address}</strong></div>
-                <div>Total Bed Capacity: <strong className="text-slate-900">{selectedHospForDetail.totalBeds} Beds</strong></div>
-                <div>Currently Vacant Beds: <strong className="text-[#17C964]">{selectedHospForDetail.availableBeds} Available</strong></div>
+                {selectedHospForDetail.phone && <div>Landline / Phone: <strong className="text-[#17C964]">{selectedHospForDetail.phone}</strong></div>}
+                {selectedHospForDetail.city && <div>City: <strong className="text-slate-800">{selectedHospForDetail.city}</strong></div>}
+                {selectedHospForDetail.state && <div>State: <strong className="text-slate-800">{selectedHospForDetail.state}</strong></div>}
+                {selectedHospForDetail.pincode && <div>Pincode: <strong className="text-slate-800">{selectedHospForDetail.pincode}</strong></div>}
               </div>
 
               <div className="bg-[#EDF1F5] p-4 rounded-2xl border border-slate-200 space-y-2">
                 <span className="font-bold text-[#17C964] uppercase text-[10px]">Active Hospital Departments</span>
                 <div className="flex flex-wrap gap-1.5 pt-1">
-                  {(selectedHospForDetail.departments || ["Cardiology", "Neurology", "Emergency Trauma", "Pediatrics", "Orthopedics"]).map((dept, idx) => (
-                    <span key={idx} className="px-2.5 py-1 bg-[#E9FBF1] border border-[#17C964]/40 text-[#17C964] rounded-lg text-[10px]">
-                      {dept}
-                    </span>
-                  ))}
+                  {((selectedHospForDetail as any).departments || []).length > 0 ? (
+                    ((selectedHospForDetail as any).departments || []).map((dept: string, idx: number) => (
+                      <span key={idx} className="px-2.5 py-1 bg-[#E9FBF1] border border-[#17C964]/40 text-[#17C964] rounded-lg text-[10px]">
+                        {dept}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-xs text-slate-400 italic">No departments added yet</span>
+                  )}
                 </div>
               </div>
 
@@ -740,8 +756,8 @@ export const SuperAdminView: React.FC<SuperAdminViewProps> = ({
             <div className="flex items-center space-x-3 text-[#17C964] pb-2 border-b border-slate-200">
               <Building2 className="w-6 h-6" />
               <div>
-                <h3 className="font-bold text-slate-900 text-base">Edit Hospital Profile & Capacity</h3>
-                <p className="text-xs text-slate-500">Update node metadata, licensure, and bed allocation</p>
+                <h3 className="font-bold text-slate-900 text-base">Edit Hospital Profile & Contact</h3>
+                <p className="text-xs text-slate-500">Update node metadata, licensure, and contact details</p>
               </div>
             </div>
 
@@ -815,29 +831,6 @@ export const SuperAdminView: React.FC<SuperAdminViewProps> = ({
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-slate-700 font-bold mb-1">Total Bed Capacity</label>
-                  <input
-                    type="number"
-                    required
-                    value={editHospTotalBeds}
-                    onChange={(e) => setEditHospTotalBeds(Number(e.target.value))}
-                    className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-mono"
-                  />
-                </div>
-                <div>
-                  <label className="block text-slate-700 font-bold mb-1">Vacant / Available Beds</label>
-                  <input
-                    type="number"
-                    required
-                    value={editHospAvailBeds}
-                    onChange={(e) => setEditHospAvailBeds(Number(e.target.value))}
-                    className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-mono"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="block text-slate-700 font-bold mb-1">City / Area</label>
                   <input

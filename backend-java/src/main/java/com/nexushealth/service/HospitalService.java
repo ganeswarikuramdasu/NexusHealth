@@ -4,6 +4,7 @@ import com.nexushealth.common.ApiException;
 import com.nexushealth.common.ApiResponse;
 import com.nexushealth.common.PasswordValidator;
 import com.nexushealth.dto.admin.AdminRequests.AddHospitalRequest;
+import com.nexushealth.dto.hospital.HospitalRequests.AddDepartmentRequest;
 import com.nexushealth.dto.hospital.HospitalRequests.AddEquipmentRequest;
 import com.nexushealth.entity.Doctor;
 import com.nexushealth.entity.Hospital;
@@ -21,7 +22,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -32,8 +32,6 @@ import java.util.stream.Collectors;
 
 @Service
 public class HospitalService {
-
-    private static final SecureRandom RANDOM = new SecureRandom();
 
     private final HospitalRepository hospitalRepository;
     private final DoctorRepository doctorRepository;
@@ -83,53 +81,51 @@ public class HospitalService {
         if (!pwdCheck.valid()) {
             throw ApiException.badRequest("Weak Password: " + pwdCheck.message());
         }
+        if (isBlank(req.getLicenseNumber())) {
+            throw ApiException.badRequest("Hospital License Number is required.");
+        }
+        if (isBlank(req.getPhone())) {
+            throw ApiException.badRequest("Hospital Landline / Phone number is required.");
+        }
 
         String cleanEmail = req.getEmail().trim().toLowerCase();
         if (userRepository.existsByEmailIgnoreCase(cleanEmail)) {
             throw ApiException.badRequest("An account with email '" + req.getEmail() + "' is already registered.");
         }
 
-        int totalBeds = req.getTotalBeds() != null ? req.getTotalBeds() : 150;
         long now = System.currentTimeMillis();
         String hospitalId = "hosp_" + now;
         String userId = "u_hosp_" + now;
-        String licenseNumber = req.getLicenseNumber() != null ? req.getLicenseNumber()
-                : "HOSP-2026-" + (10000 + RANDOM.nextInt(90000));
 
         Map<String, Object> extra = new LinkedHashMap<>();
-        extra.put("departments", List.of("General Medicine", "Emergency ER", "Cardiology", "Pediatrics"));
+        extra.put("departments", new ArrayList<>());
         extra.put("departmentStatuses", new LinkedHashMap<>());
-        extra.put("location", req.getLocation() != null ? req.getLocation().trim()
-                : firstNonBlank(req.getCity(), "Healthcare City"));
-        extra.put("city", req.getCity() != null ? req.getCity().trim() : "New Delhi");
-        extra.put("state", req.getState() != null ? req.getState().trim() : "Delhi NCR");
-        extra.put("pincode", req.getPincode() != null ? req.getPincode().trim() : "110016");
+        if (!isBlank(req.getCity())) extra.put("city", req.getCity().trim());
+        if (!isBlank(req.getState())) extra.put("state", req.getState().trim());
+        if (!isBlank(req.getPincode())) extra.put("pincode", req.getPincode().trim());
         if (req.getLatitude() != null) extra.put("latitude", req.getLatitude());
         if (req.getLongitude() != null) extra.put("longitude", req.getLongitude());
 
-        Hospital hospital = Hospital.builder()
-                .id(hospitalId)
-                .adminUserId(userId)
-                .name(req.getName().trim())
-                .email(cleanEmail)
-                .phone(req.getPhone() != null ? req.getPhone() : "+91 11 4000 8000")
-                .address(req.getAddress() != null ? req.getAddress() : "Main Medical Sector, Healthcare City")
-                .licenseNumber(licenseNumber)
-                .totalBeds(totalBeds)
-                .availableBeds((int) Math.floor(totalBeds * 0.3))
-                .status("APPROVED")
-                .extra(extra)
-                .build();
-
         User user = User.builder()
                 .id(userId)
-                .name(hospital.getName())
+                .name(req.getName().trim())
                 .email(cleanEmail)
                 .passwordHash(passwordEncoder.encode(req.getPassword()))
                 .role("HOSPITAL_ADMIN")
                 .status("ACTIVE")
                 .build();
         userRepository.save(user);
+
+        Hospital hospital = Hospital.builder()
+                .id(hospitalId)
+                .adminUser(user)
+                .name(req.getName().trim())
+                .email(cleanEmail)
+                .phone(req.getPhone().trim())
+                .licenseNumber(req.getLicenseNumber().trim())
+                .status("APPROVED")
+                .extra(extra)
+                .build();
 
         hospitalRepository.save(hospital);
 
@@ -184,6 +180,45 @@ public class HospitalService {
 
         return ApiResponse.ok("Department '" + req.getDepartmentName() + "' is now " + nextStatus + ".")
                 .with("departmentStatuses", departmentStatuses);
+    }
+
+    /**
+     * Hospital Admin adds a new clinical department. Departments live in the
+     * hospital's `extra` JSON alongside departmentStatuses, so the refreshed
+     * list is visible everywhere the hospital object is rendered (incl. the
+     * Super Admin panel via GET /api/hospitals).
+     */
+    @Transactional
+    public ApiResponse addDepartment(AddDepartmentRequest req) {
+        Hospital hospital = findHospitalOrThrow(req.getHospitalId());
+        Map<String, Object> extra = new LinkedHashMap<>(hospital.getExtra());
+
+        String cleanName = req.getDepartmentName() == null ? "" : req.getDepartmentName().trim();
+        if (cleanName.isEmpty()) {
+            throw ApiException.badRequest("Department Name is required.");
+        }
+
+        List<String> departments = new ArrayList<>();
+        Object existing = extra.get("departments");
+        if (existing instanceof List<?> rawList) {
+            for (Object o : rawList) {
+                if (o instanceof String s) departments.add(s);
+            }
+        }
+        if (departments.stream().anyMatch(d -> d.equalsIgnoreCase(cleanName))) {
+            throw ApiException.badRequest("Department '" + cleanName + "' already exists for this hospital.");
+        }
+
+        departments.add(cleanName);
+        extra.put("departments", departments);
+        hospital.setExtra(extra);
+        hospitalRepository.save(hospital);
+
+        auditLogService.log(hospital.getName(), "HOSPITAL_ADMIN", "DEPARTMENT_ADDED", null,
+                "Hospital Admin added department '" + cleanName + "'");
+
+        return ApiResponse.ok("Department '" + cleanName + "' created successfully!")
+                .with("departments", departments);
     }
 
     @Transactional
@@ -248,9 +283,13 @@ public class HospitalService {
     @Transactional
     public ApiResponse deleteHospital(String hospitalId) {
         Hospital hospital = hospitalRepository.findById(hospitalId).orElse(null);
+        if (hospital == null) hospital = hospitalRepository.findByAdminUserId(hospitalId).orElse(null);
         if (hospital != null) {
+            if (hospital.getAdminUserId() != null) {
+                userRepository.deleteById(hospital.getAdminUserId());
+            }
             hospitalRepository.delete(hospital);
-            List<Doctor> affected = doctorRepository.findByHospitalId(hospitalId);
+            List<Doctor> affected = doctorRepository.findByHospitalId(hospital.getId());
             for (Doctor d : affected) {
                 d.setHospitalId(null);
                 d.setHospitalName("Unattached Independent Practice");
@@ -273,8 +312,6 @@ public class HospitalService {
         if (!isBlank(req.getLicenseNumber())) hospital.setLicenseNumber(req.getLicenseNumber().trim());
         if (!isBlank(req.getAddress())) hospital.setAddress(req.getAddress().trim());
         if (!isBlank(req.getPhone())) hospital.setPhone(req.getPhone().trim());
-        if (req.getTotalBeds() != null) hospital.setTotalBeds(req.getTotalBeds());
-        if (req.getAvailableBeds() != null) hospital.setAvailableBeds(req.getAvailableBeds());
         if (!isBlank(req.getStatus())) hospital.setStatus(req.getStatus().trim());
         Map<String, Object> extra = new LinkedHashMap<>(hospital.getExtra());
         if (!isBlank(req.getLocation())) extra.put("location", req.getLocation().trim());
@@ -318,8 +355,6 @@ public class HospitalService {
         out.put("licenseNumber", h.getLicenseNumber());
         out.put("address", h.getAddress());
         out.put("phone", h.getPhone());
-        out.put("totalBeds", h.getTotalBeds());
-        out.put("availableBeds", h.getAvailableBeds());
         out.put("status", h.getStatus());
         if (h.getExtra() != null) out.putAll(h.getExtra());
         if (!out.containsKey("latitude") || !out.containsKey("longitude")) {
@@ -327,10 +362,6 @@ public class HospitalService {
             out.putIfAbsent("latitude", coords[0]);
             out.putIfAbsent("longitude", coords[1]);
         }
-        out.putIfAbsent("location", h.getAddress() != null ? h.getAddress() : "Healthcare City");
-        out.putIfAbsent("city", "New Delhi");
-        out.putIfAbsent("state", "Delhi NCR");
-        out.putIfAbsent("pincode", "110016");
         return out;
     }
 
