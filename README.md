@@ -101,7 +101,7 @@ mvn spring-boot:run
 
 Starts on **http://localhost:8080** · Health check: `http://localhost:8080/api/health`
 
-> On first run, the **`DataSeeder`** automatically creates demo doctors, hospitals, patients, cards, and medical records — so the app is instantly usable.
+> On first run, the **`DemoDataSeeder`** automatically creates a demo hospital, demo patients, and access cards — so the app is instantly usable. Doctors are not seeded; the hospital admin creates them through the portal.
 
 ### 3. Frontend (React + Vite)
 
@@ -125,20 +125,16 @@ The seeder builds these accounts (also shown as one-click buttons on the login p
 
 | Role | Email | Password |
 |------|-------|----------|
-| **Patient** | `ananya.sharma@nexus.org` | `PatientPass123!` |
-| **Patient** | `rohan.verma@nexus.org` | `PatientPass123!` |
-| **Doctor** | `dr.rajesh@apollo.org` | `DoctorPass123!` |
-| **Doctor** | `dr.priya@maxhealth.org` | `DoctorPass123!` |
-| **Doctor** | `dr.vikram@apollo.org` | `DoctorPass123!` |
-| **Hospital Admin** | `admin@apollo.org` | `HospitalPass123!` |
-| **Hospital Admin** | `admin@maxhealth.org` | `HospitalPass123!` |
-| **Super Admin** | `ganeswarikuramdasu@gmail.com` | `Admin@Nexus2026!` |
+| **Patient** | `patient.demo@nexusdemo.in` | `Patient@2026` |
+| **Patient** | `meera.demo@nexusdemo.in` | `Meera@2026` |
+| **Hospital Admin** | `citycare@nexusdemo.in` | `CityCare@2026` |
+| **Super Admin** | `demo.admin@nexusdemo.in` | `DemoAdmin@2026` |
 
 **Sample Patient Health IDs:**
-- `NH-IND-2026-88392014` — Ananya Sharma
-- `NH-IND-2026-99281045` — Rohan Verma
+- `NH-IND-2026-DEMO0001` — Aarav Sharma
+- `NH-IND-2026-DEMO0002` — Meera Nair
 
-Access-card PINs are seeded (`4412` / `8819`) and shown in the patient's card view for demo purposes.
+Access-card PINs are seeded (`4321` / `1234`) and shown in the patient's card view for demo purposes.
 
 ---
 
