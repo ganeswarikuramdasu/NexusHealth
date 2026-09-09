@@ -28,17 +28,20 @@ public class MedicalRecordService {
     private final DoctorRepository doctorRepository;
     private final PatientResolver patientResolver;
     private final AuditLogService auditLogService;
+    private final RecordAccessLogService recordAccessLogService;
 
     public MedicalRecordService(MedicalRecordRepository medicalRecordRepository,
                                 PatientMedicationRepository patientMedicationRepository,
                                 DoctorRepository doctorRepository,
                                 PatientResolver patientResolver,
-                                AuditLogService auditLogService) {
+                                AuditLogService auditLogService,
+                                RecordAccessLogService recordAccessLogService) {
         this.medicalRecordRepository = medicalRecordRepository;
         this.patientMedicationRepository = patientMedicationRepository;
         this.doctorRepository = doctorRepository;
         this.patientResolver = patientResolver;
         this.auditLogService = auditLogService;
+        this.recordAccessLogService = recordAccessLogService;
     }
 
     private Doctor resolveDoctor(String doctorId) {
@@ -98,6 +101,26 @@ public class MedicalRecordService {
 
     private String todayStr() {
         return today().toString();
+    }
+
+    private void logEmergencyClinicalWrite(String accessSessionId, String doctorId, String doctorName,
+                                           String patientHealthId, String patientName,
+                                           String hospitalName, String recordsAccessed, String actionDetail) {
+        if (accessSessionId == null || accessSessionId.isBlank()) return;
+        Map<String, Object> pRes = resolvePatient(patientHealthId);
+        String patientUserId = pRes.containsKey("userId") ? (String) pRes.get("userId") : patientHealthId;
+        String safeName = (patientName != null && !patientName.isBlank()) ? patientName
+                : (pRes.containsKey("name") ? (String) pRes.get("name") : "Patient Citizen");
+        recordAccessLogService.add(
+                doctorId != null ? doctorId : "Emergency Doctor",
+                doctorName != null ? doctorName : "Emergency Doctor",
+                patientUserId, patientHealthId, safeName,
+                "hosp_1", hospitalName != null ? hospitalName : "Nexus Health Network",
+                "EMERGENCY", "GRANTED",
+                "Emergency (break-glass) write during access session " + accessSessionId + ": " + actionDetail,
+                List.of(recordsAccessed), true,
+                "NEXUS_EMERGENCY", "APPROVED",
+                accessSessionId, null, null);
     }
 
     private Map<String, Object> recordToNodeShape(MedicalRecord r, Map<String, Object> extra) {
@@ -227,6 +250,10 @@ public class MedicalRecordService {
         auditLogService.log(doctorName, "DOCTOR", "RECORD_CREATE", resolvedHealthId,
                 "Created prescription record " + recId + " for diagnosis: " + record.getDiagnosis());
 
+        logEmergencyClinicalWrite(req.getAccessSessionId(), req.getDoctorId(), doctorName, resolvedHealthId, patientName,
+                hospitalName, "PRESCRIPTION_CREATED",
+                "Created clinical record titled '" + record.getTitle() + "' with diagnosis: " + record.getDiagnosis());
+
         Map<String, Object> nodeShape = new LinkedHashMap<>();
         nodeShape.put("id", recId);
         nodeShape.put("patientId", patientId);
@@ -308,6 +335,10 @@ public class MedicalRecordService {
         auditLogService.log(doctorName, "DOCTOR", "LAB_REPORT_UPLOADED", resolvedHealthId,
                 "Uploaded " + record.getRecordType() + " (" + record.getTitle() + ") from " + displayLab + ".");
 
+        logEmergencyClinicalWrite(req.getAccessSessionId(), req.getDoctorId(), doctorName, resolvedHealthId, patientName,
+                displayLab, "LAB_REPORT_UPLOADED",
+                "Uploaded " + record.getRecordType() + " report '" + record.getTitle() + "' from " + displayLab + ".");
+
         Map<String, Object> nodeShape = new LinkedHashMap<>();
         nodeShape.put("id", recId);
         nodeShape.put("patientId", patientId);
@@ -385,6 +416,11 @@ public class MedicalRecordService {
 
         auditLogService.log(doctorName, "DOCTOR", "VITAL_CREATED", resolvedHealthId,
                 "Recorded vital signs for patient.");
+
+        logEmergencyClinicalWrite(req.getAccessSessionId(), req.getDoctorId(), doctorName, resolvedHealthId,
+                pRes.containsKey("name") ? (String) pRes.get("name") : "Patient",
+                hospitalName, "VITALS_LOGGED",
+                "Logged vital signs measurement for patient.");
 
         Map<String, Object> nodeShape = new LinkedHashMap<>();
         nodeShape.put("id", recId);

@@ -319,6 +319,20 @@ public class AIService {
         evaluateVital(abnormalities, vitals, "SpO2", safeNum(vitals.get("spo2")), 95, 100,
                 "%", "Low blood oxygen warrants evaluation for respiratory or cardiac conditions.");
 
+        Map<String, Object> bmiInfo = computeBmi(vitals);
+        if (!bmiInfo.isEmpty() && Boolean.TRUE.equals(bmiInfo.get("abnormal"))) {
+            double bmiValue = ((Number) bmiInfo.get("value")).doubleValue();
+            boolean critical = bmiValue >= 30 || bmiValue < 16;
+            Map<String, Object> bmiEntry = new LinkedHashMap<>();
+            bmiEntry.put("name", "BMI (Body Mass Index)");
+            bmiEntry.put("value", String.format("%.1f", bmiValue) + " kg/m²");
+            bmiEntry.put("level", critical ? "CRITICAL" : "ABNORMAL");
+            bmiEntry.put("referenceRange", "18.5-24.9 kg/m²");
+            bmiEntry.put("advice", "BMI is " + bmiInfo.get("category").toString().toLowerCase()
+                    + ". A persistent imbalance in body mass can increase cardiovascular, metabolic and joint strain - a dietary and activity review with a clinician is advisable.");
+            abnormalities.add(bmiEntry);
+        }
+
         List<String> redFlags = scanRecordsForRedFlags(records);
 
         boolean anyAbnormal = !abnormalities.isEmpty() || !redFlags.isEmpty();
@@ -334,7 +348,7 @@ public class AIService {
 
         List<Map<String, Object>> suggested = suggestProviders(providers, needsDoctorVisit ? 3 : 2);
 
-        String careSummary = buildCareSummary(status, abnormalities, redFlags, vitals);
+        String careSummary = buildCareSummary(status, abnormalities, redFlags, vitals, bmiInfo);
 
         String aiAssessment = callGemini(
                 "You are NexusHealth's proactive clinical care AI. A patient's vitals and medical history have been automatically analyzed WITHOUT them asking. Review the findings and, if any abnormality exists, clearly recommend that they see a doctor and recommend the nearest suitable providers from the supplied list. Always end with a safety disclaimer. Use Markdown.",
@@ -487,8 +501,42 @@ public class AIService {
         return out;
     }
 
+    private Map<String, Object> computeBmi(Map<String, Object> vitals) {
+        if (vitals == null) return Collections.emptyMap();
+        double heightCm = safeNum(vitals.get("height"));
+        if (Double.isNaN(heightCm)) heightCm = safeNum(vitals.get("heightCm"));
+        double weightKg = safeNum(vitals.get("weight"));
+        if (Double.isNaN(weightKg)) weightKg = safeNum(vitals.get("weightKg"));
+        if (Double.isNaN(heightCm) || Double.isNaN(weightKg) || heightCm <= 0 || weightKg <= 0) {
+            return Collections.emptyMap();
+        }
+
+        double bmi = weightKg / Math.pow(heightCm / 100.0, 2);
+        String category;
+        boolean abnormal;
+        if (bmi < 18.5) {
+            category = "Underweight";
+            abnormal = true;
+        } else if (bmi < 25) {
+            category = "Normal";
+            abnormal = false;
+        } else if (bmi < 30) {
+            category = "Overweight";
+            abnormal = true;
+        } else {
+            category = "Obese";
+            abnormal = true;
+        }
+
+        Map<String, Object> info = new LinkedHashMap<>();
+        info.put("value", Math.round(bmi * 10) / 10.0);
+        info.put("category", category);
+        info.put("abnormal", abnormal);
+        return info;
+    }
+
     private String buildCareSummary(String status, List<Map<String, Object>> abnormalities,
-                                    List<String> redFlags, Map<String, Object> vitals) {
+                                    List<String> redFlags, Map<String, Object> vitals, Map<String, Object> bmiInfo) {
         StringBuilder sb = new StringBuilder();
         sb.append("## \uD83E\uDE7A Proactive AI Health Check\n\n");
         sb.append("**Overall status:** ").append(status).append("\n\n");
@@ -500,6 +548,11 @@ public class AIService {
             sb.append("BP ").append(vitals.get("bpSystolic")).append("/").append(vitals.get("bpDiastolic"))
                     .append(" | Glucose ").append(vitals.get("glucose")).append(" | HR ").append(vitals.get("heartRate"))
                     .append(" | SpO2 ").append(vitals.get("spo2")).append("%\n\n");
+        }
+
+        if (bmiInfo != null && !bmiInfo.isEmpty()) {
+            sb.append("**Body Mass Index:** `").append(bmiInfo.get("value"))
+                    .append(" kg/m²` (").append(bmiInfo.get("category")).append(")\n\n");
         }
 
         if (abnormalities.isEmpty() && redFlags.isEmpty()) {

@@ -14,6 +14,7 @@ public class MedicalRecordRequests {
         private Map<String, Object> vitals;
         private List<Map<String, Object>> medicines;
         private String doctorNotes;
+        private String accessSessionId;
 
         public String getDoctorId() { return doctorId; }
         public void setDoctorId(String doctorId) { this.doctorId = doctorId; }
@@ -31,6 +32,8 @@ public class MedicalRecordRequests {
         public void setMedicines(List<Map<String, Object>> medicines) { this.medicines = medicines; }
         public String getDoctorNotes() { return doctorNotes; }
         public void setDoctorNotes(String doctorNotes) { this.doctorNotes = doctorNotes; }
+        public String getAccessSessionId() { return accessSessionId; }
+        public void setAccessSessionId(String accessSessionId) { this.accessSessionId = accessSessionId; }
     }
 
     public static class CreateLabRequest {
@@ -50,6 +53,7 @@ public class MedicalRecordRequests {
         private String fileSize;
         private String imagingCategory;
         private String doctorNotes;
+        private String accessSessionId;
 
         public String getDoctorId() { return doctorId; }
         public void setDoctorId(String doctorId) { this.doctorId = doctorId; }
@@ -83,12 +87,15 @@ public class MedicalRecordRequests {
         public void setImagingCategory(String imagingCategory) { this.imagingCategory = imagingCategory; }
         public String getDoctorNotes() { return doctorNotes; }
         public void setDoctorNotes(String doctorNotes) { this.doctorNotes = doctorNotes; }
+        public String getAccessSessionId() { return accessSessionId; }
+        public void setAccessSessionId(String accessSessionId) { this.accessSessionId = accessSessionId; }
     }
 
     public static class CreateVitalsRequest {
         private String patientHealthId;
         private String doctorId;
         private Map<String, Object> vitals;
+        private String accessSessionId;
 
         public String getPatientHealthId() { return patientHealthId; }
         public void setPatientHealthId(String patientHealthId) { this.patientHealthId = patientHealthId; }
@@ -96,5 +103,7 @@ public class MedicalRecordRequests {
         public void setDoctorId(String doctorId) { this.doctorId = doctorId; }
         public Map<String, Object> getVitals() { return vitals; }
         public void setVitals(Map<String, Object> vitals) { this.vitals = vitals; }
+        public String getAccessSessionId() { return accessSessionId; }
+        public void setAccessSessionId(String accessSessionId) { this.accessSessionId = accessSessionId; }
     }
 }

@@ -428,6 +428,7 @@ export const CompletePatientClinicalRecord: React.FC<CompletePatientClinicalReco
           patientHealthId: patient.globalHealthId,
           doctorId: doctor?.id,
           vitals: vitalRecord,
+          accessSessionId: accessSession?.id,
         }),
       });
       await logSessionAction("ADDED_VITALS", "VITALS");
@@ -476,6 +477,7 @@ export const CompletePatientClinicalRecord: React.FC<CompletePatientClinicalReco
           diagnosis,
           symptoms: [symptoms],
           doctorNotes: newNote.doctorNotes,
+          accessSessionId: accessSession?.id,
         }),
       });
       await logSessionAction("ADDED_CLINICAL_NOTE", "EHR");
@@ -564,6 +566,7 @@ export const CompletePatientClinicalRecord: React.FC<CompletePatientClinicalReco
           diagnosis: rxDiagnosis,
           medicines: rxMedicines,
           doctorNotes: rxNotes,
+          accessSessionId: accessSession?.id,
         }),
       });
       await logSessionAction("CREATED_PRESCRIPTION", "PRESCRIPTION");

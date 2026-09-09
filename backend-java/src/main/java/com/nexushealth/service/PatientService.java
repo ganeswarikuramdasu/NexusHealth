@@ -343,6 +343,7 @@ public class PatientService {
     private Map<String, Object> toPublicRecord(MedicalRecord r) {
         Doctor doctor = r.getDoctorId() != null ? doctorRepository.findById(r.getDoctorId()).orElse(null) : null;
         Hospital hospital = r.getHospitalId() != null ? hospitalRepository.findById(r.getHospitalId()).orElse(null) : null;
+        Map<String, Object> extra = r.getExtra() != null ? r.getExtra() : new LinkedHashMap<>();
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("id", r.getId());
         out.put("patientId", r.getPatientId());
@@ -354,13 +355,23 @@ public class PatientService {
         out.put("recordType", r.getRecordType());
         out.put("title", r.getTitle());
         out.put("diagnosis", r.getDiagnosis() != null ? r.getDiagnosis() : "");
-        out.put("symptoms", List.of());
-        out.put("vitals", Map.of());
-        out.put("medicines", List.of());
-        out.put("labResults", List.of());
-        out.put("attachmentUrl", r.getFileUrl() != null ? r.getFileUrl() : "");
-        out.put("doctorNotes", r.getClinicalNotes() != null ? r.getClinicalNotes() : "");
-        out.put("doctorSignature", "");
+        out.put("category", extra.get("category"));
+        out.put("symptoms", extra.get("symptoms") != null ? extra.get("symptoms") : List.of());
+        out.put("vitals", extra.get("vitals") != null ? extra.get("vitals") : Map.of());
+        out.put("medicines", extra.get("medicines") != null ? extra.get("medicines") : List.of());
+        out.put("labResults", extra.get("labResults") != null ? extra.get("labResults") : List.of());
+        out.put("testName", extra.get("testName"));
+        out.put("testCategory", extra.get("testCategory"));
+        out.put("referenceRange", extra.get("referenceRange"));
+        out.put("imagingCategory", extra.get("imagingCategory"));
+        out.put("fileName", extra.get("fileName"));
+        out.put("fileSize", extra.get("fileSize"));
+        out.put("attachmentUrl", r.getFileUrl() != null ? r.getFileUrl()
+                : (extra.get("attachmentUrl") != null ? extra.get("attachmentUrl") : ""));
+        out.put("doctorNotes", r.getClinicalNotes() != null ? r.getClinicalNotes()
+                : (extra.get("doctorNotes") != null ? extra.get("doctorNotes") : ""));
+        out.put("doctorSignature", extra.get("doctorSignature") != null ? extra.get("doctorSignature") : "");
+        out.put("createdAt", r.getCreatedAt() != null ? r.getCreatedAt().toString() : null);
         return out;
     }
 

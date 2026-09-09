@@ -29,15 +29,17 @@ public class MedicationService {
     private final DoctorRepository doctorRepository;
     private final PatientResolver patientResolver;
     private final AuditLogService auditLogService;
+    private final RecordAccessLogService recordAccessLogService;
 
     public MedicationService(PatientMedicationRepository medicationRepository, MedicationDoseLogRepository doseLogRepository,
                               DoctorRepository doctorRepository, PatientResolver patientResolver,
-                              AuditLogService auditLogService) {
+                              AuditLogService auditLogService, RecordAccessLogService recordAccessLogService) {
         this.medicationRepository = medicationRepository;
         this.doseLogRepository = doseLogRepository;
         this.doctorRepository = doctorRepository;
         this.patientResolver = patientResolver;
         this.auditLogService = auditLogService;
+        this.recordAccessLogService = recordAccessLogService;
     }
 
     public ApiResponse getForPatient(String patientId) {
@@ -115,6 +117,27 @@ public class MedicationService {
         auditLogService.log(req.getDoctorId() != null ? req.getDoctorId() : "Doctor", "DOCTOR", "MEDICATION_CREATED",
                 medication.getPatientHealthId(),
                 "Added active medication " + medication.getMedicationName() + " (" + medication.getDosage() + ", " + medication.getFrequency() + ").");
+
+        if (req.getAccessSessionId() != null && !req.getAccessSessionId().isBlank()) {
+            Doctor doc = req.getDoctorId() != null
+                    ? doctorRepository.findById(req.getDoctorId())
+                            .or(() -> doctorRepository.findByUserId(req.getDoctorId())).orElse(null)
+                    : null;
+            String docName = doc != null ? doc.getName() : "Emergency Doctor";
+            String hospName = doc != null && doc.getHospitalName() != null ? doc.getHospitalName() : "Nexus Health Network";
+            recordAccessLogService.add(
+                    req.getDoctorId() != null ? req.getDoctorId() : "Emergency Doctor",
+                    docName,
+                    medication.getPatientId(), medication.getPatientHealthId(),
+                    resolved.name,
+                    "hosp_1", hospName,
+                    "EMERGENCY", "GRANTED",
+                    "Emergency (break-glass) write during access session " + req.getAccessSessionId()
+                            + ": prescribed " + medication.getMedicationName() + " (" + medication.getDosage() + ").",
+                    List.of("MEDICATION_PRESCRIBED"), true,
+                    "NEXUS_EMERGENCY", "APPROVED",
+                    req.getAccessSessionId(), null, null);
+        }
 
         return ApiResponse.ok("Medication " + medication.getMedicationName() + " added successfully.")
                 .with("medication", toPublic(medication));

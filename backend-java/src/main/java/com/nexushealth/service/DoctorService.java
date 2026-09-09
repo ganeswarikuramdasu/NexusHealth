@@ -635,6 +635,13 @@ public class DoctorService {
         String patientHealthId = req.getPatientHealthId();
         String accessMethod = req.getAccessMethod();
 
+        if (isBlank(doctorId)) {
+            throw ApiException.badRequest("doctorId is required to start a patient access session.");
+        }
+        if (isBlank(patientHealthId)) {
+            throw ApiException.badRequest("patientHealthId is required to start a patient access session.");
+        }
+
         Doctor doctor = doctorRepository.findById(doctorId)
                 .orElseGet(() -> doctorRepository.findByUserId(doctorId).orElse(null));
 
@@ -662,7 +669,8 @@ public class DoctorService {
 
         String patientUserId = patientResolved != null ? patientResolved.userId : patientHealthId;
         String patientGlobalId = patientResolved != null ? patientResolved.globalHealthId : patientHealthId;
-        String patientName = patientResolved != null ? patientResolved.name : "";
+        String patientName = patientResolved != null && patientResolved.name != null && !patientResolved.name.isBlank()
+                ? patientResolved.name : "Patient Citizen";
         PatientProfile patientProf = patientResolved != null ? patientResolved.profile : null;
 
         // Fetch patient records
@@ -1019,6 +1027,40 @@ public class DoctorService {
     }
 
     /** POST /{id}/toggle-active (scoped) */
+    /**
+     * Applies the given active/inactive flag to the doctor's weekly schedule
+     * for every weekday covered by the date window, so that the schedule
+     * calendar (which reads weeklySchedule) reflects the toggle immediately.
+     */
+    @SuppressWarnings("unchecked")
+    private void updateWeeklyScheduleActive(Map<String, Object> extra, LocalDate start, LocalDate end, boolean activeValue) {
+        Map<String, Object> sched = new LinkedHashMap<>();
+        Object schedObj = extra.get("weeklySchedule");
+        if (schedObj instanceof Map<?, ?> sm) {
+            for (Map.Entry<?, ?> e : sm.entrySet()) {
+                if (e.getValue() instanceof Map<?, ?> m) {
+                    sched.put(String.valueOf(e.getKey()), new LinkedHashMap<>((Map<String, Object>) m));
+                }
+            }
+        }
+
+        long days = end != null ? java.time.temporal.ChronoUnit.DAYS.between(start, end) : 0;
+        if (days < 0) days = 0;
+        if (days > 366) days = 366;
+
+        Set<String> coveredDays = new LinkedHashSet<>();
+        for (long i = 0; i <= days; i++) {
+            LocalDate d = start.plusDays(i);
+            coveredDays.add(d.getDayOfWeek().getDisplayName(
+                    java.time.format.TextStyle.FULL, java.util.Locale.ENGLISH));
+        }
+        for (String dayName : coveredDays) {
+            Map<String, Object> day = (Map<String, Object>) sched.computeIfAbsent(dayName, k -> new LinkedHashMap<>());
+            day.put("active", activeValue);
+        }
+        extra.put("weeklySchedule", sched);
+    }
+
     @Transactional
     @SuppressWarnings("unchecked")
     public ApiResponse toggleActiveScoped(String doctorId, ToggleActiveRequest req) {
@@ -1078,6 +1120,8 @@ public class DoctorService {
             rangeEntry.put("createdAt", LocalDateTime.now().toString());
             ranges.add(rangeEntry);
             extra.put("inactiveDateRanges", ranges);
+
+            updateWeeklyScheduleActive(extra, parseIsoDate(startDateStr, "Start date"), parseIsoDate(endDateStr, "End date"), false);
 
             LocalDate sLocal = parseIsoDate(startDateStr, "Start date");
             LocalDate eLocal = parseIsoDate(endDateStr, "End date");
@@ -1145,6 +1189,7 @@ public class DoctorService {
                 return !rS.isAfter(eLocal) && !rE.isBefore(sLocal);
             });
             extra.put("inactiveDateRanges", ranges);
+            updateWeeklyScheduleActive(extra, parseIsoDate(startDateStr, "Start date"), parseIsoDate(endDateStr, "End date"), true);
             doctor.setExtra(extra);
             doctorRepository.save(doctor);
 

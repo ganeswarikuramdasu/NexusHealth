@@ -9,12 +9,16 @@ import com.nexushealth.dto.emergency.EmergencyRequests.UpdateProfileRequest;
 import com.nexushealth.entity.AccessCard;
 import com.nexushealth.entity.AuditLog;
 import com.nexushealth.entity.Doctor;
+import com.nexushealth.entity.EmergencyContact;
+import com.nexushealth.entity.EmergencyProfile;
 import com.nexushealth.entity.MedicalRecord;
 import com.nexushealth.entity.PatientProfile;
 import com.nexushealth.entity.User;
 import com.nexushealth.repository.AccessCardRepository;
 import com.nexushealth.repository.AuditLogRepository;
 import com.nexushealth.repository.DoctorRepository;
+import com.nexushealth.repository.EmergencyContactRepository;
+import com.nexushealth.repository.EmergencyProfileRepository;
 import com.nexushealth.repository.MedicalRecordRepository;
 import com.nexushealth.repository.PatientProfileRepository;
 import com.nexushealth.repository.UserRepository;
@@ -28,6 +32,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 public class EmergencyService {
@@ -55,13 +60,17 @@ public class EmergencyService {
     private final AccessCardRepository accessCardRepository;
     private final MedicalRecordRepository medicalRecordRepository;
     private final PatientProfileRepository patientProfileRepository;
+    private final EmergencyProfileRepository emergencyProfileRepository;
+    private final EmergencyContactRepository emergencyContactRepository;
 
     public EmergencyService(EmergencySessionStore store, PatientResolver patientResolver,
                             AuditLogService auditLogService, AuditLogRepository auditLogRepository,
                             DoctorRepository doctorRepository, UserRepository userRepository,
                             AccessCardRepository accessCardRepository,
                             MedicalRecordRepository medicalRecordRepository,
-                            PatientProfileRepository patientProfileRepository) {
+                            PatientProfileRepository patientProfileRepository,
+                            EmergencyProfileRepository emergencyProfileRepository,
+                            EmergencyContactRepository emergencyContactRepository) {
         this.store = store;
         this.patientResolver = patientResolver;
         this.auditLogService = auditLogService;
@@ -71,6 +80,8 @@ public class EmergencyService {
         this.accessCardRepository = accessCardRepository;
         this.medicalRecordRepository = medicalRecordRepository;
         this.patientProfileRepository = patientProfileRepository;
+        this.emergencyProfileRepository = emergencyProfileRepository;
+        this.emergencyContactRepository = emergencyContactRepository;
     }
 
     // =========================================================================
@@ -532,7 +543,13 @@ public class EmergencyService {
         }
         String userId = String.valueOf(prof.get("userId"));
 
-        Map<String, Object> emgProfile = store.getProfile(userId);
+        Map<String, Object> emgProfile = null;
+        EmergencyProfile dbProfile = emergencyProfileRepository.findByPatientId(userId).orElse(null);
+        if (dbProfile != null) {
+            emgProfile = emergencyProfileToMap(dbProfile, userId, prof);
+        } else {
+            emgProfile = store.getProfile(userId);
+        }
         if (emgProfile == null) {
             emgProfile = new LinkedHashMap<>();
             emgProfile.put("userId", userId);
@@ -545,10 +562,19 @@ public class EmergencyService {
             emgProfile.put("primaryPhysician", "");
             emgProfile.put("updatedAt", Instant.now().toString());
         }
+        store.putProfile(userId, emgProfile);
+
+        List<Map<String, Object>> contacts = emergencyContactRepository.findByPatientIdOrderByPriorityAsc(userId).stream()
+                .map(this::emergencyContactToMap)
+                .collect(Collectors.toList());
+        if (contacts.isEmpty()) {
+            contacts = store.getContacts(userId);
+        }
+        store.putContacts(userId, contacts);
 
         return ApiResponse.ok()
                 .with("emergencyProfile", emgProfile)
-                .with("emergencyContacts", store.getContacts(userId))
+                .with("emergencyContacts", contacts)
                 .with("notifications", store.notificationsForPatient(userId));
     }
 
@@ -575,8 +601,38 @@ public class EmergencyService {
         emgProfile.put("updatedAt", Instant.now().toString());
         store.putProfile(userId, emgProfile);
 
+        User patientUser = userRepository.findById(userId).orElse(null);
+        if (patientUser != null) {
+            EmergencyProfile dbProfile = emergencyProfileRepository.findByPatientId(userId).orElse(null);
+            List<String> allergies = coerceStringList(emgProfile.get("allergies"));
+            List<String> criticalConditions = coerceStringList(emgProfile.get("criticalConditions"));
+            List<String> currentMedications = coerceStringList(emgProfile.get("currentMedications"));
+            if (dbProfile != null) {
+                dbProfile.setBloodGroup((String) emgProfile.get("bloodGroup"));
+                dbProfile.setAllergies(allergies);
+                dbProfile.setCriticalConditions(criticalConditions);
+                dbProfile.setCurrentMedications(currentMedications);
+                dbProfile.setEmergencyNotes((String) emgProfile.get("emergencyNotes"));
+                dbProfile.setPrimaryPhysician((String) emgProfile.get("primaryPhysician"));
+                emergencyProfileRepository.save(dbProfile);
+            } else {
+                EmergencyProfile newProfile = EmergencyProfile.builder()
+                        .id("eprof_" + userId)
+                        .patient(patientUser)
+                        .patientHealthId(String.valueOf(prof.get("globalHealthId")))
+                        .bloodGroup((String) emgProfile.get("bloodGroup"))
+                        .allergies(allergies)
+                        .criticalConditions(criticalConditions)
+                        .currentMedications(currentMedications)
+                        .emergencyNotes((String) emgProfile.get("emergencyNotes"))
+                        .primaryPhysician((String) emgProfile.get("primaryPhysician"))
+                        .build();
+                emergencyProfileRepository.save(newProfile);
+            }
+        }
+
         if (req.getContacts() != null) {
-            store.putContacts(userId, req.getContacts());
+            persistEmergencyContacts(patientUser, userId, req.getContacts());
         }
 
         String patientName = patientName(userId);
@@ -588,6 +644,83 @@ public class EmergencyService {
                 .with("emergencyProfile", store.getProfile(userId))
                 .with("emergencyContacts", store.getContacts(userId))
                 .with("message", "Emergency profile and contacts saved successfully.");
+    }
+
+    private Map<String, Object> emergencyProfileToMap(EmergencyProfile p, String userId, Map<String, Object> profile) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("userId", userId);
+        out.put("patientHealthId", p.getPatientHealthId() != null ? p.getPatientHealthId() : profile.get("globalHealthId"));
+        out.put("bloodGroup", p.getBloodGroup() != null ? p.getBloodGroup() : "");
+        out.put("allergies", p.getAllergies() != null ? p.getAllergies() : List.of());
+        out.put("criticalConditions", p.getCriticalConditions() != null ? p.getCriticalConditions() : List.of());
+        out.put("currentMedications", p.getCurrentMedications() != null ? p.getCurrentMedications() : List.of());
+        out.put("emergencyNotes", p.getEmergencyNotes() != null ? p.getEmergencyNotes() : "");
+        out.put("primaryPhysician", p.getPrimaryPhysician() != null ? p.getPrimaryPhysician() : "");
+        out.put("updatedAt", p.getUpdatedAt() != null ? p.getUpdatedAt().toString() : Instant.now().toString());
+        return out;
+    }
+
+    private Map<String, Object> emergencyContactToMap(EmergencyContact c) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("id", c.getId());
+        out.put("patientId", c.getPatientId());
+        out.put("name", c.getName());
+        out.put("relationship", c.getRelationship());
+        out.put("phone", c.getPhone());
+        out.put("priority", c.getPriority());
+        return out;
+    }
+
+    private void persistEmergencyContacts(User patientUser, String userId, List<Map<String, Object>> contacts) {
+        List<Map<String, Object>> publicContacts = new ArrayList<>();
+        if (patientUser == null) {
+            store.putContacts(userId, publicContacts);
+            return;
+        }
+        List<EmergencyContact> existing = emergencyContactRepository.findByPatientIdOrderByPriorityAsc(userId);
+        if (!existing.isEmpty()) {
+            emergencyContactRepository.deleteAll(existing);
+            emergencyContactRepository.flush();
+        }
+        int index = 1;
+        for (Map<String, Object> c : contacts) {
+            if (c == null) continue;
+            String id = c.get("id") != null ? String.valueOf(c.get("id")) : ("econt_" + userId + "_" + index);
+            String name = c.get("name") != null ? String.valueOf(c.get("name")) : "";
+            String relationship = c.get("relationship") != null ? String.valueOf(c.get("relationship")) : "";
+            String phone = c.get("phone") != null ? String.valueOf(c.get("phone")) : "";
+            Integer priority = c.get("priority") instanceof Number n ? n.intValue() : index;
+            EmergencyContact contact = EmergencyContact.builder()
+                    .id(id)
+                    .patient(patientUser)
+                    .patientId(userId)
+                    .name(name)
+                    .relationship(relationship)
+                    .phone(phone)
+                    .priority(priority)
+                    .build();
+            emergencyContactRepository.save(contact);
+            Map<String, Object> pub = new LinkedHashMap<>();
+            pub.put("id", id);
+            pub.put("patientId", userId);
+            pub.put("name", name);
+            pub.put("relationship", relationship);
+            pub.put("phone", phone);
+            pub.put("priority", priority);
+            publicContacts.add(pub);
+            index++;
+        }
+        store.putContacts(userId, publicContacts);
+    }
+
+    private List<String> coerceStringList(Object value) {
+        List<String> out = new ArrayList<>();
+        if (value instanceof List<?> list) {
+            for (Object o : list) {
+                if (o != null) out.add(String.valueOf(o));
+            }
+        }
+        return out;
     }
 
     // =========================================================================

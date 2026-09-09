@@ -650,13 +650,15 @@ export const DoctorView: React.FC<DoctorViewProps> = ({
                       <Lock className="w-3.5 h-3.5" />
                       <span>Full Access Center & Clinical Notes</span>
                     </button>
-                    <button
-                      onClick={() => setActiveTab("EMERGENCY_ACCESS")}
-                      className="px-4 py-2.5 bg-[#FDECE8] hover:bg-[#FADBD2] border border-[#F2603C]/40 text-[#E23A2E] font-bold rounded-xl text-xs transition flex items-center space-x-1.5 cursor-pointer"
-                    >
-                      <Siren className="w-3.5 h-3.5" />
-                      <span>Emergency Break-Glass</span>
-                    </button>
+                    {searchedRecords.length === 0 && (
+                      <button
+                        onClick={() => setActiveTab("EMERGENCY_ACCESS")}
+                        className="px-4 py-2.5 bg-[#FDECE8] hover:bg-[#FADBD2] border border-[#F2603C]/40 text-[#E23A2E] font-bold rounded-xl text-xs transition flex items-center space-x-1.5 cursor-pointer"
+                      >
+                        <Siren className="w-3.5 h-3.5" />
+                        <span>Emergency Break-Glass</span>
+                      </button>
+                    )}
                   </div>
 
                   <button

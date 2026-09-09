@@ -317,6 +317,7 @@ export const PatientView: React.FC<PatientViewProps> = ({
     heartRate: "",
     spo2: "",
     weight: "",
+    height: "",
     date: new Date().toISOString().split("T")[0],
   });
   const [vitalsFormError, setVitalsFormError] = useState("");
@@ -374,6 +375,7 @@ export const PatientView: React.FC<PatientViewProps> = ({
         heartRate: r.vitals.heartRate,
         spo2: r.vitals.spo2,
         weight: r.vitals.weight,
+        height: r.vitals.height,
       }))
       .sort((a: any, b: any) => (a.date < b.date ? -1 : 1));
     if (savedVitals.length > 0) setVitalsHistory(savedVitals);
@@ -1300,6 +1302,7 @@ export const PatientView: React.FC<PatientViewProps> = ({
                     heartRate: "",
                     spo2: "",
                     weight: "",
+                    height: "",
                     date: new Date().toISOString().split("T")[0],
                   });
                   setVitalsFormError("");
@@ -1317,37 +1320,66 @@ export const PatientView: React.FC<PatientViewProps> = ({
               <div className="bg-[#FFFFFF] border border-slate-200 rounded-2xl p-4 space-y-1 shadow-md">
                 <span className="text-[10px] font-bold text-slate-500 uppercase">Blood Pressure</span>
                 <div className="text-2xl font-black text-[#F2603C] font-mono">
-                  {latestVitals ? `${latestVitals.bpSystolic}/${latestVitals.bpDiastolic} ` : <span className="text-slate-300">—</span>}
+                  {latestVitals?.bpSystolic ? `${latestVitals.bpSystolic}/${latestVitals.bpDiastolic} ` : <span className="text-slate-300">—</span>}
                   <span className="text-xs text-slate-500 font-sans">mmHg</span>
                 </div>
-                <div className="text-[10px] text-[#17C964] font-mono font-bold">{latestVitals ? "✔ OPTIMAL RANGE" : "NO DATA YET"}</div>
+                <div className="text-[10px] text-[#17C964] font-mono font-bold">{latestVitals?.bpSystolic ? "✔ OPTIMAL RANGE" : "NO DATA YET"}</div>
               </div>
 
               <div className="bg-[#FFFFFF] border border-slate-200 rounded-2xl p-4 space-y-1 shadow-md">
                 <span className="text-[10px] font-bold text-slate-500 uppercase">Fasting Glucose</span>
                 <div className="text-2xl font-black text-[#17C964] font-mono">
-                  {latestVitals ? `${latestVitals.glucose} ` : <span className="text-slate-300">—</span>}
+                  {latestVitals?.glucose ? `${latestVitals.glucose} ` : <span className="text-slate-300">—</span>}
                   <span className="text-xs text-slate-500 font-sans">mg/dL</span>
                 </div>
-                <div className="text-[10px] text-[#17C964] font-mono font-bold">{latestVitals ? "✔ NORMAL (&lt; 100)" : "NO DATA YET"}</div>
+                <div className="text-[10px] text-[#17C964] font-mono font-bold">{latestVitals?.glucose ? "✔ NORMAL (&lt; 100)" : "NO DATA YET"}</div>
               </div>
 
               <div className="bg-[#FFFFFF] border border-slate-200 rounded-2xl p-4 space-y-1 shadow-md">
                 <span className="text-[10px] font-bold text-slate-500 uppercase">Resting Heart Rate</span>
                 <div className="text-2xl font-black text-[#17C964] font-mono">
-                  {latestVitals ? `${latestVitals.heartRate} ` : <span className="text-slate-300">—</span>}
+                  {latestVitals?.heartRate ? `${latestVitals.heartRate} ` : <span className="text-slate-300">—</span>}
                   <span className="text-xs text-slate-500 font-sans">bpm</span>
                 </div>
-                <div className="text-[10px] text-[#17C964] font-mono font-bold">{latestVitals ? "✔ HEALTHY SINUS" : "NO DATA YET"}</div>
+                <div className="text-[10px] text-[#17C964] font-mono font-bold">{latestVitals?.heartRate ? "✔ HEALTHY SINUS" : "NO DATA YET"}</div>
               </div>
 
               <div className="bg-[#FFFFFF] border border-slate-200 rounded-2xl p-4 space-y-1 shadow-md">
                 <span className="text-[10px] font-bold text-slate-500 uppercase">Oxygen Saturation (SpO2)</span>
                 <div className="text-2xl font-black text-[#17C964] font-mono">
-                  {latestVitals ? `${latestVitals.spo2}%` : <span className="text-slate-300">—</span>}
+                  {latestVitals?.spo2 ? `${latestVitals.spo2}%` : <span className="text-slate-300">—</span>}
                 </div>
-                <div className="text-[10px] text-[#17C964] font-mono font-bold">{latestVitals ? "✔ EXCELLENT" : "NO DATA YET"}</div>
+                <div className="text-[10px] text-[#17C964] font-mono font-bold">{latestVitals?.spo2 ? "✔ EXCELLENT" : "NO DATA YET"}</div>
               </div>
+
+              <div className="bg-[#FFFFFF] border border-slate-200 rounded-2xl p-4 space-y-1 shadow-md md:col-span-1">
+                <span className="text-[10px] font-bold text-slate-500 uppercase">BMI & Body Composition</span>
+                <div className="text-2xl font-black text-[#0f172a] font-mono">
+                  {latestVitals?.height && latestVitals?.weight ? (
+                    (latestVitals.weight / Math.pow(latestVitals.height / 100, 2)).toFixed(1)
+                  ) : (
+                    <span className="text-slate-300">—</span>
+                  )}
+                  <span className="text-xs text-slate-500 font-sans">kg/m²</span>
+                </div>
+                <div className="text-[10px] font-mono font-bold">
+                  {latestVitals?.height && latestVitals?.weight ? (
+                    (() => {
+                      const bmi = latestVitals.weight / Math.pow(latestVitals.height / 100, 2);
+                      if (bmi < 18.5) return <span className="text-amber-600">⚠ UNDERWEIGHT</span>;
+                      if (bmi < 25) return <span className="text-[#17C964]">✔ HEALTHY RANGE</span>;
+                      if (bmi < 30) return <span className="text-amber-600">⚠ OVERWEIGHT</span>;
+                      return <span className="text-[#F2603C]">⚠ OBESE</span>;
+                    })()
+                  ) : (
+                    "ADD HEIGHT + WEIGHT"
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="text-[10px] text-slate-400 -mt-2">
+              Height and weight are optional — add them anytime so the AI can compute your BMI and body-composition trends.
             </div>
 
             {/* ── Proactive AI Care Analysis (auto-runs, patient needn't ask) ── */}
@@ -2277,7 +2309,7 @@ className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2.5 te
 
             <div className="grid grid-cols-2 gap-3 text-xs">
               <div>
-                <label className="block text-slate-700 font-bold mb-1">Systolic BP (mmHg) *</label>
+                <label className="block text-slate-700 font-bold mb-1">Systolic BP (mmHg)</label>
                 <input
                   type="number" min="50" max="250"
                   value={vitalsForm.bpSystolic}
@@ -2287,7 +2319,7 @@ className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2.5 te
                 />
               </div>
               <div>
-                <label className="block text-slate-700 font-bold mb-1">Diastolic BP (mmHg) *</label>
+                <label className="block text-slate-700 font-bold mb-1">Diastolic BP (mmHg)</label>
                 <input
                   type="number" min="30" max="160"
                   value={vitalsForm.bpDiastolic}
@@ -2297,7 +2329,7 @@ className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2.5 te
                 />
               </div>
               <div>
-                <label className="block text-slate-700 font-bold mb-1">Fasting Glucose (mg/dL) *</label>
+                <label className="block text-slate-700 font-bold mb-1">Fasting Glucose (mg/dL)</label>
                 <input
                   type="number" min="40" max="500"
                   value={vitalsForm.glucose}
@@ -2307,7 +2339,7 @@ className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2.5 te
                 />
               </div>
               <div>
-                <label className="block text-slate-700 font-bold mb-1">Heart Rate (bpm) *</label>
+                <label className="block text-slate-700 font-bold mb-1">Heart Rate (bpm)</label>
                 <input
                   type="number" min="30" max="220"
                   value={vitalsForm.heartRate}
@@ -2317,7 +2349,7 @@ className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2.5 te
                 />
               </div>
               <div>
-                <label className="block text-slate-700 font-bold mb-1">SpO2 (%) *</label>
+                <label className="block text-slate-700 font-bold mb-1">SpO2 (%)</label>
                 <input
                   type="number" min="50" max="100"
                   value={vitalsForm.spo2}
@@ -2336,28 +2368,46 @@ className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2.5 te
                   className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900 placeholder-slate-500"
                 />
               </div>
+              <div>
+                <label className="block text-slate-700 font-bold mb-1">Height (cm)</label>
+                <input
+                  type="number" min="60" max="250"
+                  value={vitalsForm.height}
+                  onChange={(e) => setVitalsForm((p) => ({ ...p, height: e.target.value }))}
+                  placeholder="e.g. 168"
+                  className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900 placeholder-slate-500"
+                />
+              </div>
+              </div>
+
+              <div className="text-[10px] text-slate-400 border-t border-slate-100 pt-2">
+                All readings are optional — fill in what you measured. Adding Height + Weight lets the AI compute your BMI.
               </div>
 
             <button
               onClick={async () => {
-                const s = Number(vitalsForm.bpSystolic);
-                const d = Number(vitalsForm.bpDiastolic);
-                const g = Number(vitalsForm.glucose);
-                const hr = Number(vitalsForm.heartRate);
-                const sp = Number(vitalsForm.spo2);
-                if (!(s > 0) || !(d > 0) || !(g > 0) || !(hr > 0) || !(sp > 0)) {
-                  setVitalsFormError("Please enter valid positive readings for Systolic, Diastolic, Glucose, Heart Rate and SpO2.");
+                const entries = [
+                  { k: "bpSystolic", v: Number(vitalsForm.bpSystolic) },
+                  { k: "bpDiastolic", v: Number(vitalsForm.bpDiastolic) },
+                  { k: "glucose", v: Number(vitalsForm.glucose) },
+                  { k: "heartRate", v: Number(vitalsForm.heartRate) },
+                  { k: "spo2", v: Number(vitalsForm.spo2) },
+                  { k: "weight", v: Number(vitalsForm.weight) },
+                  { k: "height", v: Number(vitalsForm.height) },
+                ];
+                const provided = entries.filter((e) => e.v > 0);
+                if (provided.length === 0) {
+                  setVitalsFormError("Please enter at least one reading (BP, glucose, heart rate, SpO2, weight or height).");
                   return;
                 }
-                const newLog = {
-                  date: new Date().toISOString().split("T")[0],
-                  bpSystolic: s,
-                  bpDiastolic: d,
-                  glucose: g,
-                  heartRate: hr,
-                  spo2: sp,
-                  weight: vitalsForm.weight ? Number(vitalsForm.weight) : 0,
-                };
+                const hasSys = provided.some((e) => e.k === "bpSystolic");
+                const hasDia = provided.some((e) => e.k === "bpDiastolic");
+                if (hasSys !== hasDia) {
+                  setVitalsFormError("Please enter both Systolic and Diastolic BP together, or leave both empty.");
+                  return;
+                }
+                const newLog: any = { date: new Date().toISOString().split("T")[0] };
+                provided.forEach((e) => { newLog[e.k] = e.v; });
                 try {
                   const res = await fetch("/api/medical-records/vitals", {
                     method: "POST",

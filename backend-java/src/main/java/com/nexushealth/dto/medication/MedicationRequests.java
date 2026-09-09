@@ -19,6 +19,7 @@ public class MedicationRequests {
         private String indication;
         private String instructions;
         private String prescriptionId;
+        private String accessSessionId;
 
         public String getDoctorId() { return doctorId; }
         public void setDoctorId(String doctorId) { this.doctorId = doctorId; }
@@ -52,6 +53,8 @@ public class MedicationRequests {
         public void setInstructions(String instructions) { this.instructions = instructions; }
         public String getPrescriptionId() { return prescriptionId; }
         public void setPrescriptionId(String prescriptionId) { this.prescriptionId = prescriptionId; }
+        public String getAccessSessionId() { return accessSessionId; }
+        public void setAccessSessionId(String accessSessionId) { this.accessSessionId = accessSessionId; }
     }
 
     public static class UpdateMedicationRequest {
