@@ -3,40 +3,49 @@ package com.nexushealth.entity;
 import jakarta.persistence.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
-
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-/**
- * Fixed columns match the `appointments` table the Node backend already
- * created. Unlike Node's version, `status` and `appointment_type` here
- * store the exact string the app uses (SCHEDULED, WAITING_FOR_DOCTOR,
- * IN_CONSULTATION, ROUTINE_CONSULTATION, ...) rather than being funneled
- * through a narrower DB-level enum and mapped back approximately - that
- * was losing granularity on read in the Node version. This doesn't change
- * what the frontend sends or receives, it just stores it faithfully.
- * `extra` (JSON) holds fields that aren't queried/joined elsewhere:
- * checkInTime, consultationStartTime/EndTime, investigationTests,
- * prescription, priority.
- */
 @Entity
-@Table(name = "appointments")
+@Table(name = "appointments", indexes = {
+    @Index(name = "idx_appt_patient_id", columnList = "patient_id"),
+    @Index(name = "idx_appt_doctor_id", columnList = "doctor_id"),
+    @Index(name = "idx_appt_hospital_id", columnList = "hospital_id"),
+    @Index(name = "idx_appt_date", columnList = "appointment_date"),
+    @Index(name = "idx_appt_status", columnList = "status"),
+    @Index(name = "idx_appt_doctor_date", columnList = "doctor_id, appointment_date")
+})
 public class Appointment {
 
     @Id
     @Column(length = 64)
     private String id;
 
-    @Column(name = "patient_id", nullable = false, length = 64)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "patient_id", nullable = false, referencedColumnName = "id",
+                foreignKey = @ForeignKey(name = "fk_appt_patient"))
+    private User patient;
+
+    @Column(name = "patient_id", nullable = false, insertable = false, updatable = false, length = 64)
     private String patientId;
 
-    @Column(name = "doctor_id", nullable = false, length = 64)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "doctor_id", nullable = false, referencedColumnName = "id",
+                foreignKey = @ForeignKey(name = "fk_appt_doctor"))
+    private Doctor doctor;
+
+    @Column(name = "doctor_id", nullable = false, insertable = false, updatable = false, length = 64)
     private String doctorId;
 
-    @Column(name = "hospital_id", length = 64)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "hospital_id", referencedColumnName = "id",
+                foreignKey = @ForeignKey(name = "fk_appt_hospital"))
+    private Hospital hospital;
+
+    @Column(name = "hospital_id", insertable = false, updatable = false, length = 64)
     private String hospitalId;
 
     @Column(name = "appointment_date", nullable = false)
@@ -70,24 +79,27 @@ public class Appointment {
     @Column(name = "extra", columnDefinition = "JSON")
     private Map<String, Object> extra = new LinkedHashMap<>();
 
-    public Appointment() {
-    }
+    public Appointment() {}
 
     @PreUpdate
     public void onUpdate() {
         this.updatedAt = LocalDateTime.now();
     }
 
-    public static Builder builder() {
-        return new Builder();
-    }
+    public static Builder builder() { return new Builder(); }
 
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
+    public User getPatient() { return patient; }
+    public void setPatient(User patient) { this.patient = patient; }
     public String getPatientId() { return patientId; }
     public void setPatientId(String patientId) { this.patientId = patientId; }
+    public Doctor getDoctor() { return doctor; }
+    public void setDoctor(Doctor doctor) { this.doctor = doctor; }
     public String getDoctorId() { return doctorId; }
     public void setDoctorId(String doctorId) { this.doctorId = doctorId; }
+    public Hospital getHospital() { return hospital; }
+    public void setHospital(Hospital hospital) { this.hospital = hospital; }
     public String getHospitalId() { return hospitalId; }
     public void setHospitalId(String hospitalId) { this.hospitalId = hospitalId; }
     public LocalDate getAppointmentDate() { return appointmentDate; }
@@ -114,8 +126,11 @@ public class Appointment {
     public static class Builder {
         private final Appointment a = new Appointment();
         public Builder id(String id) { a.id = id; return this; }
+        public Builder patient(User patient) { a.patient = patient; a.patientId = patient.getId(); return this; }
         public Builder patientId(String patientId) { a.patientId = patientId; return this; }
+        public Builder doctor(Doctor doctor) { a.doctor = doctor; a.doctorId = doctor.getId(); return this; }
         public Builder doctorId(String doctorId) { a.doctorId = doctorId; return this; }
+        public Builder hospital(Hospital hospital) { a.hospital = hospital; a.hospitalId = hospital.getId(); return this; }
         public Builder hospitalId(String hospitalId) { a.hospitalId = hospitalId; return this; }
         public Builder appointmentDate(LocalDate appointmentDate) { a.appointmentDate = appointmentDate; return this; }
         public Builder appointmentTime(LocalTime appointmentTime) { a.appointmentTime = appointmentTime; return this; }

@@ -45,6 +45,16 @@
       <artifactId>spring-boot-starter-validation</artifactId>
     </dependency>
 
+    <!-- Flyway database migrations -->
+    <dependency>
+      <groupId>org.flywaydb</groupId>
+      <artifactId>flyway-core</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.flywaydb</groupId>
+      <artifactId>flyway-mysql</artifactId>
+    </dependency>
+
     <!-- BCrypt only - intentionally NOT spring-boot-starter-security, which
          would auto-lock every endpoint behind a login form. The original
          Node backend has no request-level auth middleware (identity is

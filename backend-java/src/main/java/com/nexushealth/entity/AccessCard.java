@@ -1,18 +1,27 @@
 package com.nexushealth.entity;
 
 import jakarta.persistence.*;
-
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "access_cards")
+@Table(name = "access_cards", indexes = {
+    @Index(name = "idx_card_patient_id", columnList = "patient_id"),
+    @Index(name = "idx_card_health_id", columnList = "patient_health_id"),
+    @Index(name = "idx_card_status", columnList = "status"),
+    @Index(name = "idx_card_identifier", columnList = "card_identifier", unique = true)
+})
 public class AccessCard {
 
     @Id
     @Column(length = 64)
     private String id;
 
-    @Column(name = "patient_id", nullable = false, length = 64)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "patient_id", nullable = false, referencedColumnName = "id",
+                foreignKey = @ForeignKey(name = "fk_card_patient"))
+    private User patient;
+
+    @Column(name = "patient_id", nullable = false, insertable = false, updatable = false, length = 64)
     private String patientId;
 
     @Column(name = "patient_health_id", nullable = false)
@@ -24,13 +33,6 @@ public class AccessCard {
     @Column(name = "secure_token_hash", nullable = false)
     private String secureTokenHash;
 
-    /**
-     * The Node card-scan flow (QR/NFC) looks up a card by comparing this
-     * token directly against what was scanned - it's a bearer credential
-     * embedded in a QR code, not a login password, so (matching Node)
-     * it's kept in plain form for exact-match lookup. `secureTokenHash`
-     * above is kept too for anything that still wants a hashed copy.
-     */
     @Column(name = "secure_token", unique = true)
     private String secureToken;
 
@@ -61,62 +63,47 @@ public class AccessCard {
     @Column(name = "qr_code_data")
     private String qrCodeData;
 
-    public AccessCard() {
-    }
+    public AccessCard() {}
 
-    public static Builder builder() {
-        return new Builder();
-    }
+    public static Builder builder() { return new Builder(); }
 
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
-
+    public User getPatient() { return patient; }
+    public void setPatient(User patient) { this.patient = patient; }
     public String getPatientId() { return patientId; }
     public void setPatientId(String patientId) { this.patientId = patientId; }
-
     public String getPatientHealthId() { return patientHealthId; }
     public void setPatientHealthId(String patientHealthId) { this.patientHealthId = patientHealthId; }
-
     public String getCardIdentifier() { return cardIdentifier; }
     public void setCardIdentifier(String cardIdentifier) { this.cardIdentifier = cardIdentifier; }
-
     public String getSecureTokenHash() { return secureTokenHash; }
     public void setSecureTokenHash(String secureTokenHash) { this.secureTokenHash = secureTokenHash; }
-
     public String getSecureToken() { return secureToken; }
     public void setSecureToken(String secureToken) { this.secureToken = secureToken; }
-
     public String getPatientName() { return patientName; }
     public void setPatientName(String patientName) { this.patientName = patientName; }
-
     public LocalDateTime getLostAt() { return lostAt; }
     public void setLostAt(LocalDateTime lostAt) { this.lostAt = lostAt; }
-
     public LocalDateTime getRevokedAt() { return revokedAt; }
     public void setRevokedAt(LocalDateTime revokedAt) { this.revokedAt = revokedAt; }
-
     public String getReplacedBy() { return replacedBy; }
     public void setReplacedBy(String replacedBy) { this.replacedBy = replacedBy; }
-
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
-
     public String getPinCode() { return pinCode; }
     public void setPinCode(String pinCode) { this.pinCode = pinCode; }
-
     public LocalDateTime getIssuedAt() { return issuedAt; }
     public void setIssuedAt(LocalDateTime issuedAt) { this.issuedAt = issuedAt; }
-
     public LocalDateTime getActivatedAt() { return activatedAt; }
     public void setActivatedAt(LocalDateTime activatedAt) { this.activatedAt = activatedAt; }
-
     public String getQrCodeData() { return qrCodeData; }
     public void setQrCodeData(String qrCodeData) { this.qrCodeData = qrCodeData; }
 
     public static class Builder {
         private final AccessCard card = new AccessCard();
-
         public Builder id(String id) { card.id = id; return this; }
+        public Builder patient(User patient) { card.patient = patient; card.patientId = patient.getId(); return this; }
         public Builder patientId(String patientId) { card.patientId = patientId; return this; }
         public Builder patientHealthId(String patientHealthId) { card.patientHealthId = patientHealthId; return this; }
         public Builder cardIdentifier(String cardIdentifier) { card.cardIdentifier = cardIdentifier; return this; }
@@ -128,8 +115,6 @@ public class AccessCard {
         public Builder issuedAt(LocalDateTime issuedAt) { card.issuedAt = issuedAt; return this; }
         public Builder activatedAt(LocalDateTime activatedAt) { card.activatedAt = activatedAt; return this; }
         public Builder qrCodeData(String qrCodeData) { card.qrCodeData = qrCodeData; return this; }
-
         public AccessCard build() { return card; }
     }
 }
-

@@ -3,31 +3,30 @@ package com.nexushealth.entity;
 import jakarta.persistence.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
-
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
-/**
- * Hospital records in the original app are freeform JSON objects (arbitrary
- * fields like `departments`, `departmentStatuses`) rather than a fixed set
- * of columns - rewriting that as a strict relational schema would mean
- * rewriting hospital-admin business logic, which is out of scope. Instead:
- * fixed columns for the fields other tables (doctors, appointments) need to
- * reference or query by, and a native MySQL JSON column ({@link #extra})
- * for everything else. {@link com.nexushealth.service.HospitalService}
- * flattens `extra` back into the top-level response so the JSON shape the
- * frontend expects is unchanged.
- */
 @Entity
-@Table(name = "hospitals")
+@Table(name = "hospitals", indexes = {
+    @Index(name = "idx_hospital_admin", columnList = "admin_user_id"),
+    @Index(name = "idx_hospital_status", columnList = "status"),
+    @Index(name = "idx_hospital_license", columnList = "license_number")
+})
 public class Hospital {
 
     @Id
     @Column(length = 64)
     private String id;
 
-    @Column(name = "admin_user_id", length = 64)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "admin_user_id", referencedColumnName = "id",
+                foreignKey = @ForeignKey(name = "fk_hospital_admin"))
+    private User adminUser;
+
+    @Column(name = "admin_user_id", insertable = false, updatable = false, length = 64)
     private String adminUserId;
 
     @Column(nullable = false)
@@ -56,15 +55,23 @@ public class Hospital {
     @Column(name = "extra", columnDefinition = "JSON")
     private Map<String, Object> extra = new LinkedHashMap<>();
 
-    public Hospital() {
-    }
+    @OneToMany(mappedBy = "hospital", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Doctor> doctors = new ArrayList<>();
 
-    public static Builder builder() {
-        return new Builder();
-    }
+    @OneToMany(mappedBy = "hospital", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Department> departments = new ArrayList<>();
+
+    @OneToMany(mappedBy = "hospital", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Equipment> equipment = new ArrayList<>();
+
+    public Hospital() {}
+
+    public static Builder builder() { return new Builder(); }
 
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
+    public User getAdminUser() { return adminUser; }
+    public void setAdminUser(User adminUser) { this.adminUser = adminUser; }
     public String getAdminUserId() { return adminUserId; }
     public void setAdminUserId(String adminUserId) { this.adminUserId = adminUserId; }
     public String getName() { return name; }
@@ -87,10 +94,17 @@ public class Hospital {
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public Map<String, Object> getExtra() { return extra; }
     public void setExtra(Map<String, Object> extra) { this.extra = extra != null ? extra : new LinkedHashMap<>(); }
+    public List<Doctor> getDoctors() { return doctors; }
+    public void setDoctors(List<Doctor> doctors) { this.doctors = doctors; }
+    public List<Department> getDepartments() { return departments; }
+    public void setDepartments(List<Department> departments) { this.departments = departments; }
+    public List<Equipment> getEquipment() { return equipment; }
+    public void setEquipment(List<Equipment> equipment) { this.equipment = equipment; }
 
     public static class Builder {
         private final Hospital h = new Hospital();
         public Builder id(String id) { h.id = id; return this; }
+        public Builder adminUser(User adminUser) { h.adminUser = adminUser; h.adminUserId = adminUser.getId(); return this; }
         public Builder adminUserId(String adminUserId) { h.adminUserId = adminUserId; return this; }
         public Builder name(String name) { h.name = name; return this; }
         public Builder email(String email) { h.email = email; return this; }

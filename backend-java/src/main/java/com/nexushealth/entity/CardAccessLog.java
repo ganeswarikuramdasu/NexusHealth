@@ -3,23 +3,40 @@ package com.nexushealth.entity;
 import jakarta.persistence.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
-
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "card_access_logs")
+@Table(name = "card_access_logs", indexes = {
+    @Index(name = "idx_cal_card_id", columnList = "card_id"),
+    @Index(name = "idx_cal_patient_id", columnList = "patient_id"),
+    @Index(name = "idx_cal_health_id", columnList = "patient_health_id"),
+    @Index(name = "idx_cal_actor_id", columnList = "actor_id"),
+    @Index(name = "idx_cal_hospital_id", columnList = "hospital_id"),
+    @Index(name = "idx_cal_timestamp", columnList = "timestamp"),
+    @Index(name = "idx_cal_access_type", columnList = "access_type")
+})
 public class CardAccessLog {
 
     @Id
     @Column(length = 64)
     private String id;
 
-    @Column(name = "card_id", length = 64)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "card_id", referencedColumnName = "id",
+                foreignKey = @ForeignKey(name = "fk_cal_card"))
+    private AccessCard card;
+
+    @Column(name = "card_id", insertable = false, updatable = false, length = 64)
     private String cardId;
 
-    @Column(name = "patient_id", length = 64)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "patient_id", referencedColumnName = "id",
+                foreignKey = @ForeignKey(name = "fk_cal_patient"))
+    private User patient;
+
+    @Column(name = "patient_id", insertable = false, updatable = false, length = 64)
     private String patientId;
 
     @Column(name = "patient_health_id")
@@ -37,7 +54,12 @@ public class CardAccessLog {
     @Column(name = "actor_role", length = 32)
     private String actorRole;
 
-    @Column(name = "hospital_id", length = 64)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "hospital_id", referencedColumnName = "id",
+                foreignKey = @ForeignKey(name = "fk_cal_hospital"))
+    private Hospital hospital;
+
+    @Column(name = "hospital_id", insertable = false, updatable = false, length = 64)
     private String hospitalId;
 
     @Column(name = "hospital_name")
@@ -62,17 +84,18 @@ public class CardAccessLog {
     @Column(name = "ip_address", length = 64)
     private String ipAddress;
 
-    public CardAccessLog() {
-    }
+    public CardAccessLog() {}
 
-    public static Builder builder() {
-        return new Builder();
-    }
+    public static Builder builder() { return new Builder(); }
 
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
+    public AccessCard getCard() { return card; }
+    public void setCard(AccessCard card) { this.card = card; }
     public String getCardId() { return cardId; }
     public void setCardId(String cardId) { this.cardId = cardId; }
+    public User getPatient() { return patient; }
+    public void setPatient(User patient) { this.patient = patient; }
     public String getPatientId() { return patientId; }
     public void setPatientId(String patientId) { this.patientId = patientId; }
     public String getPatientHealthId() { return patientHealthId; }
@@ -85,6 +108,8 @@ public class CardAccessLog {
     public void setActorName(String actorName) { this.actorName = actorName; }
     public String getActorRole() { return actorRole; }
     public void setActorRole(String actorRole) { this.actorRole = actorRole; }
+    public Hospital getHospital() { return hospital; }
+    public void setHospital(Hospital hospital) { this.hospital = hospital; }
     public String getHospitalId() { return hospitalId; }
     public void setHospitalId(String hospitalId) { this.hospitalId = hospitalId; }
     public String getHospitalName() { return hospitalName; }
@@ -96,7 +121,7 @@ public class CardAccessLog {
     public String getAuthorizationStatus() { return authorizationStatus; }
     public void setAuthorizationStatus(String authorizationStatus) { this.authorizationStatus = authorizationStatus; }
     public List<String> getRecordsAccessed() { return recordsAccessed; }
-    public void setRecordsAccessed(List<String> recordsAccessed) { this.recordsAccessed = recordsAccessed != null ? recordsAccessed : new ArrayList<>(); }
+    public void setRecordsAccessed(List<String> recordsAccessed) { this.recordsAccessed = recordsAccessed; }
     public String getReason() { return reason; }
     public void setReason(String reason) { this.reason = reason; }
     public String getIpAddress() { return ipAddress; }
@@ -105,13 +130,16 @@ public class CardAccessLog {
     public static class Builder {
         private final CardAccessLog l = new CardAccessLog();
         public Builder id(String id) { l.id = id; return this; }
+        public Builder card(AccessCard card) { l.card = card; l.cardId = card.getId(); return this; }
         public Builder cardId(String cardId) { l.cardId = cardId; return this; }
+        public Builder patient(User patient) { l.patient = patient; l.patientId = patient.getId(); return this; }
         public Builder patientId(String patientId) { l.patientId = patientId; return this; }
         public Builder patientHealthId(String patientHealthId) { l.patientHealthId = patientHealthId; return this; }
         public Builder patientName(String patientName) { l.patientName = patientName; return this; }
         public Builder actorId(String actorId) { l.actorId = actorId; return this; }
         public Builder actorName(String actorName) { l.actorName = actorName; return this; }
         public Builder actorRole(String actorRole) { l.actorRole = actorRole; return this; }
+        public Builder hospital(Hospital hospital) { l.hospital = hospital; l.hospitalId = hospital.getId(); return this; }
         public Builder hospitalId(String hospitalId) { l.hospitalId = hospitalId; return this; }
         public Builder hospitalName(String hospitalName) { l.hospitalName = hospitalName; return this; }
         public Builder accessType(String accessType) { l.accessType = accessType; return this; }

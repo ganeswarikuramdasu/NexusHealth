@@ -3,27 +3,47 @@ package com.nexushealth.entity;
 import jakarta.persistence.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
-
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "consents")
+@Table(name = "consents", indexes = {
+    @Index(name = "idx_consent_patient_id", columnList = "patient_id"),
+    @Index(name = "idx_consent_doctor_id", columnList = "doctor_id"),
+    @Index(name = "idx_consent_hospital_id", columnList = "hospital_id"),
+    @Index(name = "idx_consent_status", columnList = "status"),
+    @Index(name = "idx_consent_expires", columnList = "expires_at")
+})
 public class Consent {
 
     @Id
     @Column(length = 64)
     private String id;
 
-    @Column(name = "patient_id", nullable = false, length = 64)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "patient_id", nullable = false, referencedColumnName = "id",
+                foreignKey = @ForeignKey(name = "fk_consent_patient"))
+    private User patient;
+
+    @Column(name = "patient_id", nullable = false, insertable = false, updatable = false, length = 64)
     private String patientId;
 
-    @Column(name = "doctor_id", length = 64)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "doctor_id", referencedColumnName = "id",
+                foreignKey = @ForeignKey(name = "fk_consent_doctor"))
+    private Doctor doctor;
+
+    @Column(name = "doctor_id", insertable = false, updatable = false, length = 64)
     private String doctorId;
 
-    @Column(name = "hospital_id", length = 64)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "hospital_id", referencedColumnName = "id",
+                foreignKey = @ForeignKey(name = "fk_consent_hospital"))
+    private Hospital hospital;
+
+    @Column(name = "hospital_id", insertable = false, updatable = false, length = 64)
     private String hospitalId;
 
     @Column(name = "consent_type", nullable = false, length = 32)
@@ -48,19 +68,22 @@ public class Consent {
     @Column(name = "revoked_at")
     private LocalDateTime revokedAt;
 
-    public Consent() {
-    }
+    public Consent() {}
 
-    public static Builder builder() {
-        return new Builder();
-    }
+    public static Builder builder() { return new Builder(); }
 
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
+    public User getPatient() { return patient; }
+    public void setPatient(User patient) { this.patient = patient; }
     public String getPatientId() { return patientId; }
     public void setPatientId(String patientId) { this.patientId = patientId; }
+    public Doctor getDoctor() { return doctor; }
+    public void setDoctor(Doctor doctor) { this.doctor = doctor; }
     public String getDoctorId() { return doctorId; }
     public void setDoctorId(String doctorId) { this.doctorId = doctorId; }
+    public Hospital getHospital() { return hospital; }
+    public void setHospital(Hospital hospital) { this.hospital = hospital; }
     public String getHospitalId() { return hospitalId; }
     public void setHospitalId(String hospitalId) { this.hospitalId = hospitalId; }
     public String getConsentType() { return consentType; }
@@ -81,8 +104,11 @@ public class Consent {
     public static class Builder {
         private final Consent c = new Consent();
         public Builder id(String id) { c.id = id; return this; }
+        public Builder patient(User patient) { c.patient = patient; c.patientId = patient.getId(); return this; }
         public Builder patientId(String patientId) { c.patientId = patientId; return this; }
+        public Builder doctor(Doctor doctor) { c.doctor = doctor; c.doctorId = doctor.getId(); return this; }
         public Builder doctorId(String doctorId) { c.doctorId = doctorId; return this; }
+        public Builder hospital(Hospital hospital) { c.hospital = hospital; c.hospitalId = hospital.getId(); return this; }
         public Builder hospitalId(String hospitalId) { c.hospitalId = hospitalId; return this; }
         public Builder consentType(String consentType) { c.consentType = consentType; return this; }
         public Builder status(String status) { c.status = status; return this; }

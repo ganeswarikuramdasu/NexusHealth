@@ -3,30 +3,51 @@ package com.nexushealth.entity;
 import jakarta.persistence.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
-
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
 @Entity
-@Table(name = "medical_records")
+@Table(name = "medical_records", indexes = {
+    @Index(name = "idx_medrec_patient_id", columnList = "patient_id"),
+    @Index(name = "idx_medrec_health_id", columnList = "patient_health_id"),
+    @Index(name = "idx_medrec_doctor_id", columnList = "doctor_id"),
+    @Index(name = "idx_medrec_hospital_id", columnList = "hospital_id"),
+    @Index(name = "idx_medrec_type", columnList = "record_type"),
+    @Index(name = "idx_medrec_date", columnList = "record_date")
+})
 public class MedicalRecord {
 
     @Id
     @Column(length = 64)
     private String id;
 
-    @Column(name = "patient_id", length = 64)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "patient_id", referencedColumnName = "id",
+                foreignKey = @ForeignKey(name = "fk_medrec_patient"))
+    private User patient;
+
+    @Column(name = "patient_id", insertable = false, updatable = false, length = 64)
     private String patientId;
 
     @Column(name = "patient_health_id", nullable = false)
     private String patientHealthId;
 
-    @Column(name = "doctor_id", length = 64)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "doctor_id", referencedColumnName = "id",
+                foreignKey = @ForeignKey(name = "fk_medrec_doctor"))
+    private Doctor doctor;
+
+    @Column(name = "doctor_id", insertable = false, updatable = false, length = 64)
     private String doctorId;
 
-    @Column(name = "hospital_id", length = 64)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "hospital_id", referencedColumnName = "id",
+                foreignKey = @ForeignKey(name = "fk_medrec_hospital"))
+    private Hospital hospital;
+
+    @Column(name = "hospital_id", insertable = false, updatable = false, length = 64)
     private String hospitalId;
 
     @Column(name = "record_type", nullable = false, length = 64)
@@ -57,21 +78,24 @@ public class MedicalRecord {
     @Column(name = "extra", columnDefinition = "JSON")
     private Map<String, Object> extra = new LinkedHashMap<>();
 
-    public MedicalRecord() {
-    }
+    public MedicalRecord() {}
 
-    public static Builder builder() {
-        return new Builder();
-    }
+    public static Builder builder() { return new Builder(); }
 
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
+    public User getPatient() { return patient; }
+    public void setPatient(User patient) { this.patient = patient; }
     public String getPatientId() { return patientId; }
     public void setPatientId(String patientId) { this.patientId = patientId; }
     public String getPatientHealthId() { return patientHealthId; }
     public void setPatientHealthId(String patientHealthId) { this.patientHealthId = patientHealthId; }
+    public Doctor getDoctor() { return doctor; }
+    public void setDoctor(Doctor doctor) { this.doctor = doctor; }
     public String getDoctorId() { return doctorId; }
     public void setDoctorId(String doctorId) { this.doctorId = doctorId; }
+    public Hospital getHospital() { return hospital; }
+    public void setHospital(Hospital hospital) { this.hospital = hospital; }
     public String getHospitalId() { return hospitalId; }
     public void setHospitalId(String hospitalId) { this.hospitalId = hospitalId; }
     public String getRecordType() { return recordType; }
@@ -96,9 +120,12 @@ public class MedicalRecord {
     public static class Builder {
         private final MedicalRecord r = new MedicalRecord();
         public Builder id(String id) { r.id = id; return this; }
+        public Builder patient(User patient) { r.patient = patient; r.patientId = patient.getId(); return this; }
         public Builder patientId(String patientId) { r.patientId = patientId; return this; }
         public Builder patientHealthId(String patientHealthId) { r.patientHealthId = patientHealthId; return this; }
+        public Builder doctor(Doctor doctor) { r.doctor = doctor; r.doctorId = doctor.getId(); return this; }
         public Builder doctorId(String doctorId) { r.doctorId = doctorId; return this; }
+        public Builder hospital(Hospital hospital) { r.hospital = hospital; r.hospitalId = hospital.getId(); return this; }
         public Builder hospitalId(String hospitalId) { r.hospitalId = hospitalId; return this; }
         public Builder recordType(String recordType) { r.recordType = recordType; return this; }
         public Builder title(String title) { r.title = title; return this; }

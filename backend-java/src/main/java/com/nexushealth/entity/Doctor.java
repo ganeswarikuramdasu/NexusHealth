@@ -3,30 +3,41 @@ package com.nexushealth.entity;
 import jakarta.persistence.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
-/**
- * Same JSON-column pattern as {@link Hospital} - see that class's javadoc.
- * `extra` holds weeklySchedule, dateOverrides, leaves, emergencyAbsence,
- * notificationPreferences, securitySettings, workingDays, and every other
- * field that isn't needed for a SQL join/filter elsewhere.
- */
 @Entity
-@Table(name = "doctors")
+@Table(name = "doctors", indexes = {
+    @Index(name = "idx_doctor_user_id", columnList = "user_id"),
+    @Index(name = "idx_doctor_hospital_id", columnList = "hospital_id"),
+    @Index(name = "idx_doctor_status", columnList = "status"),
+    @Index(name = "idx_doctor_specialization", columnList = "specialization"),
+    @Index(name = "idx_doctor_license", columnList = "medical_license_number")
+})
 public class Doctor {
 
     @Id
     @Column(length = 64)
     private String id;
 
-    @Column(name = "user_id", length = 64)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", referencedColumnName = "id",
+                foreignKey = @ForeignKey(name = "fk_doctor_user"))
+    private User user;
+
+    @Column(name = "user_id", insertable = false, updatable = false, length = 64)
     private String userId;
 
-    @Column(name = "hospital_id", length = 64)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "hospital_id", referencedColumnName = "id",
+                foreignKey = @ForeignKey(name = "fk_doctor_hospital"))
+    private Hospital hospital;
+
+    @Column(name = "hospital_id", insertable = false, updatable = false, length = 64)
     private String hospitalId;
 
     @Column(name = "hospital_name")
@@ -58,17 +69,33 @@ public class Doctor {
     @Column(name = "extra", columnDefinition = "JSON")
     private Map<String, Object> extra = new LinkedHashMap<>();
 
-    public Doctor() {
-    }
+    @OneToMany(mappedBy = "doctor", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<DoctorSchedule> schedules = new ArrayList<>();
 
-    public static Builder builder() {
-        return new Builder();
-    }
+    @OneToMany(mappedBy = "doctor", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<DoctorLeave> leaves = new ArrayList<>();
+
+    @OneToMany(mappedBy = "doctor", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<DateOverride> dateOverrides = new ArrayList<>();
+
+    @OneToMany(mappedBy = "doctor", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Feedback> feedbacks = new ArrayList<>();
+
+    @OneToMany(mappedBy = "doctor", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<DietPlan> dietPlans = new ArrayList<>();
+
+    public Doctor() {}
+
+    public static Builder builder() { return new Builder(); }
 
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
+    public User getUser() { return user; }
+    public void setUser(User user) { this.user = user; }
     public String getUserId() { return userId; }
     public void setUserId(String userId) { this.userId = userId; }
+    public Hospital getHospital() { return hospital; }
+    public void setHospital(Hospital hospital) { this.hospital = hospital; }
     public String getHospitalId() { return hospitalId; }
     public void setHospitalId(String hospitalId) { this.hospitalId = hospitalId; }
     public String getHospitalName() { return hospitalName; }
@@ -91,11 +118,23 @@ public class Doctor {
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public Map<String, Object> getExtra() { return extra; }
     public void setExtra(Map<String, Object> extra) { this.extra = extra != null ? extra : new LinkedHashMap<>(); }
+    public List<DoctorSchedule> getSchedules() { return schedules; }
+    public void setSchedules(List<DoctorSchedule> schedules) { this.schedules = schedules; }
+    public List<DoctorLeave> getLeaves() { return leaves; }
+    public void setLeaves(List<DoctorLeave> leaves) { this.leaves = leaves; }
+    public List<DateOverride> getDateOverrides() { return dateOverrides; }
+    public void setDateOverrides(List<DateOverride> dateOverrides) { this.dateOverrides = dateOverrides; }
+    public List<Feedback> getFeedbacks() { return feedbacks; }
+    public void setFeedbacks(List<Feedback> feedbacks) { this.feedbacks = feedbacks; }
+    public List<DietPlan> getDietPlans() { return dietPlans; }
+    public void setDietPlans(List<DietPlan> dietPlans) { this.dietPlans = dietPlans; }
 
     public static class Builder {
         private final Doctor d = new Doctor();
         public Builder id(String id) { d.id = id; return this; }
+        public Builder user(User user) { d.user = user; d.userId = user.getId(); return this; }
         public Builder userId(String userId) { d.userId = userId; return this; }
+        public Builder hospital(Hospital hospital) { d.hospital = hospital; d.hospitalId = hospital.getId(); return this; }
         public Builder hospitalId(String hospitalId) { d.hospitalId = hospitalId; return this; }
         public Builder hospitalName(String hospitalName) { d.hospitalName = hospitalName; return this; }
         public Builder name(String name) { d.name = name; return this; }
