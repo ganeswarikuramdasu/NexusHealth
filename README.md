@@ -101,8 +101,6 @@ mvn spring-boot:run
 
 Starts on **http://localhost:8080** · Health check: `http://localhost:8080/api/health`
 
-> On first run, the **`DemoDataSeeder`** automatically creates a demo hospital, demo patients, and access cards — so the app is instantly usable. Doctors are not seeded; the hospital admin creates them through the portal.
-
 ### 3. Frontend (React + Vite)
 
 ```bash
@@ -116,25 +114,6 @@ Opens on **http://localhost:5173**. Vite proxies `/api/*` to the backend on `:80
 
 ### 🔑 Environment Variables
 Copy `.env.example` → `.env` and fill in values. The backend defaults to common dev values, so it runs out-of-the-box on a local MySQL with `root`.
-
----
-
-## 👤 Demo Accounts
-
-The seeder builds these accounts (also shown as one-click buttons on the login page):
-
-| Role | Email | Password |
-|------|-------|----------|
-| **Patient** | `patient.demo@nexusdemo.in` | `Patient@2026` |
-| **Patient** | `meera.demo@nexusdemo.in` | `Meera@2026` |
-| **Hospital Admin** | `citycare@nexusdemo.in` | `CityCare@2026` |
-| **Super Admin** | `demo.admin@nexusdemo.in` | `DemoAdmin@2026` |
-
-**Sample Patient Health IDs:**
-- `NH-IND-2026-DEMO0001` — Aarav Sharma
-- `NH-IND-2026-DEMO0002` — Meera Nair
-
-Access-card PINs are seeded (`4321` / `1234`) and shown in the patient's card view for demo purposes.
 
 ---
 
@@ -196,8 +175,6 @@ HTTPS is automatic everywhere (Vercel + Render), so there's **no mixed-content p
    MYSQL_PASSWORD       <your-aiven-password>
    SUPER_ADMIN_EMAIL    ganeswarikuramdasu@gmail.com
    SUPER_ADMIN_PASSWORD <your-super-admin-password>
-   DEMO_SUPER_ADMIN_EMAIL   demo.admin@nexusdemo.in
-   DEMO_SUPER_ADMIN_PASSWORD DemoAdmin@2026
    CORS_ORIGINS         https://nexus-health-eight.vercel.app,http://localhost:5173,http://localhost:3000
    APP_URL              https://<your-service>.onrender.com
    MYSQL_SSL_MODE       REQUIRED               # Aiven requires TLS

@@ -48,9 +48,6 @@ nexushealth:
   super-admin:
     email: ${SUPER_ADMIN_EMAIL:ganeswarikuramdasu@gmail.com}
     password: ${SUPER_ADMIN_PASSWORD:Admin@Nexus2026!}
-  demo-super-admin:
-    email: ${DEMO_SUPER_ADMIN_EMAIL:demo.admin@nexusdemo.in}
-    password: ${DEMO_SUPER_ADMIN_PASSWORD:DemoAdmin@2026}
   cors:
     allowed-origins: ${CORS_ORIGINS:http://localhost:5173,http://localhost:3000}
   gemini:

@@ -3,7 +3,6 @@ package com.nexushealth.service;
 import com.nexushealth.common.ApiException;
 import com.nexushealth.common.ApiResponse;
 import com.nexushealth.common.PasswordValidator;
-import com.nexushealth.config.DemoSuperAdminCredentials;
 import com.nexushealth.config.SuperAdminCredentials;
 import com.nexushealth.dto.auth.AuthRequests.*;
 import com.nexushealth.entity.AccessCard;
@@ -36,7 +35,6 @@ public class AuthService {
     private final EmailService emailService;
     private final PasswordEncoder passwordEncoder;
     private final SuperAdminCredentials superAdminCredentials;
-    private final DemoSuperAdminCredentials demoSuperAdminCredentials;
 
     public AuthService(UserRepository userRepository,
                         PatientProfileRepository patientProfileRepository,
@@ -44,8 +42,7 @@ public class AuthService {
                         AuditLogService auditLogService,
                         EmailService emailService,
                         PasswordEncoder passwordEncoder,
-                        SuperAdminCredentials superAdminCredentials,
-                        DemoSuperAdminCredentials demoSuperAdminCredentials) {
+                        SuperAdminCredentials superAdminCredentials) {
         this.userRepository = userRepository;
         this.patientProfileRepository = patientProfileRepository;
         this.accessCardRepository = accessCardRepository;
@@ -53,7 +50,6 @@ public class AuthService {
         this.emailService = emailService;
         this.passwordEncoder = passwordEncoder;
         this.superAdminCredentials = superAdminCredentials;
-        this.demoSuperAdminCredentials = demoSuperAdminCredentials;
     }
 
     // In-memory OTP store - matches the Node implementation, which also
@@ -158,9 +154,7 @@ public class AuthService {
         if ("SUPER_ADMIN".equals(req.getRole())) {
             boolean isRealSuperAdmin = cleanEmail.equals(superAdminCredentials.getEmail().toLowerCase())
                     && req.getPassword().equals(superAdminCredentials.getPassword());
-            boolean isDemoSuperAdmin = cleanEmail.equals(demoSuperAdminCredentials.getEmail().toLowerCase())
-                    && req.getPassword().equals(demoSuperAdminCredentials.getPassword());
-            if (!isRealSuperAdmin && !isDemoSuperAdmin) {
+            if (!isRealSuperAdmin) {
                 auditLogService.log(req.getEmail(), "ANONYMOUS", "UNAUTHORIZED_SUPER_ADMIN_ATTEMPT", "N/A",
                         "Failed Super Admin login attempt with unauthorized credentials.");
                 throw new ApiException(HttpStatus.UNAUTHORIZED,
@@ -170,17 +164,13 @@ public class AuthService {
             auditLogService.log("Super Administrator", "SUPER_ADMIN", "USER_LOGIN_SUCCESS", null,
                     "Successfully authenticated Super Administrator (" + cleanEmail + ")");
 
-            String adminEmail = isRealSuperAdmin
-                    ? superAdminCredentials.getEmail()
-                    : demoSuperAdminCredentials.getEmail();
-
             ApiResponse superAdminResponse = ApiResponse.ok();
             superAdminResponse.put("token", "jwt_token_super_admin_" + System.currentTimeMillis());
             superAdminResponse.put("refreshToken", "ref_token_super_admin");
             Map<String, Object> superAdminUser = new LinkedHashMap<>();
             superAdminUser.put("id", "super_admin");
-            superAdminUser.put("name", isRealSuperAdmin ? "Super Administrator" : "Demo Super Administrator");
-            superAdminUser.put("email", adminEmail);
+            superAdminUser.put("name", "Super Administrator");
+            superAdminUser.put("email", superAdminCredentials.getEmail());
             superAdminUser.put("role", "SUPER_ADMIN");
             superAdminUser.put("isVerified", true);
             superAdminResponse.put("user", superAdminUser);
