@@ -127,7 +127,6 @@ public class DietPlan {
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 
-    @Embeddable
     public static class Meals {
         private String breakfast;
         private String lunch;

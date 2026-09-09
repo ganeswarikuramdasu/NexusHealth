@@ -102,7 +102,6 @@ public class DoctorSchedule {
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 
-    @Embeddable
     public static class TimeSlotEntry {
         private String id;
         private String slotName;
@@ -123,7 +122,6 @@ public class DoctorSchedule {
         public void setTokensPerSlot(Integer tokensPerSlot) { this.tokensPerSlot = tokensPerSlot; }
     }
 
-    @Embeddable
     public static class BreakEntry {
         private String id;
         private String breakName;
