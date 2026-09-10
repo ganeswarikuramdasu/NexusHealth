@@ -40,6 +40,7 @@ export const AccessCardView: React.FC<AccessCardViewProps> = ({
   const [showPrintModal, setShowPrintModal] = useState<boolean>(false);
   const [pinInput, setPinInput] = useState<string>("");
   const [printQr, setPrintQr] = useState<string>("");
+  const [downloaded, setDownloaded] = useState<boolean>(false);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -126,6 +127,7 @@ export const AccessCardView: React.FC<AccessCardViewProps> = ({
         document.getElementById("nh-print-card-sheet")?.remove();
       }, 500);
     }, 250);
+    setDownloaded(true);
   };
 
   // Handle Issue Card
@@ -244,8 +246,8 @@ export const AccessCardView: React.FC<AccessCardViewProps> = ({
               onClick={() => setShowPrintModal(true)}
               className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-xl transition flex items-center space-x-1.5 border border-slate-300"
             >
-              <Printer className="w-4 h-4 text-[#17C964]" />
-              <span>Print / Download Card</span>
+              {downloaded ? <CheckCircle2 className="w-4 h-4 text-[#17C964]" /> : <Printer className="w-4 h-4 text-[#17C964]" />}
+              <span>{downloaded ? "Card Downloaded ✓" : "Print / Download Card"}</span>
             </button>
             {!isBlocked(card.status) && card.status === "ACTIVE" && (
               <button
@@ -376,6 +378,17 @@ export const AccessCardView: React.FC<AccessCardViewProps> = ({
                       <div>
                         <p className="text-[9px] text-slate-300 font-mono">BLOOD GROUP</p>
                         <p className="font-bold text-[#F2603C]">{patientProfile?.bloodGroup || "B+"}</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-1 text-[11px]">
+                      <div className="min-w-0">
+                        <p className="text-[9px] text-slate-300 font-mono">PHONE</p>
+                        <p className="text-slate-100 truncate">{patientProfile?.phone || "—"}</p>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[9px] text-slate-300 font-mono">EMAIL</p>
+                        <p className="text-slate-100 truncate">{patientProfile?.email || "—"}</p>
                       </div>
                     </div>
 
@@ -589,6 +602,8 @@ export const AccessCardView: React.FC<AccessCardViewProps> = ({
                   <p className="text-base font-extrabold text-slate-900">{card.patientName}</p>
                   <p className="text-xs font-mono font-bold text-[#17C964]">ID: {card.patientHealthId}</p>
                   <p className="text-[10px] text-slate-600">Blood Group: <strong>{patientProfile?.bloodGroup || "B+"}</strong></p>
+                  <p className="text-[10px] text-slate-600">Phone: <strong>{patientProfile?.phone || "—"}</strong></p>
+                  <p className="text-[10px] text-slate-600 break-all">Email: <strong>{patientProfile?.email || "—"}</strong></p>
                 </div>
 
                 <div className="p-1 bg-white rounded border border-slate-300">
@@ -613,9 +628,16 @@ export const AccessCardView: React.FC<AccessCardViewProps> = ({
               onClick={handlePrintCard}
               className="w-full py-3 bg-[#17C964] hover:bg-[#0EA653] text-white font-bold rounded-2xl transition text-xs flex items-center justify-center space-x-2 shadow-lg"
             >
-              <Printer className="w-4 h-4" />
-              <span>Print Card / Save as PDF</span>
+              {downloaded ? <CheckCircle2 className="w-4 h-4" /> : <Printer className="w-4 h-4" />}
+              <span>{downloaded ? "Card Downloaded ✓" : "Print Card / Save as PDF"}</span>
             </button>
+
+            {downloaded && (
+              <div className="p-3 rounded-2xl border text-xs font-bold flex items-center space-x-2 bg-[#E9FBF1] text-[#17C964] border-[#17C964]/40">
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+                <span>Downloaded — card saved as PDF / sent to printer.</span>
+              </div>
+            )}
           </div>
 
           {/* PRINT-ONLY NODE */}
@@ -646,7 +668,8 @@ export const AccessCardView: React.FC<AccessCardViewProps> = ({
                   <p style={{ fontSize: "14px", fontWeight: 800, color: "#ffffff", lineHeight: 1.15, margin: 0 }}>{card.patientName}</p>
                   <p style={{ fontSize: "10px", fontFamily: "monospace", fontWeight: 700, color: "#3CE584", margin: "1.5mm 0 0", letterSpacing: "0.3px" }}>ID: {card.patientHealthId}</p>
                   <p style={{ fontSize: "8px", color: "#D1D5DB", margin: "1.5mm 0 0" }}>Blood Group: <strong style={{ color: "#ffffff" }}>{patientProfile?.bloodGroup || "B+"}</strong></p>
-                  <p style={{ fontSize: "8px", color: "#9CA3AF", margin: "0.8mm 0 0" }}>Emergency: {patientProfile?.emergencyContactPhone || "+91 98765 43210"}</p>
+                  <p style={{ fontSize: "7px", color: "#9CA3AF", margin: "0.8mm 0 0" }}>Ph: {patientProfile?.phone || "—"} • Email: {patientProfile?.email || "—"}</p>
+                  <p style={{ fontSize: "7px", color: "#9CA3AF", margin: "0.8mm 0 0" }}>Emergency: {patientProfile?.emergencyContactPhone || "+91 98765 43210"}</p>
                 </div>
               </div>
 

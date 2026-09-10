@@ -66,8 +66,16 @@ export const GlobalHealthCardModal: React.FC<GlobalHealthCardModalProps> = ({
               <span className="font-medium text-white">{profile.dob} ({profile.gender})</span>
             </div>
             <div>
+              <span className="text-slate-500 text-[10px] block">Phone</span>
+              <span className="font-medium text-white">{profile.phone || "—"}</span>
+            </div>
+            <div>
+              <span className="text-slate-500 text-[10px] block">Email</span>
+              <span className="font-medium text-white break-all">{profile.email || "—"}</span>
+            </div>
+            <div>
               <span className="text-slate-500 text-[10px] block">Emergency Contact</span>
-              <span className="font-medium text-white">{profile.emergencyContactPhone}</span>
+              <span className="font-medium text-white">{profile.emergencyContactPhone || "—"}</span>
             </div>
           </div>
         </div>

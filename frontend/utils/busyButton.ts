@@ -41,6 +41,7 @@ function markBusy(el: HTMLElement) {
   if (isNativeControl(el) && el.disabled) return;
   if (el.getAttribute("aria-disabled") === "true") return;
 
+  el.setAttribute("data-nh-pressed", "1");
   if (isNativeControl(el)) el.disabled = true;
   busyEls.set(el, { startedAt: Date.now(), baseline: inflight, upgraded: false });
   ensureSweeper();
@@ -48,6 +49,7 @@ function markBusy(el: HTMLElement) {
 
 function release(el: HTMLElement) {
   busyEls.delete(el);
+  el.removeAttribute("data-nh-pressed");
   el.removeAttribute("data-nh-busy");
   if (isNativeControl(el)) el.disabled = false;
 }
