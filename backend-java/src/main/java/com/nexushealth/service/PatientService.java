@@ -421,6 +421,9 @@ public class PatientService {
         out.put("imagingCategory", extra.get("imagingCategory"));
         out.put("fileName", extra.get("fileName"));
         out.put("fileSize", extra.get("fileSize"));
+        out.put("aiSummary", extra.get("aiSummary"));
+        out.put("flaggedValues", extra.get("flaggedValues") != null ? extra.get("flaggedValues") : List.of());
+        out.put("attachmentDataUrl", extra.get("attachmentDataUrl"));
         out.put("attachmentUrl", r.getFileUrl() != null ? r.getFileUrl()
                 : (extra.get("attachmentUrl") != null ? extra.get("attachmentUrl") : ""));
         out.put("doctorNotes", r.getClinicalNotes() != null ? r.getClinicalNotes()

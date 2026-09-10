@@ -272,6 +272,276 @@ public class AIService {
                 .with("source", source);
     }
 
+    @SuppressWarnings("unchecked")
+    public ApiResponse validateAndExtractLabReport(ValidateExtractLabRequest req) {
+        String fileName = req.getAttachmentName() != null ? req.getAttachmentName() : "lab_report";
+        String dataUrl = req.getAttachmentDataUrl();
+        String reportText = req.getReportText() != null ? req.getReportText().trim() : "";
+        if ((dataUrl == null || dataUrl.isBlank()) && reportText.isEmpty()) {
+            return ApiResponse.fail("Upload a lab report / scan image or paste the report text for AI analysis.");
+        }
+
+        String validationReason = null;
+        boolean valid = false;
+        Map<String, Object> extracted = null;
+        String summary = null;
+        List<Map<String, Object>> flaggedValues = new ArrayList<>();
+        String source = "SIMULATED";
+
+        if (geminiEnabled()) {
+            String visionResult = null;
+            if (dataUrl != null && !dataUrl.isBlank()) {
+                String mime = "image/png";
+                String base64 = dataUrl;
+                int comma = dataUrl.indexOf(',');
+                if (comma >= 0) {
+                    String meta = dataUrl.substring(0, comma);
+                    if (meta.contains("data:")) {
+                        String mt = meta.substring(meta.indexOf("data:") + 5);
+                        int semi = mt.indexOf(';');
+                        if (semi >= 0) mt = mt.substring(0, semi);
+                        if (!mt.isBlank()) mime = mt;
+                    }
+                    base64 = dataUrl.substring(comma + 1);
+                }
+                visionResult = callGeminiVisionValidation(mime, base64);
+                if (visionResult != null) {
+                    JsonNode validationNode = parseValidationResponse(visionResult);
+                    if (validationNode != null) {
+                        valid = validationNode.path("valid").asBoolean(false);
+                        validationReason = validationNode.path("reason").asText(null);
+                    }
+                }
+            }
+
+            if (!valid && !reportText.isEmpty() && visionResult == null) {
+                String textValidation = callGeminiTextValidation(reportText);
+                if (textValidation != null) {
+                    JsonNode validationNode = parseValidationResponse(textValidation);
+                    if (validationNode != null) {
+                        valid = validationNode.path("valid").asBoolean(false);
+                        validationReason = validationNode.path("reason").asText(null);
+                    }
+                }
+            }
+
+            if (valid) {
+                if (dataUrl != null && !dataUrl.isBlank()) {
+                    String mime = "image/png";
+                    String base64 = dataUrl;
+                    int comma = dataUrl.indexOf(',');
+                    if (comma >= 0) {
+                        String meta = dataUrl.substring(0, comma);
+                        if (meta.contains("data:")) {
+                            String mt = meta.substring(meta.indexOf("data:") + 5);
+                            int semi = mt.indexOf(';');
+                            if (semi >= 0) mt = mt.substring(0, semi);
+                            if (!mt.isBlank()) mime = mt;
+                        }
+                        base64 = dataUrl.substring(comma + 1);
+                    }
+                    String vision = callGeminiVision(mime, base64);
+                    if (vision != null) {
+                        extracted = parseExtractedLabReport(vision);
+                        source = "GEMINI";
+                    }
+                }
+                if (extracted == null && !reportText.isEmpty()) {
+                    String textAi = callGeminiTextExtraction(reportText);
+                    if (textAi != null) {
+                        extracted = parseExtractedLabReport(textAi);
+                        source = "GEMINI";
+                    }
+                }
+
+                if (extracted != null) {
+                    summary = callGeminiSummary(extracted);
+                    flaggedValues = extractFlaggedValues(extracted);
+                    if (summary == null) {
+                        summary = buildFallbackSummary(extracted);
+                    }
+                }
+            }
+        } else {
+            String hint = reportText.isEmpty() ? fileName : reportText;
+            valid = basicFileValidation(fileName, hint);
+            if (!valid) {
+                validationReason = "Cannot validate the document without AI. Only image files (JPG, PNG) and PDFs are accepted as lab reports.";
+            } else {
+                validationReason = "Validated by file type (AI unavailable).";
+                extracted = simulateLabExtraction(hint);
+                summary = buildFallbackSummary(extracted);
+                flaggedValues = extractFlaggedValues(extracted);
+            }
+        }
+
+        if (!valid) {
+            return ApiResponse.fail("This does not appear to be a valid health lab report or diagnostic scan. " +
+                    firstNonBlank(validationReason, "Please upload a genuine medical report or scan image."));
+        }
+
+        if (extracted == null) {
+            extracted = simulateLabExtraction(fileName);
+            if (summary == null) summary = buildFallbackSummary(extracted);
+            if (flaggedValues.isEmpty()) flaggedValues = extractFlaggedValues(extracted);
+        }
+
+        return ApiResponse.ok()
+                .with("valid", true)
+                .with("report", extracted)
+                .with("summary", summary)
+                .with("flaggedValues", flaggedValues)
+                .with("source", source);
+    }
+
+    private String callGeminiVisionValidation(String mimeType, String base64Image) {
+        if (!geminiEnabled() || base64Image == null || base64Image.isBlank()) return null;
+
+        Map<String, Object> body = new LinkedHashMap<>();
+        Map<String, Object> sys = new LinkedHashMap<>();
+        sys.put("parts", List.of(Map.of("text",
+                "You are a medical document validation AI. Analyze the uploaded image and determine if it is a genuine "
+                        + "health lab report, diagnostic scan, or medical document. "
+                        + "Return a SINGLE compact JSON object: {\"valid\": true/false, \"reason\": \"<1 sentence explaining why>\"}. "
+                        + "Set valid=true ONLY if the image clearly contains medical test results, lab values, diagnostic imaging "
+                        + "(X-ray, MRI, CT, ultrasound), pathology reports, or clinical measurements. "
+                        + "Set valid=false for: selfies, screenshots of social media, random photos, food images, "
+                        + "handwritten notes that are not medical reports, non-medical documents, or unreadable images. "
+                        + "Return ONLY valid JSON, no markdown, no commentary.")));
+        body.put("systemInstruction", sys);
+
+        List<Map<String, Object>> parts = new ArrayList<>();
+        parts.add(Map.of("text", "Validate if this image is a genuine medical lab report or diagnostic scan."));
+        Map<String, Object> inline = new LinkedHashMap<>();
+        inline.put("mime_type", mimeType);
+        inline.put("data", base64Image);
+        parts.add(Map.of("inline_data", inline));
+        body.put("contents", List.of(Map.of("role", "user", "parts", parts)));
+        body.put("generationConfig", Map.of(
+                "temperature", 0.1,
+                "maxOutputTokens", 300,
+                "topP", 0.9
+        ));
+
+        return postGemini(body);
+    }
+
+    private String callGeminiTextValidation(String reportText) {
+        if (!geminiEnabled() || reportText == null || reportText.isBlank()) return null;
+        String snippets = reportText.length() > 3000 ? reportText.substring(0, 3000) : reportText;
+        return callGemini(
+                "You are a medical document validation AI. Analyze the following text and determine if it is a genuine "
+                        + "health lab report, diagnostic scan result, or medical document. "
+                        + "Return a SINGLE compact JSON object: {\"valid\": true/false, \"reason\": \"<1 sentence explaining why>\"}. "
+                        + "Set valid=true ONLY if the text contains medical test results, lab values, diagnostic findings, "
+                        + "or clinical measurements. Set valid=false for unrelated text. "
+                        + "Return ONLY valid JSON, no markdown, no commentary.",
+                "Validate this text:\n" + snippets
+        );
+    }
+
+    private JsonNode parseValidationResponse(String text) {
+        if (text == null || text.isBlank()) return null;
+        String json = text.trim();
+        if (json.startsWith("```")) {
+            int first = json.indexOf('\n');
+            int last = json.lastIndexOf("```");
+            json = (first >= 0 && last > first) ? json.substring(first + 1, last).trim() : json.replace("`", "").trim();
+        }
+        int open = json.indexOf('{');
+        int close = json.lastIndexOf('}');
+        if (open >= 0 && close > open) json = json.substring(open, close + 1);
+        try {
+            return objectMapper.readTree(json);
+        } catch (Exception e) {
+            log.warn("[Gemini] failed to parse validation response: {}", truncate(text));
+            return null;
+        }
+    }
+
+    private boolean basicFileValidation(String fileName, String hint) {
+        String name = (fileName != null ? fileName : "").toLowerCase();
+        String content = (hint != null ? hint : "").toLowerCase();
+        String[] validExtensions = {".pdf", ".jpg", ".jpeg", ".png", ".dcm", ".dicom", ".tiff", ".bmp"};
+        for (String ext : validExtensions) {
+            if (name.endsWith(ext)) return true;
+        }
+        String[] medicalKeywords = {"lab", "report", "blood", "test", "scan", "x-ray", "mri", "ct",
+                "ultrasound", "cbc", "thyroid", "liver", "kidney", "glucose", "hemoglobin",
+                "cholesterol", "bilirubin", "platelet", "wbc", "rbc", "pathology", "diagnostic",
+                "specimen", "result", "reference range", "normal", "abnormal", "high", "low"};
+        for (String kw : medicalKeywords) {
+            if (content.contains(kw)) return true;
+        }
+        return false;
+    }
+
+    @SuppressWarnings("unchecked")
+    private String callGeminiSummary(Map<String, Object> extractedReport) {
+        if (!geminiEnabled() || extractedReport == null) return null;
+        String reportJson;
+        try {
+            reportJson = objectMapper.writeValueAsString(extractedReport);
+        } catch (Exception e) {
+            return null;
+        }
+        return callGemini(
+                "You are NexusHealth's clinical AI. Write a clear, patient-friendly 2-4 sentence summary of the following "
+                        + "lab report or diagnostic scan. Highlight any abnormal or flagged values in bold. "
+                        + "If all values are normal, say so. End with a disclaimer to consult a physician.",
+                "Lab report data:\n" + reportJson
+        );
+    }
+
+    private List<Map<String, Object>> extractFlaggedValues(Map<String, Object> extractedReport) {
+        List<Map<String, Object>> flagged = new ArrayList<>();
+        if (extractedReport == null) return flagged;
+        Object paramsObj = extractedReport.get("parameters");
+        if (!(paramsObj instanceof List<?> params)) return flagged;
+        for (Object pObj : params) {
+            if (!(pObj instanceof Map<?, ?> raw)) continue;
+            Map<String, Object> p = new LinkedHashMap<>();
+            for (Object ek : raw.keySet()) {
+                p.put(String.valueOf(ek), raw.get(ek));
+            }
+            String status = String.valueOf(p.getOrDefault("status", "NORMAL")).toUpperCase();
+            if (!"NORMAL".equals(status)) {
+                Map<String, Object> flag = new LinkedHashMap<>();
+                flag.put("name", p.get("name"));
+                flag.put("value", p.get("value"));
+                flag.put("unit", p.get("unit"));
+                flag.put("referenceRange", p.get("referenceRange"));
+                flag.put("status", status);
+                flagged.add(flag);
+            }
+        }
+        return flagged;
+    }
+
+    private String buildFallbackSummary(Map<String, Object> extractedReport) {
+        if (extractedReport == null) return "Lab report uploaded. Review with your physician.";
+        StringBuilder sb = new StringBuilder();
+        String title = String.valueOf(extractedReport.getOrDefault("title", "Lab report"));
+        String diagnosis = String.valueOf(extractedReport.getOrDefault("diagnosis", ""));
+        sb.append(title).append(" has been uploaded and validated.");
+        if (!diagnosis.isEmpty() && !"null".equals(diagnosis)) {
+            sb.append(" Findings: ").append(diagnosis);
+        }
+        List<Map<String, Object>> flagged = extractFlaggedValues(extractedReport);
+        if (!flagged.isEmpty()) {
+            sb.append(" **Flagged values:** ");
+            for (int i = 0; i < flagged.size(); i++) {
+                Map<String, Object> f = flagged.get(i);
+                if (i > 0) sb.append(", ");
+                sb.append(f.get("name")).append(" (").append(f.get("status")).append(")");
+            }
+            sb.append(". Please consult your physician for interpretation.");
+        } else {
+            sb.append(" All measured parameters appear within reference ranges.");
+        }
+        return sb.toString();
+    }
+
     public ApiResponse generateDietPlan(GenerateDietPlanRequest req) {
         Map<String, Object> dietPlan = new LinkedHashMap<>();
         dietPlan.put("title", "Personalized Anti-Inflammatory Nutrition Plan");

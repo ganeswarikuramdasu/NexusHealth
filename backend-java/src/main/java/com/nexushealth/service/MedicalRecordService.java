@@ -313,6 +313,11 @@ public class MedicalRecordService {
         extra.put("doctorNotes", req.getDoctorNotes() != null ? req.getDoctorNotes() : "Lab report uploaded and verified.");
         extra.put("doctorSignature", "DIGITAL_SIG_" + licenseOrMci + "_" + ts());
         extra.put("symptoms", List.of("Diagnostic Screening"));
+        extra.put("aiSummary", req.getAiSummary() != null ? req.getAiSummary() : "");
+        extra.put("flaggedValues", req.getFlaggedValues() != null ? req.getFlaggedValues() : new ArrayList<>());
+        if (req.getAttachmentDataUrl() != null && !req.getAttachmentDataUrl().isBlank()) {
+            extra.put("attachmentDataUrl", req.getAttachmentDataUrl());
+        }
 
         String recId = "rec_lab_" + ts();
 
@@ -363,6 +368,9 @@ public class MedicalRecordService {
         nodeShape.put("imagingCategory", extra.get("imagingCategory"));
         nodeShape.put("doctorNotes", record.getClinicalNotes());
         nodeShape.put("doctorSignature", extra.get("doctorSignature"));
+        nodeShape.put("aiSummary", extra.get("aiSummary"));
+        nodeShape.put("flaggedValues", extra.get("flaggedValues"));
+        nodeShape.put("attachmentDataUrl", extra.get("attachmentDataUrl"));
         nodeShape.put("createdAt", record.getCreatedAt() != null ? record.getCreatedAt().toString() : null);
 
         return ApiResponse.ok().with("record", nodeShape);

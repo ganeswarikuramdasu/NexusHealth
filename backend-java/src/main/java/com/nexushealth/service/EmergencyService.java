@@ -1217,6 +1217,11 @@ public class EmergencyService {
         out.put("attachmentUrl", r.getFileUrl() != null ? r.getFileUrl() : "");
         out.put("doctorNotes", r.getClinicalNotes());
         out.put("doctorSignature", "");
+        if (r.getExtra() != null) {
+            out.put("aiSummary", r.getExtra().get("aiSummary"));
+            out.put("flaggedValues", r.getExtra().get("flaggedValues") != null ? r.getExtra().get("flaggedValues") : List.of());
+            out.put("attachmentDataUrl", r.getExtra().get("attachmentDataUrl"));
+        }
         return out;
     }
 

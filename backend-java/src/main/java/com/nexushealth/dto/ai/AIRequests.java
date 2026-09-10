@@ -122,4 +122,23 @@ public class AIRequests {
         public String getPatientHealthId() { return patientHealthId; }
         public void setPatientHealthId(String patientHealthId) { this.patientHealthId = patientHealthId; }
     }
+
+    public static class ValidateExtractLabRequest {
+        private String attachmentName;
+        private String attachmentDataUrl;
+        private String reportText;
+        private String patientHealthId;
+        private String doctorId;
+
+        public String getAttachmentName() { return attachmentName; }
+        public void setAttachmentName(String attachmentName) { this.attachmentName = attachmentName; }
+        public String getAttachmentDataUrl() { return attachmentDataUrl; }
+        public void setAttachmentDataUrl(String attachmentDataUrl) { this.attachmentDataUrl = attachmentDataUrl; }
+        public String getReportText() { return reportText; }
+        public void setReportText(String reportText) { this.reportText = reportText; }
+        public String getPatientHealthId() { return patientHealthId; }
+        public void setPatientHealthId(String patientHealthId) { this.patientHealthId = patientHealthId; }
+        public String getDoctorId() { return doctorId; }
+        public void setDoctorId(String doctorId) { this.doctorId = doctorId; }
+    }
 }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   PatientProfile,
   DoctorProfile,
@@ -38,6 +38,7 @@ import {
   X,
   AlertCircle,
   TrendingUp,
+  RefreshCw,
 } from "lucide-react";
 
 interface CompletePatientClinicalRecordProps {
@@ -192,8 +193,79 @@ export const CompletePatientClinicalRecord: React.FC<CompletePatientClinicalReco
   const [labResultSummary, setLabResultSummary] = useState("");
   const [labReferenceRange, setLabReferenceRange] = useState("Standard Adult Reference");
   const [labDoctorNotes, setLabDoctorNotes] = useState("");
-  const [labFileName, setLabFileName] = useState("Complete_Blood_Count_Report.pdf");
+  const [labFileName, setLabFileName] = useState("");
   const [isUploadingLab, setIsUploadingLab] = useState(false);
+  const [labAttachment, setLabAttachment] = useState<{ name: string; size: number; dataUrl: string } | null>(null);
+  const [aiAnalyzing, setAiAnalyzing] = useState(false);
+  const [aiResult, setAiResult] = useState<{
+    valid: boolean;
+    reason?: string;
+    report?: any;
+    summary?: string;
+    flaggedValues?: any[];
+    source?: string;
+  } | null>(null);
+  const labFileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const applyAiLabReport = (rep: any) => {
+    if (rep.title) setLabTestName(rep.title);
+    if (rep.labName) setLabName(rep.labName);
+    if (rep.date) setLabDate(rep.date);
+    if (rep.diagnosis) setLabResultSummary(rep.diagnosis);
+    if ((rep.recordType || "") === "IMAGING_SCAN") setLabCategory("Radiology & Imaging");
+  };
+
+  const handleLabFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 15 * 1024 * 1024) {
+      alert("File exceeds 15MB limit.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = String(reader.result || "");
+      setLabAttachment({ name: file.name, size: file.size, dataUrl });
+      setLabFileName(file.name);
+      setAiResult(null);
+      runAiLabAnalysis(file.name, dataUrl);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const runAiLabAnalysis = async (fileName: string, dataUrl: string, reportText?: string) => {
+    setAiAnalyzing(true);
+    try {
+      const res = await fetch("/api/ai/validate-extract-lab", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          attachmentName: fileName,
+          attachmentDataUrl: dataUrl,
+          reportText: reportText || "",
+          patientHealthId: patient?.globalHealthId || "",
+          doctorId: doctor.id || doctor.userId,
+        }),
+      });
+      const data = await parseResponseSafe<any>(res, { success: false });
+      if (!res.ok || !data || !data.success) {
+        setAiResult({ valid: false, reason: data?.message || "This does not appear to be a valid health lab report or diagnostic scan." });
+        return;
+      }
+      setAiResult({
+        valid: true,
+        report: data.report || {},
+        summary: data.summary || "",
+        flaggedValues: data.flaggedValues || [],
+        source: data.source || "SIMULATED",
+      });
+      applyAiLabReport(data.report || {});
+    } catch (err) {
+      setAiResult({ valid: false, reason: "Could not reach the AI service. Please try again in a moment." });
+    } finally {
+      setAiAnalyzing(false);
+    }
+  };
 
   // Handler: Upload Lab Report
   const handleSaveLabReport = async (e: React.FormEvent) => {
@@ -211,6 +283,7 @@ export const CompletePatientClinicalRecord: React.FC<CompletePatientClinicalReco
         body: JSON.stringify({
           doctorId: doctor.id || doctor.userId,
           patientHealthId: patient.globalHealthId,
+          recordType: aiResult?.report?.recordType || "LAB_REPORT",
           testName: labTestName,
           testCategory: labCategory,
           testDate: labDate,
@@ -218,9 +291,19 @@ export const CompletePatientClinicalRecord: React.FC<CompletePatientClinicalReco
           diagnosis: labResultSummary || "Diagnostic Examination",
           referenceRange: labReferenceRange,
           doctorNotes: labDoctorNotes,
-          fileName: labFileName,
-          fileSize: "1.4 MB",
-          attachmentUrl: `secure://nexus-vault/${patient.globalHealthId}/${labFileName}`,
+          aiSummary: aiResult?.summary || "",
+          flaggedValues: aiResult?.flaggedValues || [],
+          fileName: labFileName || labTestName.replace(/\s+/g, "_") + ".pdf",
+          fileSize: labAttachment ? `${(labAttachment.size / 1024).toFixed(1)} KB` : "1.4 MB",
+          attachmentUrl: labAttachment ? `secure://nexus-vault/${patient.globalHealthId}/${labFileName}` : `secure://nexus-vault/${patient.globalHealthId}/${labTestName.replace(/\s+/g, "_")}.pdf`,
+          attachmentDataUrl: labAttachment?.dataUrl || null,
+          labResults: (aiResult?.report?.parameters || []).map((p: any) => ({
+            parameter: p.name,
+            value: p.value,
+            unit: p.unit,
+            referenceRange: p.referenceRange,
+            status: p.status,
+          })),
           accessSessionId: accessSession?.id,
         }),
       });
@@ -232,6 +315,12 @@ export const CompletePatientClinicalRecord: React.FC<CompletePatientClinicalReco
         setLabTestName("");
         setLabResultSummary("");
         setLabDoctorNotes("");
+        setLabFileName("");
+        setLabAttachment(null);
+        setAiResult(null);
+        setLabDate(new Date().toISOString().split("T")[0]);
+        setLabName("Central Diagnostic Labs");
+        setLabCategory("Pathology / Hematology");
         if (onRefreshRecords) onRefreshRecords();
         alert(`Lab report '${labTestName}' uploaded & stored securely against ${patient.name}!`);
       } else {
@@ -1066,6 +1155,33 @@ export const CompletePatientClinicalRecord: React.FC<CompletePatientClinicalReco
                   </div>
 
                   <div className="space-y-2">
+                    {lab.aiSummary && (
+                      <div className="p-2.5 bg-[#EDF1F5] rounded-2xl border border-slate-200">
+                        <strong className="text-[#17C964] font-mono block text-[11px]">NexusHealth AI Summary:</strong>
+                        <span className="text-slate-800">{lab.aiSummary}</span>
+                      </div>
+                    )}
+                    {(lab.flaggedValues && lab.flaggedValues.length > 0) && (
+                      <div className="p-2.5 bg-[#FDECE8] rounded-2xl border border-[#F2603C]/40 space-y-2">
+                        <strong className="text-[#E23A2E] font-mono block text-[11px]">Flagged Values:</strong>
+                        {lab.flaggedValues.map((f: any, idx: number) => (
+                          <div key={idx} className="flex items-center justify-between bg-[#FFFFFF]/70 border border-[#F2603C]/20 rounded-lg px-3 py-1.5">
+                            <span className="text-slate-800 font-bold truncate pr-2">{f.name}:</span>
+                            <span className="font-mono shrink-0">
+                              {f.value} {f.unit}
+                              {f.referenceRange ? <span className="text-slate-400"> (Ref: {f.referenceRange})</span> : ""}
+                              <span className={`ml-1.5 px-1.5 py-0.5 rounded text-[10px] font-bold border ${
+                                f.status === "HIGH"
+                                  ? "bg-[#F2603C]/10 text-[#E23A2E] border-[#F2603C]/30"
+                                  : "bg-[#F59E0B]/10 text-[#B45309] border-[#F59E0B]/30"
+                              }`}>
+                                {f.status}
+                              </span>
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                     {lab.diagnosis && (
                       <div className="p-2.5 bg-[#EDF1F5] rounded-2xl border border-slate-200">
                         <strong className="text-[#17C964] font-mono block text-[11px]">Result / Clinical Summary:</strong>
@@ -1959,133 +2075,246 @@ export const CompletePatientClinicalRecord: React.FC<CompletePatientClinicalReco
               <button onClick={() => setShowUploadLabModal(false)} className="text-slate-500 hover:text-slate-900">✕</button>
             </div>
 
-            <form onSubmit={handleSaveLabReport} className="space-y-3">
-              <div>
-                <label className="text-slate-500 block mb-1">Test Name / Panel Title *</label>
+            {/* STEP 1: File upload (AI validates first) */}
+            {!aiResult && !aiAnalyzing && (
+              <div className="space-y-2">
+                <p className="text-slate-500">
+                  Select a lab report / diagnostic scan. NexusHealth AI validates the document before saving.
+                </p>
                 <input
-                  type="text"
-                  value={labTestName}
-                  onChange={(e) => setLabTestName(e.target.value)}
-                  placeholder="e.g. Complete Blood Count (CBC) or Lipid Panel"
-                  className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-bold focus:border-[#17C964] focus:outline-none"
-                  required
+                  type="file"
+                  ref={labFileInputRef}
+                  accept="application/pdf,image/png,image/jpeg,image/jpg"
+                  onChange={handleLabFileChange}
+                  className="hidden"
                 />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-slate-500 block mb-1">Test Category</label>
-                  <select
-                    value={labCategory}
-                    onChange={(e) => setLabCategory(e.target.value)}
-                    className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900 focus:border-[#17C964] focus:outline-none"
-                  >
-                    <option value="Pathology / Hematology">🔬 Pathology / Hematology</option>
-                    <option value="Biochemistry">🔬 Biochemistry</option>
-                    <option value="Radiology & Imaging">🔬 Radiology & Imaging</option>
-                    <option value="Cardiology Diagnostics">🔬 Cardiology (ECG/ECHO)</option>
-                    <option value="Microbiology / Serology">🔬 Microbiology</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-slate-500 block mb-1">Test Date</label>
-                  <input
-                    type="date"
-                    value={labDate}
-                    onChange={(e) => setLabDate(e.target.value)}
-                    className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-mono focus:border-[#17C964] focus:outline-none"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-slate-500 block mb-1">Diagnostic Laboratory Name</label>
-                  <input
-                    type="text"
-                    value={labName}
-                    onChange={(e) => setLabName(e.target.value)}
-                    placeholder="e.g. Central Diagnostic Labs"
-                    className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900 focus:border-[#17C964] focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-slate-500 block mb-1">Reference Range</label>
-                  <input
-                    type="text"
-                    value={labReferenceRange}
-                    onChange={(e) => setLabReferenceRange(e.target.value)}
-                    placeholder="e.g. Standard Adult Reference"
-                    className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900 focus:border-[#17C964] focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-slate-500 block mb-1">Result Summary & Observations</label>
-                <textarea
-                  value={labResultSummary}
-                  onChange={(e) => setLabResultSummary(e.target.value)}
-                  placeholder="Summary of lab values (e.g. Hemoglobin 14.2 g/dL - Normal, Platelets 250,000/uL)..."
-                  className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900 h-16 focus:border-[#17C964] focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="text-slate-500 block mb-1">Doctor Remarks & Clinical Impression</label>
-                <textarea
-                  value={labDoctorNotes}
-                  onChange={(e) => setLabDoctorNotes(e.target.value)}
-                  placeholder="Doctor commentary on findings, recommended follow-up..."
-                  className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900 h-16 focus:border-[#17C964] focus:outline-none"
-                />
-              </div>
-
-              {/* Document File Attachment */}
-              <div className="p-3 bg-[#EDF1F5] border border-dashed border-[#17C964]/40 rounded-2xl space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <FileText className="w-5 h-5 text-[#17C964]" />
-                    <div>
-                      <span className="font-bold text-slate-900 block">Lab Document File</span>
-                      <span className="text-[10px] text-slate-500 font-mono">{labFileName} (PDF/JPEG)</span>
-                    </div>
-                  </div>
-                  <label className="px-3 py-1.5 bg-[#E9FBF1] border border-[#17C964]/40 hover:bg-[#D5E6F0] text-[#17C964] font-bold rounded-xl text-[11px] cursor-pointer">
-                    Browse File
-                    <input
-                      type="file"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) setLabFileName(file.name);
-                      }}
-                    />
-                  </label>
-                </div>
-              </div>
-
-              <div className="flex justify-end space-x-2 pt-2">
                 <button
                   type="button"
-                  onClick={() => setShowUploadLabModal(false)}
-                  className="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl font-medium"
+                  onClick={() => labFileInputRef.current?.click()}
+                  className="w-full border-2 border-dashed border-slate-300 hover:border-[#17C964]/60 p-8 rounded-2xl text-center space-y-2 bg-[#EDF1F5] cursor-pointer"
                 >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isUploadingLab}
-                  className="px-5 py-2 bg-[#17C964] hover:bg-[#0EA653] text-white font-bold rounded-xl flex items-center space-x-1.5 shadow-lg shadow-[#17C964]/30"
-                >
-                  <Upload className="w-4 h-4" />
-                  <span>{isUploadingLab ? "Encrypting & Storing..." : "Upload & Save Lab Report"}</span>
+                  <Upload className="w-8 h-8 text-[#17C964] mx-auto" />
+                  <p className="text-sm text-slate-700 font-bold">Click to select a scan image or PDF file</p>
+                  <p className="text-[11px] text-slate-500">Supports PDF, PNG, JPG up to 15MB</p>
                 </button>
               </div>
-            </form>
+            )}
+
+            {/* AI ANALYZING */}
+            {aiAnalyzing && (
+              <div className="bg-[#EDF1F5] border border-slate-200 rounded-2xl p-6 flex flex-col items-center space-y-3">
+                <RefreshCw className="w-8 h-8 text-[#17C964] animate-spin" />
+                <p className="text-sm font-bold text-slate-800">NexusHealth AI is validating the document...</p>
+                <p className="text-[11px] text-slate-500 text-center">
+                  Checking this is a genuine lab report / scan, extracting results and generating a summary.
+                </p>
+              </div>
+            )}
+
+            {/* INVALID DOCUMENT */}
+            {!aiAnalyzing && aiResult && !aiResult.valid && (
+              <div className="bg-[#FDECE8] border border-[#F2603C]/40 rounded-2xl p-5 space-y-3">
+                <div className="flex items-center space-x-2 text-[#E23A2E]">
+                  <XCircle className="w-6 h-6" />
+                  <h4 className="font-bold text-sm">Upload Rejected</h4>
+                </div>
+                <p className="text-xs text-slate-700">
+                  This does not appear to be a valid health lab report or diagnostic scan.
+                </p>
+                {aiResult.reason && (
+                  <p className="text-xs text-[#E23A2E] font-semibold bg-[#FFFFFF]/60 rounded-lg px-3 py-2 border border-[#F2603C]/20">
+                    {aiResult.reason}
+                  </p>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAiResult(null);
+                    setLabAttachment(null);
+                    setLabFileName("");
+                    if (labFileInputRef.current) labFileInputRef.current.value = "";
+                  }}
+                  className="w-full py-2.5 bg-[#E23A2E] hover:bg-[#C9302A] text-white font-bold rounded-xl transition text-xs"
+                >
+                  Try Another Document
+                </button>
+              </div>
+            )}
+
+            {/* VALID DOCUMENT -> show auto-filled form */}
+            {!aiAnalyzing && aiResult && aiResult.valid && (
+              <>
+                <div className="bg-[#E9FBF1] border border-[#17C964]/40 rounded-2xl p-3 flex items-center space-x-2">
+                  <CheckCircle2 className="w-5 h-5 text-[#17C964] shrink-0" />
+                  <p className="text-[11px] font-bold text-[#0F6B3D]">
+                    Valid document detected{aiResult.source === "GEMINI" ? " by NexusHealth AI" : ""} — fields auto-filled. Review & save.
+                  </p>
+                </div>
+
+                <form onSubmit={handleSaveLabReport} className="space-y-3">
+                  <div>
+                    <label className="text-slate-500 block mb-1">Test Name / Panel Title *</label>
+                    <input
+                      type="text"
+                      value={labTestName}
+                      onChange={(e) => setLabTestName(e.target.value)}
+                      placeholder="e.g. Complete Blood Count (CBC) or Lipid Panel"
+                      className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-bold focus:border-[#17C964] focus:outline-none"
+                      required
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-slate-500 block mb-1">Test Category</label>
+                      <select
+                        value={labCategory}
+                        onChange={(e) => setLabCategory(e.target.value)}
+                        className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900 focus:border-[#17C964] focus:outline-none"
+                      >
+                        <option value="Pathology / Hematology">🔬 Pathology / Hematology</option>
+                        <option value="Biochemistry">🔬 Biochemistry</option>
+                        <option value="Radiology & Imaging">🔬 Radiology & Imaging</option>
+                        <option value="Cardiology Diagnostics">🔬 Cardiology (ECG/ECHO)</option>
+                        <option value="Microbiology / Serology">🔬 Microbiology</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-slate-500 block mb-1">Test Date</label>
+                      <input
+                        type="date"
+                        value={labDate}
+                        onChange={(e) => setLabDate(e.target.value)}
+                        className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-mono focus:border-[#17C964] focus:outline-none"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-slate-500 block mb-1">Diagnostic Laboratory Name</label>
+                      <input
+                        type="text"
+                        value={labName}
+                        onChange={(e) => setLabName(e.target.value)}
+                        placeholder="e.g. Central Diagnostic Labs"
+                        className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900 focus:border-[#17C964] focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-slate-500 block mb-1">Reference Range</label>
+                      <input
+                        type="text"
+                        value={labReferenceRange}
+                        onChange={(e) => setLabReferenceRange(e.target.value)}
+                        placeholder="e.g. Standard Adult Reference"
+                        className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900 focus:border-[#17C964] focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* AI Summary */}
+                  {aiResult.summary && (
+                    <div className="bg-[#EDF1F5] border border-slate-200 rounded-xl p-3">
+                      <p className="text-[10px] font-bold text-[#17C964] uppercase tracking-wide mb-1">AI Generated Summary</p>
+                      <p className="text-slate-700 leading-relaxed">{aiResult.summary}</p>
+                    </div>
+                  )}
+
+                  {/* Flagged values */}
+                  {aiResult.flaggedValues && aiResult.flaggedValues.length > 0 && (
+                    <div className="bg-[#FDECE8] border border-[#F2603C]/40 rounded-xl p-3 space-y-1.5">
+                      <p className="text-[10px] font-bold text-[#E23A2E] uppercase tracking-wide">Flagged Values</p>
+                      {aiResult.flaggedValues.map((f: any, idx: number) => (
+                        <div key={idx} className="flex items-center justify-between text-[11px]">
+                          <span className="text-slate-700 font-bold truncate pr-2">{f.name}</span>
+                          <span className="font-mono shrink-0 text-[#E23A2E]">
+                            {f.value} {f.unit} ({f.status})
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="text-slate-500 block mb-1">Result Summary & Observations</label>
+                    <textarea
+                      value={labResultSummary}
+                      onChange={(e) => setLabResultSummary(e.target.value)}
+                      placeholder="Summary of lab values..."
+                      className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900 h-16 focus:border-[#17C964] focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-slate-500 block mb-1">Doctor Remarks & Clinical Impression</label>
+                    <textarea
+                      value={labDoctorNotes}
+                      onChange={(e) => setLabDoctorNotes(e.target.value)}
+                      placeholder="Doctor commentary on findings, recommended follow-up..."
+                      className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900 h-16 focus:border-[#17C964] focus:outline-none"
+                    />
+                  </div>
+
+                  {/* Document File Attachment */}
+                  <div className="p-3 bg-[#EDF1F5] border border-dashed border-[#17C964]/40 rounded-2xl space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2 min-w-0">
+                        <FileText className="w-5 h-5 text-[#17C964] shrink-0" />
+                        <div className="min-w-0">
+                          <span className="font-bold text-slate-900 block truncate">{labFileName || "No file selected"}</span>
+                          <span className="text-[10px] text-slate-500 font-mono">PDF / PNG / JPG</span>
+                        </div>
+                      </div>
+                      <label className="px-3 py-1.5 bg-[#E9FBF1] border border-[#17C964]/40 hover:bg-[#D5E6F0] text-[#17C964] font-bold rounded-xl text-[11px] cursor-pointer shrink-0">
+                        Browse File
+                        <input
+                          type="file"
+                          className="hidden"
+                          accept="application/pdf,image/png,image/jpeg"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              setLabFileName(file.name);
+                              const reader = new FileReader();
+                              reader.onload = () => {
+                                const dataUrl = String(reader.result || "");
+                                setLabAttachment({ name: file.name, size: file.size, dataUrl });
+                                setLabFileName(file.name);
+                                setAiResult(null);
+                                runAiLabAnalysis(file.name, dataUrl);
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                        />
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end space-x-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowUploadLabModal(false)}
+                      className="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl font-medium"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isUploadingLab}
+                      className="px-5 py-2 bg-[#17C964] hover:bg-[#0EA653] text-white font-bold rounded-xl flex items-center space-x-1.5 shadow-lg shadow-[#17C964]/30"
+                    >
+                      <Upload className="w-4 h-4" />
+                      <span>{isUploadingLab ? "Encrypting & Storing..." : "Upload & Save Lab Report"}</span>
+                    </button>
+                  </div>
+                </form>
+              </>
+            )}
           </div>
         </div>
       )}

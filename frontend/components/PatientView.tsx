@@ -63,6 +63,7 @@ import {
   Paperclip,
   FileSpreadsheet,
   CreditCard,
+  XCircle,
 } from "lucide-react";
 
 type PatientTabKey = "DASHBOARD" | "EMERGENCY_PROFILE" | "ACCESS_CARD" | "RECORDS" | "LAB_REPORTS" | "AI_ASSISTANT" | "VITALS_ANALYTICS" | "MEDICATIONS" | "CONSENTS" | "APPOINTMENTS" | "AUDIT_LOGS" | "ACCOUNT";
@@ -126,91 +127,30 @@ export const PatientView: React.FC<PatientViewProps> = ({
   // Patient Manual Upload Lab Report State
   const [showManualLabModal, setShowManualLabModal] = useState(false);
   const [patientUploadedReports, setPatientUploadedReports] = useState<any[]>([]);
-  const [uploadTitle, setUploadTitle] = useState("");
-  const [uploadLabName, setUploadLabName] = useState("");
-  const [uploadDate, setUploadDate] = useState(new Date().toISOString().split("T")[0]);
-  const [uploadDoctor, setUploadDoctor] = useState("");
-  const [uploadCategory, setUploadCategory] = useState<"LAB_REPORT" | "IMAGING_SCAN" | "PRESCRIPTION" | "MANUAL_RECORD">("LAB_REPORT");
-  const [uploadDiagnosis, setUploadDiagnosis] = useState("");
-  const [uploadReportText, setUploadReportText] = useState("");
-  const [uploadParamName, setUploadParamName] = useState("");
-  const [uploadParamVal, setUploadParamVal] = useState("");
-  const [uploadParamUnit, setUploadParamUnit] = useState("");
-  const [uploadParamRef, setUploadParamRef] = useState("");
-  const [uploadParamsList, setUploadParamsList] = useState<Array<{ name: string; value: string; unit: string; referenceRange: string; status: string }>>([
-    { name: "Fasting Blood Sugar", value: "92", unit: "mg/dL", referenceRange: "70 - 99", status: "NORMAL" },
-    { name: "HbA1c", value: "5.6", unit: "%", referenceRange: "< 5.7", status: "NORMAL" },
-  ]);
 
   // Lab Report File Attachment State
   const [uploadAttachment, setUploadAttachment] = useState<{ name: string; size: number; dataUrl: string } | null>(null);
   const labFileInputRef = useRef<HTMLInputElement | null>(null);
   const [aiAnalyzing, setAiAnalyzing] = useState(false);
-  const [aiAnalyzeError, setAiAnalyzeError] = useState("");
-  const [aiSource, setAiSource] = useState<string | null>(null);
-  const [aiExtractedEmpty, setAiExtractedEmpty] = useState(false);
+  const [aiResult, setAiResult] = useState<{
+    valid: boolean;
+    reason?: string;
+    report?: any;
+    summary?: string;
+    flaggedValues?: any[];
+    source?: string;
+  } | null>(null);
+  const [saveSuccess, setSaveSuccess] = useState(false);
 
   // In-app attachment viewer (open without downloading)
   const [viewAttachment, setViewAttachment] = useState<{ name: string; dataUrl: string } | null>(null);
 
-  const applyAiReport = (rep: any, source: string) => {
-    if (rep.title) setUploadTitle(rep.title);
-    if (rep.labName) setUploadLabName(rep.labName);
-    if (rep.date) setUploadDate(rep.date);
-    if (rep.recordType && ["LAB_REPORT", "IMAGING_SCAN", "PRESCRIPTION", "MANUAL_RECORD"].includes(rep.recordType)) {
-      setUploadCategory(rep.recordType);
-    }
-    if (rep.diagnosis) setUploadDiagnosis(rep.diagnosis);
-    if (Array.isArray(rep.parameters)) {
-      setUploadParamsList(
-        rep.parameters.map((p: any) => ({
-          name: p.name || "Parameter",
-          value: p.value != null ? String(p.value) : "—",
-          unit: p.unit || "",
-          referenceRange: p.referenceRange || "-",
-          status: p.status || "NORMAL",
-        }))
-      );
-      setAiExtractedEmpty(rep.parameters.length === 0);
-    }
-    setAiSource(source);
-  };
-
-  const runAiLabAnalysis = async (fileName: string, dataUrl: string, reportText?: string) => {
-    setAiAnalyzing(true);
-    setAiAnalyzeError("");
-    setAiSource(null);
-    setAiExtractedEmpty(false);
-    try {
-      const res = await fetch("/api/ai/analyze-lab-attachment", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          attachmentName: fileName,
-          attachmentDataUrl: dataUrl,
-          reportText: reportText || "",
-          patientHealthId: profile.globalHealthId,
-        }),
-      });
-      const data = await parseResponseSafe<any>(res, { success: false });
-      if (!res.ok || !data || !data.success) {
-        setAiAnalyzeError(data?.message || "AI could not read this report. You can fill the details manually.");
-        return;
-      }
-      applyAiReport(data.report || {}, data.source || "SIMULATED");
-    } catch (err) {
-      setAiAnalyzeError("Could not reach the AI service. Please fill the details manually.");
-    } finally {
-      setAiAnalyzing(false);
-    }
-  };
-
-  const handleAiAnalyzeWithoutAttachment = () => {
-    if (!uploadReportText.trim() && !uploadTitle.trim()) {
-      alert("Please paste the report content (or enter a title) first so the AI can auto-fill the details.");
-      return;
-    }
-    runAiLabAnalysis(uploadTitle.trim() || "pasted_report", "", uploadReportText.trim());
+  const resetUploadState = () => {
+    setUploadAttachment(null);
+    setAiResult(null);
+    setAiAnalyzing(false);
+    setSaveSuccess(false);
+    if (labFileInputRef.current) labFileInputRef.current.value = "";
   };
 
   const handleLabFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -224,9 +164,104 @@ export const PatientView: React.FC<PatientViewProps> = ({
     reader.onload = () => {
       const dataUrl = String(reader.result || "");
       setUploadAttachment({ name: file.name, size: file.size, dataUrl });
-      runAiLabAnalysis(file.name, dataUrl);
+      setAiResult(null);
+      setSaveSuccess(false);
+      validateAndUploadLabReport(file.name, dataUrl);
     };
     reader.readAsDataURL(file);
+  };
+
+  const validateAndUploadLabReport = async (fileName: string, dataUrl: string, reportText?: string) => {
+    setAiAnalyzing(true);
+    try {
+      const res = await fetch("/api/ai/validate-extract-lab", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          attachmentName: fileName,
+          attachmentDataUrl: dataUrl,
+          reportText: reportText || "",
+          patientHealthId: profile.globalHealthId || appUser?.globalHealthId || "",
+        }),
+      });
+      const data = await parseResponseSafe<any>(res, { success: false });
+      if (!res.ok || !data || !data.success) {
+        setAiResult({ valid: false, reason: data?.message || "This does not appear to be a valid health lab report or diagnostic scan." });
+        return;
+      }
+      const result = {
+        valid: true,
+        report: data.report || {},
+        summary: data.summary || "",
+        flaggedValues: data.flaggedValues || [],
+        source: data.source || "SIMULATED",
+      };
+      setAiResult(result);
+      // Valid document -> auto-save with AI summary & flagged values
+      const saved = await saveValidatedLabReport(fileName, dataUrl, result);
+      setSaveSuccess(saved);
+      if (saved) {
+        const savedReport = {
+          id: `manual_lab_${Date.now()}`,
+          title: result.report?.title || fileName,
+          recordType: result.report?.recordType || "LAB_REPORT",
+          labName: result.report?.labName || "Patient Uploaded Diagnostics",
+          date: result.report?.date || new Date().toISOString().split("T")[0],
+          diagnosis: result.report?.diagnosis || result.summary || "Patient uploaded validated lab report.",
+          doctorName: "Self / External Physician",
+          patientName,
+          status: "COMPLETED",
+          aiSummary: result.summary || "",
+          flaggedValues: result.flaggedValues || [],
+          parameters: result.report?.parameters || [],
+          attachmentName: fileName,
+          attachmentDataUrl: dataUrl,
+        };
+        setPatientUploadedReports((prev) => [savedReport, ...prev]);
+      }
+    } catch (err) {
+      setAiResult({ valid: false, reason: "Could not reach the AI service. Please try again in a moment." });
+    } finally {
+      setAiAnalyzing(false);
+    }
+  };
+
+  const saveValidatedLabReport = async (fileName: string, dataUrl: string, result: any): Promise<boolean> => {
+    const parameters = result.report?.parameters?.length ? result.report.parameters : [];
+    try {
+      const res = await fetch("/api/patient/add-manual-record", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          patientId: profile.userId || appUser?.id || "",
+          patientHealthId: profile.globalHealthId || appUser?.globalHealthId || "",
+          date: result.report?.date || new Date().toISOString().split("T")[0],
+          recordType: result.report?.recordType || "LAB_REPORT",
+          title: result.report?.title || fileName,
+          diagnosis: result.report?.diagnosis || result.summary || "",
+          doctorName: "Patient Uploaded",
+          hospitalName: result.report?.labName || "Independent Diagnostics / Self Upload",
+          symptoms: `Patient uploaded ${result.report?.recordType === "IMAGING_SCAN" ? "diagnostic scan" : "lab report"}`,
+          doctorNotes: result.summary || "Validated by NexusHealth AI",
+          aiSummary: result.summary || "",
+          flaggedValues: result.flaggedValues || [],
+          labResults: parameters.map((p: any) => ({
+            parameter: p.name,
+            value: p.value,
+            unit: p.unit,
+            referenceRange: p.referenceRange,
+            status: p.status,
+          })),
+          attachmentUrl: `patient_uploaded:${fileName}`,
+          attachmentDataUrl: dataUrl || null,
+        }),
+      });
+      const data = await parseResponseSafe<any>(res, { success: false });
+      return !!(data && data.success);
+    } catch (err) {
+      console.warn("Lab report save failed:", err);
+      return false;
+    }
   };
 
   const approvedHospitals = hospitals.filter((h) => h.status === "APPROVED" || h.status === "ACTIVE" || !h.status);
@@ -1160,6 +1195,40 @@ export const PatientView: React.FC<PatientViewProps> = ({
                       </button>
                     </div>
                   </div>
+
+                  {/* AI Summary */}
+                  {report.aiSummary && (
+                    <div className="bg-[#EDF1F5] border border-slate-200 rounded-2xl p-4 space-y-1.5">
+                      <p className="text-[10px] font-bold text-[#17C964] uppercase tracking-wide">NexusHealth AI Summary</p>
+                      <p className="text-xs text-slate-700 leading-relaxed">{report.aiSummary}</p>
+                    </div>
+                  )}
+
+                  {/* Flagged Values */}
+                  {report.flaggedValues && report.flaggedValues.length > 0 && (
+                    <div className="bg-[#FDECE8] border border-[#F2603C]/40 rounded-2xl p-4 space-y-2">
+                      <p className="text-[10px] font-bold text-[#E23A2E] uppercase tracking-wide">Flagged Values</p>
+                      <div className="space-y-1.5">
+                        {report.flaggedValues.map((f: any, idx: number) => (
+                          <div key={idx} className="flex items-center justify-between bg-[#FFFFFF]/70 border border-[#F2603C]/20 rounded-lg px-3 py-2">
+                            <div className="min-w-0">
+                              <p className="text-xs font-bold text-slate-800 truncate">{f.name}</p>
+                              <p className="text-[10px] text-slate-500">
+                                {f.value} {f.unit}{f.referenceRange ? ` (Ref: ${f.referenceRange})` : ""}
+                              </p>
+                            </div>
+                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold border ${
+                              f.status === "HIGH"
+                                ? "bg-[#F2603C]/10 text-[#E23A2E] border-[#F2603C]/30"
+                                : "bg-[#F59E0B]/10 text-[#B45309] border-[#F59E0B]/30"
+                            }`}>
+                              {f.status}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Parameters Table */}
                   {report.parameters && report.parameters.length > 0 && (
@@ -2508,7 +2577,7 @@ className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2.5 te
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-[#FFFFFF] border border-[#17C964]/30 rounded-3xl w-full max-w-xl p-6 shadow-2xl relative space-y-4 text-slate-900 max-h-[90vh] overflow-y-auto">
             <button
-              onClick={() => setShowManualLabModal(false)}
+              onClick={() => { setShowManualLabModal(false); resetUploadState(); }}
               className="absolute top-4 right-4 text-slate-500 hover:text-slate-900 p-1 rounded-xl bg-[#EDF1F5]"
             >
               ✕
@@ -2519,319 +2588,144 @@ className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2.5 te
                 <FlaskConical className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="font-bold text-slate-900 text-base">Upload Diagnostic Lab Report</h3>
-                <p className="text-xs text-[#17C964] font-mono">Upload a scan — NexusHealth AI reads it and auto-fills the report details</p>
+                <h3 className="font-bold text-slate-900 text-base">Upload Lab Report / Scan</h3>
+                <p className="text-xs text-[#17C964] font-mono">NexusHealth AI validates the document before saving</p>
               </div>
             </div>
 
-            {(aiAnalyzing || aiSource || aiAnalyzeError) && (
-              <div className={`rounded-xl px-3 py-2 text-[11px] font-bold border flex items-center space-x-2 ${
-                aiAnalyzeError
-                  ? "bg-[#FDECE8] border-[#F2603C]/40 text-[#E23A2E]"
-                  : aiAnalyzing
-                    ? "bg-[#EDF1F5] border-slate-200 text-slate-600"
-                    : "bg-[#E9FBF1] border-[#17C964]/40 text-[#17C964]"
-              }`}>
-                {aiAnalyzing ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span>NexusHealth AI is reading the report and detecting the test details...</span>
-                  </>
-                ) : aiAnalyzeError ? (
-                  <span>{aiAnalyzeError}</span>
-                ) : (
-                  <>
-                    <CheckCircle2 className="w-4 h-4" />
-                    <span>AI auto-detected the report details below{aiSource === "GEMINI" ? " (Gemini vision)" : ""}. Review and save.</span>
-                  </>
-                )}
-              </div>
-            )}
-
-            <div className="space-y-3 text-xs">
+            {/* STEP 1: File drop-zone */}
+            {!uploadAttachment && !aiAnalyzing && (
               <div>
-                <label className="block text-slate-700 font-bold mb-1">Report Title / Test Name *</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Thyroid Panel T3 / T4 / TSH"
-                  value={uploadTitle}
-                  onChange={(e) => setUploadTitle(e.target.value)}
-                  className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900 placeholder-slate-500"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-slate-700 font-bold mb-1">What does this report belong to? *</label>
-                  <select
-                    value={uploadCategory}
-                    onChange={(e) => setUploadCategory(e.target.value as any)}
-                    className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900"
-                  >
-                    <option value="LAB_REPORT">Lab Report (Blood / Pathology)</option>
-                    <option value="IMAGING_SCAN">Imaging / Scan (X-ray / MRI / CT)</option>
-                    <option value="PRESCRIPTION">Prescription</option>
-                    <option value="MANUAL_RECORD">Other Medical Record</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-slate-700 font-bold mb-1">Ordering Doctor (Optional)</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Dr. Meera Nair"
-                    value={uploadDoctor}
-                    onChange={(e) => setUploadDoctor(e.target.value)}
-                    className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900 placeholder-slate-500"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-slate-700 font-bold mb-1">Summary / Findings *</label>
-                <textarea
-                  value={uploadDiagnosis}
-                  onChange={(e) => setUploadDiagnosis(e.target.value)}
-                  rows={3}
-                  placeholder="What is the overall result of this report? e.g. TSH raised, consistent with subclinical hypothyroidism..."
-                  className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900 placeholder-slate-500 resize-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-slate-700 font-bold mb-1">Lab / Diagnostic Facility</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Apollo Pathology Labs"
-                    value={uploadLabName}
-                    onChange={(e) => setUploadLabName(e.target.value)}
-                    className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900 placeholder-slate-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-slate-700 font-bold mb-1">Test Date</label>
-                  <input
-                    type="date"
-                    value={uploadDate}
-                    onChange={(e) => setUploadDate(e.target.value)}
-                    className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900"
-                  />
-                </div>
-              </div>
-
-              {/* Parameter Builder */}
-              <div className="bg-[#EDF1F5] p-3.5 rounded-2xl border border-slate-200 space-y-2">
-                <span className="font-bold text-[#17C964] uppercase text-[10px]">Add Test Parameters (Optional)</span>
-                
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  <input
-                    type="text"
-                    placeholder="Parameter (e.g. TSH)"
-                    value={uploadParamName}
-                    onChange={(e) => setUploadParamName(e.target.value)}
-                    className="bg-[#FFFFFF] border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-900 text-[11px]"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Value (e.g. 3.5)"
-                    value={uploadParamVal}
-                    onChange={(e) => setUploadParamVal(e.target.value)}
-                    className="bg-[#FFFFFF] border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-900 text-[11px]"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Unit (e.g. uIU/mL)"
-                    value={uploadParamUnit}
-                    onChange={(e) => setUploadParamUnit(e.target.value)}
-                    className="bg-[#FFFFFF] border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-900 text-[11px]"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Ref (e.g. 0.4 - 4.0)"
-                    value={uploadParamRef}
-                    onChange={(e) => setUploadParamRef(e.target.value)}
-                    className="bg-[#FFFFFF] border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-900 text-[11px]"
-                  />
-                </div>
-
-                <button
-                  onClick={() => {
-                    if (uploadParamName && uploadParamVal) {
-                      setUploadParamsList((prev) => [
-                        ...prev,
-                        {
-                          name: uploadParamName,
-                          value: uploadParamVal,
-                          unit: uploadParamUnit || "",
-                          referenceRange: uploadParamRef || "-",
-                          status: "NORMAL",
-                        },
-                      ]);
-                      setUploadParamName("");
-                      setUploadParamVal("");
-                      setUploadParamUnit("");
-                      setUploadParamRef("");
-                    }
-                  }}
-                  className="px-3 py-1 bg-[#E9FBF1] border border-[#17C964]/40 text-[#17C964] rounded-lg text-[10px] font-bold"
-                >
-                  + Add Parameter
-                </button>
-
-                {uploadParamsList.length > 0 && (
-                  <div className="space-y-1 pt-2 border-t border-slate-200">
-                    {uploadParamsList.map((p, i) => (
-                      <div key={i} className="flex justify-between items-center text-[11px] text-slate-700 font-mono">
-                        <span>{p.name}: <strong>{p.value} {p.unit}</strong> ({p.referenceRange})</span>
-                        <span className="text-[#17C964] font-bold">{p.status}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Paste-report-text Auto-Fill */}
-              <div className="bg-[#EDF1F5] p-3.5 rounded-2xl border border-slate-200 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-[#17C964] uppercase text-[10px]">Don't have an image? Paste the report text</span>
-                </div>
-                <textarea
-                  value={uploadReportText}
-                  onChange={(e) => setUploadReportText(e.target.value)}
-                  rows={3}
-                  placeholder="Paste the lab report / scan findings text here, e.g. 'TSH - 6.8 uIU/mL (Ref 0.4-4.0) ...', and let NexusHealth AI fill in the title, category, summary and parameters."
-                  className="w-full bg-[#FFFFFF] border border-slate-200 rounded-xl px-3 py-2 text-slate-900 placeholder-slate-500 text-[11px] resize-none"
-                />
-                <button
-                  type="button"
-                  onClick={handleAiAnalyzeWithoutAttachment}
-                  disabled={aiAnalyzing}
-                  className="w-full py-2 bg-[#0F172A] hover:bg-[#1E293B] disabled:opacity-60 text-white rounded-xl text-[11px] font-bold flex items-center justify-center space-x-2 transition"
-                >
-                  <Sparkles className="w-4 h-4" />
-                  <span>{aiAnalyzing ? "NexusHealth AI is reading the details..." : "AI Analyze & Auto-Fill Every Blank"}</span>
-                </button>
-              </div>
-
-              {/* Document File Attachment */}
-              <div>
-                <label className="block text-slate-700 font-bold mb-1">Attachment (PDF / PNG / JPG)</label>
+                <label className="block text-slate-700 font-bold mb-1 text-xs">Select a lab report or diagnostic scan document</label>
                 <input
                   type="file"
                   ref={labFileInputRef}
-                  accept="application/pdf,image/png,image/jpeg"
+                  accept="application/pdf,image/png,image/jpeg,image/jpg"
                   onChange={handleLabFileChange}
                   className="hidden"
                 />
-                {uploadAttachment ? (
-                  <div className="border-2 border-[#17C964]/50 p-3 rounded-2xl flex items-center justify-between bg-[#E9FBF1]">
-                    <div className="flex items-center space-x-2 min-w-0">
-                      <Paperclip className="w-4 h-4 text-[#17C964] shrink-0" />
-                      <div className="min-w-0">
-                        <p className="text-xs font-bold text-slate-800 truncate">{uploadAttachment.name}</p>
-                        <p className="text-[10px] text-slate-500">{(uploadAttachment.size / 1024).toFixed(1)} KB • ready to attach</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-2 shrink-0">
-                      {uploadAttachment.dataUrl.startsWith("data:image") && (
-                        <img src={uploadAttachment.dataUrl} alt="attachment" className="w-10 h-10 object-cover rounded-lg border border-slate-200" />
-                      )}
-                      <button
-                        onClick={() => { setUploadAttachment(null); if (labFileInputRef.current) labFileInputRef.current.value = ""; }}
-                        className="px-2.5 py-1 bg-[#FDECE8] border border-[#F2603C]/40 text-[#E23A2E] rounded-lg text-[10px] font-bold"
-                      >
-                        Remove
-                      </button>
+                <button
+                  type="button"
+                  onClick={() => labFileInputRef.current?.click()}
+                  className="w-full border-2 border-dashed border-slate-300 hover:border-[#17C964]/60 p-8 rounded-2xl text-center space-y-2 bg-[#EDF1F5] cursor-pointer"
+                >
+                  <Upload className="w-8 h-8 text-[#17C964] mx-auto" />
+                  <p className="text-sm text-slate-700 font-bold">Click to select a scan image or PDF file</p>
+                  <p className="text-[11px] text-slate-500">Supports PDF, PNG, JPG up to 15MB</p>
+                </button>
+              </div>
+            )}
+
+            {/* AI ANALYZING */}
+            {aiAnalyzing && (
+              <div className="bg-[#EDF1F5] border border-slate-200 rounded-2xl p-6 flex flex-col items-center space-y-3">
+                <RefreshCw className="w-8 h-8 text-[#17C964] animate-spin" />
+                <p className="text-sm font-bold text-slate-800">NexusHealth AI is validating & reading the document...</p>
+                <p className="text-[11px] text-slate-500 text-center">
+                  Checking that this is a genuine lab report / diagnostic scan, extracting results and generating a summary.
+                </p>
+              </div>
+            )}
+
+            {/* INVALID DOCUMENT */}
+            {!aiAnalyzing && aiResult && !aiResult.valid && (
+              <div className="bg-[#FDECE8] border border-[#F2603C]/40 rounded-2xl p-5 space-y-3">
+                <div className="flex items-center space-x-2 text-[#E23A2E]">
+                  <XCircle className="w-6 h-6" />
+                  <h4 className="font-bold text-sm">Upload Rejected</h4>
+                </div>
+                <p className="text-xs text-slate-700">
+                  This does not appear to be a valid health lab report or diagnostic scan.
+                </p>
+                {aiResult.reason && (
+                  <p className="text-xs text-[#E23A2E] font-semibold bg-[#FFFFFF]/60 rounded-lg px-3 py-2 border border-[#F2603C]/20">
+                    {aiResult.reason}
+                  </p>
+                )}
+                <p className="text-[11px] text-slate-500">
+                  Please upload a genuine medical report. If this is an error, try a clearer image of the report.
+                </p>
+                <button
+                  onClick={() => resetUploadState()}
+                  className="w-full py-2.5 bg-[#E23A2E] hover:bg-[#C9302A] text-white font-bold rounded-xl transition text-xs"
+                >
+                  Try Another Document
+                </button>
+              </div>
+            )}
+
+            {/* VALID DOCUMENT (auto-saved) */}
+            {!aiAnalyzing && aiResult && aiResult.valid && saveSuccess && (
+              <div className="space-y-3">
+                <div className="bg-[#E9FBF1] border border-[#17C964]/40 rounded-2xl p-6 flex flex-col items-center space-y-3 text-center">
+                  <CheckCircle2 className="w-12 h-12 text-[#17C964]" />
+                  <h4 className="font-bold text-slate-900 text-base">Report saved successfully</h4>
+                  <p className="text-xs text-slate-600">
+                    Your validated {aiResult.report?.recordType === "IMAGING_SCAN" ? "diagnostic scan" : "lab report"} has been stored and linked to your Health ID.
+                  </p>
+                </div>
+
+                {aiResult.summary && (
+                  <div className="bg-[#EDF1F5] border border-slate-200 rounded-2xl p-4 space-y-1.5">
+                    <p className="text-[10px] font-bold text-[#17C964] uppercase tracking-wide">
+                      AI Summary{aiResult.source === "GEMINI" ? " (NexusHealth AI)" : ""}
+                    </p>
+                    <p className="text-xs text-slate-700 leading-relaxed">{aiResult.summary}</p>
+                  </div>
+                )}
+
+                {aiResult.flaggedValues && aiResult.flaggedValues.length > 0 && (
+                  <div className="bg-[#FDECE8] border border-[#F2603C]/40 rounded-2xl p-4 space-y-2">
+                    <p className="text-[10px] font-bold text-[#E23A2E] uppercase tracking-wide">Flagged Values</p>
+                    <div className="space-y-1.5">
+                      {aiResult.flaggedValues.map((f: any, idx: number) => (
+                        <div key={idx} className="flex items-center justify-between bg-[#FFFFFF]/70 border border-[#F2603C]/20 rounded-lg px-3 py-2">
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-slate-800 truncate">{f.name}</p>
+                            <p className="text-[10px] text-slate-500">
+                              {f.value} {f.unit}{f.referenceRange ? ` (Ref: ${f.referenceRange})` : ""}
+                            </p>
+                          </div>
+                          <span
+                            className={`px-2 py-0.5 rounded-md text-[10px] font-bold border ${
+                              f.status === "HIGH"
+                                ? "bg-[#F2603C]/10 text-[#E23A2E] border-[#F2603C]/30"
+                                : "bg-[#F59E0B]/10 text-[#B45309] border-[#F59E0B]/30"
+                            }`}
+                          >
+                            {f.status}
+                          </span>
+                        </div>
+                      ))}
                     </div>
                   </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => labFileInputRef.current?.click()}
-                    className="w-full border-2 border-dashed border-slate-300 hover:border-[#17C964]/60 p-4 rounded-2xl text-center space-y-1 bg-[#EDF1F5] cursor-pointer"
-                  >
-                    <Upload className="w-5 h-5 text-[#17C964] mx-auto" />
-                    <p className="text-xs text-slate-700 font-bold">Click to select a scan image or PDF file</p>
-                    <p className="text-[10px] text-slate-500">Supports PDF, PNG, JPG up to 15MB</p>
-                  </button>
                 )}
-              </div>
-            </div>
 
-            <button
-              onClick={async () => {
-                const parameters = uploadParamsList.length > 0
-                  ? uploadParamsList
-                  : (aiExtractedEmpty ? [] : [
-                      { name: "Fasting Blood Sugar", value: "92", unit: "mg/dL", referenceRange: "70 - 99", status: "NORMAL" }
-                    ]);
-                const newReport = {
-                  id: `manual_lab_${Date.now()}`,
-                  title: uploadTitle.trim() || "Diagnostic Lab Report",
-                  recordType: uploadCategory,
-                  labName: uploadLabName || "Patient Uploaded Diagnostics",
-                  date: uploadDate,
-                  diagnosis: uploadDiagnosis || `Patient uploaded ${uploadCategory === "IMAGING_SCAN" ? "diagnostic scan" : "lab report"} - review with physician.`,
-                  doctorName: uploadDoctor || "Self / External Physician",
-                  patientName,
-                  status: "COMPLETED",
-                  attachmentName: uploadAttachment ? uploadAttachment.name : null,
-                  attachmentDataUrl: uploadAttachment ? uploadAttachment.dataUrl : null,
-                  parameters,
-                };
-                try {
-                  const res = await fetch("/api/patient/add-manual-record", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      patientId: profile.userId || appUser?.id || "",
-                      patientHealthId: profile.globalHealthId || appUser?.globalHealthId || "",
-                      date: uploadDate,
-                      recordType: uploadCategory,
-                      title: newReport.title,
-                      diagnosis: newReport.diagnosis,
-                      doctorName: uploadDoctor || "Self / External Physician",
-                      hospitalName: uploadLabName || "Independent Diagnostics / Self Upload",
-                      symptoms: uploadReportText.trim() || `Patient uploaded ${uploadCategory === "IMAGING_SCAN" ? "diagnostic scan" : "lab report"}`,
-                      doctorNotes: uploadDiagnosis || "Patient uploaded health record via NexusHealth PHR.",
-                      labResults: parameters.map((p: any) => ({
-                        parameter: p.name,
-                        value: p.value,
-                        unit: p.unit,
-                        referenceRange: p.referenceRange,
-                        status: p.status,
-                      })),
-                      attachmentUrl: uploadAttachment ? `patient_uploaded:${uploadAttachment.name}` : null,
-                    }),
-                  });
-                  const data = await parseResponseSafe<any>(res, { success: false });
-                  if (data && data.success && data.record && data.record.id) {
-                    newReport.id = data.record.id;
-                  }
-                } catch (err) {
-                  console.warn("Lab report saved locally only:", err);
-                }
-                setPatientUploadedReports((prev) => [newReport, ...prev]);
-                setShowManualLabModal(false);
-                setUploadTitle("");
-                setUploadLabName("");
-                setUploadDate(new Date().toISOString().split("T")[0]);
-                setUploadDoctor("");
-                setUploadCategory("LAB_REPORT");
-                setUploadDiagnosis("");
-                setUploadReportText("");
-                setUploadParamsList([]);
-                setUploadAttachment(null);
-                setAiAnalyzeError("");
-                setAiSource(null);
-                setAiExtractedEmpty(false);
-                if (labFileInputRef.current) labFileInputRef.current.value = "";
-                alert("Diagnostic Lab Report saved and linked to your Health ID" + (uploadAttachment ? " with attachment" : "") + "!");
-              }}
-              className="w-full py-3 bg-[#17C964] hover:bg-[#0f172a] text-white font-bold rounded-xl transition text-xs shadow-lg shadow-[#17C964]/30"
-            >
-              Confirm & Save Lab Report
-            </button>
+                {aiResult.report?.parameters && aiResult.report.parameters.length > 0 && (
+                  <div className="bg-[#EDF1F5] border border-slate-200 rounded-2xl p-4 space-y-2">
+                    <p className="text-[10px] font-bold text-[#17C964] uppercase tracking-wide">Extracted Measurements</p>
+                    <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                      {aiResult.report.parameters.map((p: any, idx: number) => (
+                        <div key={idx} className="flex items-center justify-between text-xs">
+                          <span className="text-slate-700 truncate pr-2">{p.name}</span>
+                          <span className="font-mono text-slate-900 font-bold shrink-0">
+                            {p.value} {p.unit}
+                            <span className="text-slate-400 font-normal"> ({p.referenceRange})</span>
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <button
+                  onClick={() => { setShowManualLabModal(false); resetUploadState(); }}
+                  className="w-full py-3 bg-[#17C964] hover:bg-[#0f172a] text-white font-bold rounded-xl transition text-xs"
+                >
+                  Done
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

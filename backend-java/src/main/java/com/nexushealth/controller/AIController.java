@@ -40,6 +40,11 @@ public class AIController {
         return aiService.analyzeLabAttachment(req);
     }
 
+    @PostMapping("/validate-extract-lab")
+    public ApiResponse validateExtractLab(@RequestBody ValidateExtractLabRequest req) {
+        return aiService.validateAndExtractLabReport(req);
+    }
+
     @PostMapping("/generate-diet-plan")
     public ApiResponse generateDietPlan(@RequestBody GenerateDietPlanRequest req) {
         return aiService.generateDietPlan(req);

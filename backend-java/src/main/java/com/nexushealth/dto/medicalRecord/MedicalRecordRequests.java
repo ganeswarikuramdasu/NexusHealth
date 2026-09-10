@@ -54,6 +54,9 @@ public class MedicalRecordRequests {
         private String imagingCategory;
         private String doctorNotes;
         private String accessSessionId;
+        private String aiSummary;
+        private List<Map<String, Object>> flaggedValues;
+        private String attachmentDataUrl;
 
         public String getDoctorId() { return doctorId; }
         public void setDoctorId(String doctorId) { this.doctorId = doctorId; }
@@ -89,6 +92,12 @@ public class MedicalRecordRequests {
         public void setDoctorNotes(String doctorNotes) { this.doctorNotes = doctorNotes; }
         public String getAccessSessionId() { return accessSessionId; }
         public void setAccessSessionId(String accessSessionId) { this.accessSessionId = accessSessionId; }
+        public String getAiSummary() { return aiSummary; }
+        public void setAiSummary(String aiSummary) { this.aiSummary = aiSummary; }
+        public List<Map<String, Object>> getFlaggedValues() { return flaggedValues; }
+        public void setFlaggedValues(List<Map<String, Object>> flaggedValues) { this.flaggedValues = flaggedValues; }
+        public String getAttachmentDataUrl() { return attachmentDataUrl; }
+        public void setAttachmentDataUrl(String attachmentDataUrl) { this.attachmentDataUrl = attachmentDataUrl; }
     }
 
     public static class CreateVitalsRequest {
