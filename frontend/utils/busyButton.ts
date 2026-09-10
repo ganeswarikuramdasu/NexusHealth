@@ -42,7 +42,17 @@ function markBusy(el: HTMLElement) {
   if (el.getAttribute("aria-disabled") === "true") return;
 
   el.setAttribute("data-nh-pressed", "1");
-  if (isNativeControl(el)) el.disabled = true;
+  // Defer the native `disabled` flag to the NEXT task. Disabling a submit
+  // button synchronously during its own click (this capture-phase listener
+  // runs before the default action) makes Chrome skip the <form> submission,
+  // breaking every submit-driven flow (sign in, register, save, book, ...).
+  // A 0ms timeout guarantees the current click's default action completes
+  // first, while still blocking an immediate re-click afterwards.
+  if (isNativeControl(el)) {
+    window.setTimeout(() => {
+      if (busyEls.has(el)) el.disabled = true;
+    }, 0);
+  }
   busyEls.set(el, { startedAt: Date.now(), baseline: inflight, upgraded: false });
   ensureSweeper();
 }
