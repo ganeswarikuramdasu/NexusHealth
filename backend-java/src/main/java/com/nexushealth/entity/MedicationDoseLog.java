@@ -19,19 +19,19 @@ public class MedicationDoseLog {
     private String id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "medication_id", nullable = false, referencedColumnName = "id",
+    @JoinColumn(name = "medication_id", referencedColumnName = "id", insertable = false, updatable = false,
                 foreignKey = @ForeignKey(name = "fk_dose_medication"))
     private PatientMedication medication;
 
-    @Column(name = "medication_id", nullable = false, insertable = false, updatable = false, length = 64)
+    @Column(name = "medication_id", nullable = false, length = 64)
     private String medicationId;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "patient_id", referencedColumnName = "id",
+    @JoinColumn(name = "patient_id", referencedColumnName = "id", insertable = false, updatable = false,
                 foreignKey = @ForeignKey(name = "fk_dose_patient"))
     private User patient;
 
-    @Column(name = "patient_id", insertable = false, updatable = false, length = 64)
+    @Column(name = "patient_id", length = 64)
     private String patientId;
 
     @Column(name = "patient_health_id")

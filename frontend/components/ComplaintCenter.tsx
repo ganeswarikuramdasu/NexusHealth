@@ -100,6 +100,13 @@ export const ComplaintCenter: React.FC<ComplaintCenterProps> = ({
     fetchComplaints();
   }, [fetchComplaints, linkedAccess]);
 
+  useEffect(() => {
+    if (linkedAccess && (linkedAccess.accessLogId || linkedAccess.doctorName)) {
+      setMsg(null);
+      setShowForm(true);
+    }
+  }, [linkedAccess]);
+
   const resetForm = () => {
     setCategory("GENERAL");
     setTitle("");

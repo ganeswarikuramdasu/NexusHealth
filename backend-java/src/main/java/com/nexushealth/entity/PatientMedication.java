@@ -20,38 +20,38 @@ public class PatientMedication {
     private String id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "patient_id", nullable = false, referencedColumnName = "id",
+    @JoinColumn(name = "patient_id", referencedColumnName = "id", insertable = false, updatable = false,
                 foreignKey = @ForeignKey(name = "fk_med_patient"))
     private User patient;
 
-    @Column(name = "patient_id", nullable = false, insertable = false, updatable = false, length = 64)
+    @Column(name = "patient_id", nullable = false, length = 64)
     private String patientId;
 
     @Column(name = "patient_health_id", nullable = false)
     private String patientHealthId;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "prescription_id", referencedColumnName = "id",
+    @JoinColumn(name = "prescription_id", referencedColumnName = "id", insertable = false, updatable = false,
                 foreignKey = @ForeignKey(name = "fk_med_prescription"))
     private MedicalRecord prescription;
 
-    @Column(name = "prescription_id", insertable = false, updatable = false, length = 64)
+    @Column(name = "prescription_id", length = 64)
     private String prescriptionId;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "doctor_id", referencedColumnName = "id",
+    @JoinColumn(name = "doctor_id", referencedColumnName = "id", insertable = false, updatable = false,
                 foreignKey = @ForeignKey(name = "fk_med_doctor"))
     private Doctor doctor;
 
-    @Column(name = "doctor_id", insertable = false, updatable = false, length = 64)
+    @Column(name = "doctor_id", length = 64)
     private String doctorId;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "hospital_id", referencedColumnName = "id",
+    @JoinColumn(name = "hospital_id", referencedColumnName = "id", insertable = false, updatable = false,
                 foreignKey = @ForeignKey(name = "fk_med_hospital"))
     private Hospital hospital;
 
-    @Column(name = "hospital_id", insertable = false, updatable = false, length = 64)
+    @Column(name = "hospital_id", length = 64)
     private String hospitalId;
 
     @Column(name = "medication_name", nullable = false)

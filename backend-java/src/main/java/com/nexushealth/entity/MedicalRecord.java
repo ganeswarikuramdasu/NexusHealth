@@ -24,30 +24,30 @@ public class MedicalRecord {
     private String id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "patient_id", referencedColumnName = "id",
+    @JoinColumn(name = "patient_id", referencedColumnName = "id", insertable = false, updatable = false,
                 foreignKey = @ForeignKey(name = "fk_medrec_patient"))
     private User patient;
 
-    @Column(name = "patient_id", insertable = false, updatable = false, length = 64)
+    @Column(name = "patient_id", length = 64)
     private String patientId;
 
     @Column(name = "patient_health_id", nullable = false)
     private String patientHealthId;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "doctor_id", referencedColumnName = "id",
+    @JoinColumn(name = "doctor_id", referencedColumnName = "id", insertable = false, updatable = false,
                 foreignKey = @ForeignKey(name = "fk_medrec_doctor"))
     private Doctor doctor;
 
-    @Column(name = "doctor_id", insertable = false, updatable = false, length = 64)
+    @Column(name = "doctor_id", length = 64)
     private String doctorId;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "hospital_id", referencedColumnName = "id",
+    @JoinColumn(name = "hospital_id", referencedColumnName = "id", insertable = false, updatable = false,
                 foreignKey = @ForeignKey(name = "fk_medrec_hospital"))
     private Hospital hospital;
 
-    @Column(name = "hospital_id", insertable = false, updatable = false, length = 64)
+    @Column(name = "hospital_id", length = 64)
     private String hospitalId;
 
     @Column(name = "record_type", nullable = false, length = 64)

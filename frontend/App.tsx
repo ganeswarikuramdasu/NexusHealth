@@ -258,6 +258,8 @@ export default function App() {
   // Safe Fallback Profile for Patient Views
   const safePatientProfile: PatientProfile = patientProfile || {
     userId: currentUser?.id || "u_pat_new",
+    name: currentUser?.name || "",
+    email: currentUser?.email || "",
     globalHealthId: currentUser?.globalHealthId || "NH-IND-2026-NEW",
     dob: "2000-01-01",
     gender: "Unspecified",

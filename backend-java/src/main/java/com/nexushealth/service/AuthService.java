@@ -453,9 +453,10 @@ public class AuthService {
         out.put("email", email);
         out.put("dob", u != null && u.getDateOfBirth() != null ? u.getDateOfBirth().toString() : null);
         out.put("gender", u != null ? u.getGender() : null);
-        out.put("emergencyContactName", null);
-        out.put("emergencyContactPhone", null);
-        out.put("emergencyContactRelation", null);
+        String[] emg = PatientResolver.parseEmergencyContact(profile.getEmergencyNotes());
+        out.put("emergencyContactName", emg != null ? emg[0] : null);
+        out.put("emergencyContactPhone", emg != null ? emg[1] : null);
+        out.put("emergencyContactRelation", emg != null ? "Relative" : null);
         out.put("allergies", List.of());
         out.put("chronicConditions", List.of());
         return out;

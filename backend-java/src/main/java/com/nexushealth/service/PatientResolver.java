@@ -69,11 +69,40 @@ public class PatientResolver {
         out.put("bloodGroup", r.profile.getBloodGroup());
         out.put("heightCm", r.profile.getHeightCm());
         out.put("weightKg", r.profile.getWeightKg());
-        out.put("emergencyContactName", null);
-        out.put("emergencyContactPhone", null);
-        out.put("emergencyContactRelation", null);
+        String[] emg = parseEmergencyContact(r.profile.getEmergencyNotes());
+        out.put("emergencyContactName", emg != null ? emg[0] : null);
+        out.put("emergencyContactPhone", emg != null ? emg[1] : null);
+        out.put("emergencyContactRelation", emg != null ? "Relative" : null);
         out.put("allergies", java.util.List.of());
         out.put("chronicConditions", java.util.List.of());
         return out;
+    }
+
+    /** Parses emergency contact info stored as "Emergency contact: NAME PHONE" in emergency_notes. */
+    public static String[] parseEmergencyContact(String notes) {
+        if (notes == null || notes.isBlank()) return null;
+        String s = notes.trim();
+        String lower = s.toLowerCase();
+        if (lower.startsWith("emergency contact:")) {
+            s = s.substring("emergency contact:".length()).trim();
+        } else if (lower.startsWith("emergency contact")) {
+            s = s.substring("emergency contact".length()).trim();
+        }
+        if (s.isEmpty()) return null;
+        String[] tokens = s.split("\\s+");
+        int phoneStart = tokens.length;
+        for (int i = tokens.length - 1; i >= 0; i--) {
+            String t = tokens[i];
+            if (t.contains("+") || t.matches("[0-9]+") || t.matches("[0-9]{2,}-[0-9]+")) {
+                phoneStart = i;
+            } else {
+                break;
+            }
+        }
+        if (phoneStart <= 0 || phoneStart >= tokens.length) return null;
+        String name = String.join(" ", java.util.Arrays.copyOfRange(tokens, 0, phoneStart)).trim();
+        String phone = String.join(" ", java.util.Arrays.copyOfRange(tokens, phoneStart, tokens.length)).trim();
+        if (name.isEmpty() || phone.isEmpty()) return null;
+        return new String[] { name, phone };
     }
 }

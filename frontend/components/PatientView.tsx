@@ -491,7 +491,19 @@ export const PatientView: React.FC<PatientViewProps> = ({
       emergencyContactName: profile.emergencyContactName || p.emergencyContactName,
       emergencyContactPhone: profile.emergencyContactPhone || p.emergencyContactPhone,
     }));
-  }, [profile?.userId]);
+  }, [
+    profile?.userId,
+    profile?.name,
+    profile?.email,
+    profile?.phone,
+    profile?.dob,
+    profile?.gender,
+    profile?.bloodGroup,
+    profile?.heightCm,
+    profile?.weightKg,
+    profile?.emergencyContactName,
+    profile?.emergencyContactPhone,
+  ]);
 
   const handleSaveAccount = async (e: React.FormEvent) => {
     e.preventDefault();
