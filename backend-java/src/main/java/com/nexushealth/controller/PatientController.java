@@ -79,4 +79,13 @@ public class PatientController {
         String pid = patientId != null ? patientId : (patientIdQuery != null ? patientIdQuery : headerPatientId);
         return patientService.accessHistory(pid);
     }
+
+    @GetMapping({"/access-events", "/access-events/{patientId}"})
+    public List<Map<String, Object>> grantedAccess(
+            @PathVariable(required = false) String patientId,
+            @RequestParam(required = false) String patientIdQuery,
+            @RequestHeader(value = "x-patient-id", required = false) String headerPatientId) {
+        String pid = patientId != null ? patientId : (patientIdQuery != null ? patientIdQuery : headerPatientId);
+        return patientService.grantedAccess(pid);
+    }
 }

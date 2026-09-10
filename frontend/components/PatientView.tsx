@@ -16,6 +16,9 @@ import { AccessCardView } from "./AccessCardView";
 import { PatientEmergencyProfileView } from "./PatientEmergencyProfileView";
 import { HierarchicalAuditLogViewer } from "./HierarchicalAuditLogViewer";
 import { AppShell, NavItem } from "./AppShell";
+import { WarningsBanner } from "./WarningsBanner";
+import { ComplaintCenter, LinkedAccessEvent } from "./ComplaintCenter";
+import { GrantedAccessList } from "./GrantedAccessList";
 import { downloadLabReportPDF, downloadMedicalRecordPDF } from "../utils/downloadHelper";
 import { safeFetchJson, parseResponseSafe } from "../utils/api";
 import {
@@ -118,6 +121,7 @@ export const PatientView: React.FC<PatientViewProps> = ({
 
   // Explain Modal state
   const [selectedReportForExplain, setSelectedReportForExplain] = useState<any | null>(null);
+  const [linkedAccessEvent, setLinkedAccessEvent] = useState<LinkedAccessEvent | null>(null);
 
   // Patient Manual Upload Lab Report State
   const [showManualLabModal, setShowManualLabModal] = useState(false);
@@ -707,6 +711,9 @@ export const PatientView: React.FC<PatientViewProps> = ({
         {activeTab === "DASHBOARD" && (
           <div className="space-y-6">
             
+            {/* Announcements / Warnings */}
+            <WarningsBanner role="PATIENT" module="PATIENT" />
+
             {/* Hero Welcome Banner */}
             <div className="bg-gradient-to-r from-[#0f172a] via-[#0f172a] to-[#17C964] border border-[#17C964]/30 rounded-3xl p-6 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative overflow-hidden">
               <div className="space-y-2 z-10">
@@ -1858,6 +1865,32 @@ export const PatientView: React.FC<PatientViewProps> = ({
                 </div>
               </div>
             </div>
+
+            {/* Granted Access List - Who Accessed Me */}
+            <GrantedAccessList
+              patientId={appUser?.id || profile.userId}
+              onRaiseComplaint={(event) => {
+                setLinkedAccessEvent(event);
+              }}
+            />
+
+            {/* Complaint Center */}
+            <ComplaintCenter
+              appUser={{
+                id: appUser?.id || profile.userId,
+                name: appUser?.name || patientName,
+                email: appUser?.email || "patient@nexushealth.org",
+                role: "PATIENT",
+              }}
+              module="PATIENT"
+              patientContext={{
+                patientId: appUser?.id || profile.userId,
+                patientHealthId: appUser?.globalHealthId || profile.globalHealthId,
+                patientName: patientName,
+              }}
+              linkedAccess={linkedAccessEvent}
+              onLinkedAccessCleared={() => setLinkedAccessEvent(null)}
+            />
           </div>
         )}
 

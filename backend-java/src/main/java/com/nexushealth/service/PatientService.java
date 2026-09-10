@@ -6,12 +6,14 @@ import com.nexushealth.dto.patient.PatientRequests.AddDietPlanRequest;
 import com.nexushealth.dto.patient.PatientRequests.AddManualRecordRequest;
 import com.nexushealth.dto.patient.PatientRequests.GrantConsentRequest;
 import com.nexushealth.dto.patient.PatientRequests.SubmitFeedbackRequest;
+import com.nexushealth.entity.CardAccessLog;
 import com.nexushealth.entity.Consent;
 import com.nexushealth.entity.Doctor;
 import com.nexushealth.entity.Hospital;
 import com.nexushealth.entity.MedicalRecord;
 import com.nexushealth.entity.RecordAccessLog;
 import com.nexushealth.entity.User;
+import com.nexushealth.repository.CardAccessLogRepository;
 import com.nexushealth.repository.ConsentRepository;
 import com.nexushealth.repository.DoctorRepository;
 import com.nexushealth.repository.HospitalRepository;
@@ -41,13 +43,15 @@ public class PatientService {
     private final FeedbackStore feedbackStore;
     private final DietPlanStore dietPlanStore;
     private final RecordAccessLogRepository recordAccessLogRepository;
+    private final CardAccessLogRepository cardAccessLogRepository;
     private final UserRepository userRepository;
 
     public PatientService(PatientResolver patientResolver, MedicalRecordRepository medicalRecordRepository,
                            ConsentRepository consentRepository, DoctorRepository doctorRepository,
                            HospitalRepository hospitalRepository, AuditLogService auditLogService,
                            FeedbackStore feedbackStore, DietPlanStore dietPlanStore,
-                           RecordAccessLogRepository recordAccessLogRepository, UserRepository userRepository) {
+                           RecordAccessLogRepository recordAccessLogRepository, CardAccessLogRepository cardAccessLogRepository,
+                           UserRepository userRepository) {
         this.patientResolver = patientResolver;
         this.medicalRecordRepository = medicalRecordRepository;
         this.consentRepository = consentRepository;
@@ -57,6 +61,7 @@ public class PatientService {
         this.feedbackStore = feedbackStore;
         this.dietPlanStore = dietPlanStore;
         this.recordAccessLogRepository = recordAccessLogRepository;
+        this.cardAccessLogRepository = cardAccessLogRepository;
         this.userRepository = userRepository;
     }
 
@@ -329,6 +334,56 @@ public class PatientService {
             m.put("ipAddress", l.getIpAddress());
             out.add(m);
         }
+        return out;
+    }
+
+    // ---- granted access list (union of card + record access logs) ----
+
+    public List<Map<String, Object>> grantedAccess(String patientId) {
+        List<Map<String, Object>> out = new ArrayList<>();
+        var resolved = patientResolver.resolve(patientId).orElse(null);
+        String targetUserId = resolved != null ? resolved.userId : patientId;
+        String targetHealthId = resolved != null ? resolved.globalHealthId : patientId;
+
+        for (CardAccessLog c : cardAccessLogRepository.findForPatient(targetUserId, targetHealthId)) {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("accessLogId", c.getId());
+            m.put("accessMethod", c.getAccessType() != null ? c.getAccessType() : "ACCESS_CARD");
+            m.put("doctorId", c.getActorId());
+            m.put("doctorName", c.getActorName());
+            m.put("patientId", c.getPatientId());
+            m.put("patientHealthId", c.getPatientHealthId());
+            m.put("patientName", c.getPatientName());
+            m.put("hospitalId", c.getHospitalId());
+            m.put("hospitalName", c.getHospitalName());
+            m.put("accessStatus", c.getAuthorizationStatus());
+            m.put("reason", c.getReason());
+            m.put("recordsAccessed", c.getRecordsAccessed() != null ? c.getRecordsAccessed() : List.of());
+            m.put("timestamp", c.getTimestamp() != null ? c.getTimestamp().toString() : null);
+            m.put("source", "CARD_SCAN");
+            out.add(m);
+        }
+
+        for (RecordAccessLog l : recordAccessLogRepository.findForPatient(targetUserId, targetHealthId)) {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("accessLogId", l.getId());
+            m.put("accessMethod", l.getAccessMethod());
+            m.put("doctorId", l.getDoctorId());
+            m.put("doctorName", l.getDoctorName());
+            m.put("patientId", l.getPatientId());
+            m.put("patientHealthId", l.getPatientHealthId());
+            m.put("patientName", l.getPatientName());
+            m.put("hospitalId", l.getHospitalId());
+            m.put("hospitalName", l.getHospitalName());
+            m.put("accessStatus", l.getAccessStatus());
+            m.put("reason", l.getReason());
+            m.put("recordsAccessed", l.getRecordsAccessed() != null ? l.getRecordsAccessed() : List.of());
+            m.put("timestamp", l.getTimestamp() != null ? l.getTimestamp().toString() : null);
+            m.put("source", "RECORD_ACCESS");
+            out.add(m);
+        }
+
+        out.sort((a, b) -> String.valueOf(b.get("timestamp")).compareTo(String.valueOf(a.get("timestamp"))));
         return out;
     }
 

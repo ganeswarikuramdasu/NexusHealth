@@ -589,13 +589,21 @@ public class EmergencyService {
         }
         String userId = String.valueOf(prof.get("userId"));
 
+        Map<String, Object> existing = store.getProfile(userId);
+        List<String> allergies = coerceStringList(req.getAllergies() != null ? req.getAllergies()
+                : (existing != null ? existing.get("allergies") : null));
+        List<String> criticalConditions = coerceStringList(req.getCriticalConditions() != null ? req.getCriticalConditions()
+                : (existing != null ? (existing.get("criticalConditions") != null ? existing.get("criticalConditions") : existing.get("chronicConditions")) : null));
+        List<String> currentMedications = coerceStringList(req.getCurrentMedications() != null ? req.getCurrentMedications()
+                : (existing != null ? existing.get("currentMedications") : null));
+
         Map<String, Object> emgProfile = new LinkedHashMap<>();
         emgProfile.put("userId", userId);
         emgProfile.put("patientHealthId", prof.get("globalHealthId"));
         emgProfile.put("bloodGroup", req.getBloodGroup() != null ? req.getBloodGroup() : prof.get("bloodGroup"));
-        emgProfile.put("allergies", parseStringList(req.getAllergies(), prof.get("allergies")));
-        emgProfile.put("criticalConditions", parseStringList(req.getCriticalConditions(), prof.get("chronicConditions")));
-        emgProfile.put("currentMedications", parseStringList(req.getCurrentMedications(), List.of()));
+        emgProfile.put("allergies", allergies);
+        emgProfile.put("criticalConditions", criticalConditions);
+        emgProfile.put("currentMedications", currentMedications);
         emgProfile.put("emergencyNotes", req.getEmergencyNotes() != null ? req.getEmergencyNotes() : "");
         emgProfile.put("primaryPhysician", req.getPrimaryPhysician() != null ? req.getPrimaryPhysician() : "");
         emgProfile.put("updatedAt", Instant.now().toString());
@@ -604,9 +612,6 @@ public class EmergencyService {
         User patientUser = userRepository.findById(userId).orElse(null);
         if (patientUser != null) {
             EmergencyProfile dbProfile = emergencyProfileRepository.findByPatientId(userId).orElse(null);
-            List<String> allergies = coerceStringList(emgProfile.get("allergies"));
-            List<String> criticalConditions = coerceStringList(emgProfile.get("criticalConditions"));
-            List<String> currentMedications = coerceStringList(emgProfile.get("currentMedications"));
             if (dbProfile != null) {
                 dbProfile.setBloodGroup((String) emgProfile.get("bloodGroup"));
                 dbProfile.setAllergies(allergies);
@@ -1255,22 +1260,6 @@ public class EmergencyService {
             }
         }
         return out;
-    }
-
-    private List<Object> parseStringList(String input, Object defaultValue) {
-        if (input != null) {
-            if (input.contains(",")) {
-                List<Object> out = new ArrayList<>();
-                for (String s : input.split(",")) {
-                    String trimmed = s.trim();
-                    if (!trimmed.isEmpty()) out.add(trimmed);
-                }
-                return out;
-            }
-            if (!input.isBlank()) return new ArrayList<>(List.of(input.trim()));
-        }
-        if (defaultValue instanceof List<?> existing) return new ArrayList<Object>(existing);
-        return new ArrayList<>();
     }
 
     private static Map<String, Object> vital(String name, String value, String timestamp, String source) {

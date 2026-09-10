@@ -3,6 +3,9 @@ import { HospitalProfile, DoctorProfile, AuditLog, MedicalRecord, PatientProfile
 import { PatientRecordsTable } from "./PatientRecordsTable";
 import { HierarchicalAuditLogViewer } from "./HierarchicalAuditLogViewer";
 import { AppShell, NavItem } from "./AppShell";
+import { WarningsBanner } from "./WarningsBanner";
+import { ComplaintCenter } from "./ComplaintCenter";
+import { WarningComposer } from "./WarningComposer";
 import { safeFetchJson, parseResponseSafe } from "../utils/api";
 import {
   ShieldCheck,
@@ -25,6 +28,8 @@ import {
   Lock,
   Search,
   Filter,
+  MessageSquareWarning,
+  Megaphone,
 } from "lucide-react";
 
 interface SuperAdminViewProps {
@@ -56,9 +61,9 @@ export const SuperAdminView: React.FC<SuperAdminViewProps> = ({
   onLogout,
   onGoToHome,
 }) => {
-  const SUPER_ADMIN_TABS = ["HOSPITALS", "DOCTORS", "AUDIT_LOGS", "PATIENTS", "RECORDS"];
+  const SUPER_ADMIN_TABS = ["HOSPITALS", "DOCTORS", "AUDIT_LOGS", "PATIENTS", "RECORDS", "COMPLAINTS", "WARNINGS"];
 
-  const [activeTab, setActiveTab] = useState<"HOSPITALS" | "DOCTORS" | "AUDIT_LOGS" | "PATIENTS" | "RECORDS">(() => {
+  const [activeTab, setActiveTab] = useState<"HOSPITALS" | "DOCTORS" | "AUDIT_LOGS" | "PATIENTS" | "RECORDS" | "COMPLAINTS" | "WARNINGS">(() => {
     const saved = localStorage.getItem("nexushealth_tab_SUPER_ADMIN");
     return saved && SUPER_ADMIN_TABS.includes(saved) ? (saved as any) : "HOSPITALS";
   });
@@ -254,6 +259,8 @@ export const SuperAdminView: React.FC<SuperAdminViewProps> = ({
     { key: "PATIENTS", label: "Registered Citizens", icon: Users },
     { key: "RECORDS", label: "Global EHR & Lab Ledger", icon: FileText, badge: "Global" },
     { key: "AUDIT_LOGS", label: "256-Bit System Audit Ledger", icon: Lock, badge: "Immutable" },
+    { key: "COMPLAINTS", label: "Complaints Hub", icon: MessageSquareWarning, badge: "Handle" },
+    { key: "WARNINGS", label: "Warnings & Announcements", icon: Megaphone, badge: "Broadcast" },
   ];
 
   const navItems: NavItem[] = navTabs.map((t) => ({
@@ -287,6 +294,7 @@ export const SuperAdminView: React.FC<SuperAdminViewProps> = ({
         {/* HOSPITALS TAB */}
         {activeTab === "HOSPITALS" && (
           <div className="space-y-6">
+            <WarningsBanner role="SUPER_ADMIN" module="SUPER_ADMIN" />
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-200 pb-4">
               <div>
                 <h2 className="text-xl font-bold text-slate-900 flex items-center space-x-2">
@@ -531,6 +539,54 @@ export const SuperAdminView: React.FC<SuperAdminViewProps> = ({
         {/* AUDIT LOGS TAB */}
         {activeTab === "AUDIT_LOGS" && (
           <HierarchicalAuditLogViewer viewMode="SUPER_ADMIN" />
+        )}
+
+        {/* COMPLAINTS HUB TAB */}
+        {activeTab === "COMPLAINTS" && (
+          <div className="space-y-6">
+            <div className="border-b border-slate-200 pb-4">
+              <h2 className="text-xl font-bold text-slate-900 flex items-center space-x-2">
+                <MessageSquareWarning className="w-5 h-5 text-[#F2603C]" />
+                <span>National Complaints Hub</span>
+              </h2>
+              <p className="text-xs text-slate-500">
+                Every complaint raised by patients, doctors, and hospital admins across all modules. Resolve with an official note.
+              </p>
+            </div>
+            <ComplaintCenter
+              appUser={{
+                id: appUser?.id || "super_admin",
+                name: appUser?.name || "Super Admin",
+                email: appUser?.email || "superadmin@nexushealth.org",
+                role: appUser?.role || "SUPER_ADMIN",
+              }}
+              module="SUPER_ADMIN"
+              canResolve
+            />
+          </div>
+        )}
+
+        {/* WARNINGS & ANNOUNCEMENTS TAB */}
+        {activeTab === "WARNINGS" && (
+          <div className="space-y-6">
+            <div className="border-b border-slate-200 pb-4">
+              <h2 className="text-xl font-bold text-slate-900 flex items-center space-x-2">
+                <Megaphone className="w-5 h-5 text-[#F2603C]" />
+                <span>Warnings & Announcements Broadcast</span>
+              </h2>
+              <p className="text-xs text-slate-500">
+                Publish targeted warnings or announcements to patients, doctors, hospital admins, or everyone.
+              </p>
+            </div>
+            <WarningComposer
+              appUser={{
+                id: appUser?.id || "super_admin",
+                name: appUser?.name || "Super Admin",
+                email: appUser?.email || "superadmin@nexushealth.org",
+                role: appUser?.role || "SUPER_ADMIN",
+              }}
+            />
+          </div>
         )}
 
       </AppShell>

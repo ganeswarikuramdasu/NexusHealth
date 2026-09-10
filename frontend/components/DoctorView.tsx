@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import { DoctorProfile, MedicalRecord, ConsentGrant, PatientProfile, HospitalProfile, Appointment, UserRole } from "../types";
 import { safeFetchJson } from "../utils/api";
 import { AppShell, NavItem } from "./AppShell";
+import { WarningsBanner } from "./WarningsBanner";
+import { ComplaintCenter } from "./ComplaintCenter";
 import { PatientRecordsTable } from "./PatientRecordsTable";
 import { CardScannerModal } from "./CardScannerModal";
 import { DoctorCardScannerSection } from "./DoctorCardScannerSection";
@@ -42,6 +44,7 @@ import {
   CreditCard,
   Siren,
   History,
+  MessageSquareWarning,
 } from "lucide-react";
 
 interface DoctorViewProps {
@@ -81,7 +84,7 @@ export const DoctorView: React.FC<DoctorViewProps> = ({
   onLogout,
   onGoToHome,
 }) => {
-  const DOCTOR_TABS = ["DASHBOARD", "PATIENT_ACCESS", "EMERGENCY_ACCESS", "PATIENT_QUEUE", "PATIENT_RECORDS_TABLE", "SCHEDULE_CALENDAR", "PROFILE_SETTINGS", "ACCESS_HISTORY"];
+  const DOCTOR_TABS = ["DASHBOARD", "PATIENT_ACCESS", "EMERGENCY_ACCESS", "PATIENT_QUEUE", "PATIENT_RECORDS_TABLE", "SCHEDULE_CALENDAR", "PROFILE_SETTINGS", "ACCESS_HISTORY", "COMPLAINTS"];
 
   const [activeTab, setActiveTab] = useState<
     | "DASHBOARD"
@@ -92,6 +95,7 @@ export const DoctorView: React.FC<DoctorViewProps> = ({
     | "SCHEDULE_CALENDAR"
     | "PROFILE_SETTINGS"
     | "ACCESS_HISTORY"
+    | "COMPLAINTS"
   >(() => {
     const saved = localStorage.getItem("nexushealth_tab_DOCTOR");
     return saved && DOCTOR_TABS.includes(saved) ? (saved as any) : "DASHBOARD";
@@ -292,6 +296,7 @@ export const DoctorView: React.FC<DoctorViewProps> = ({
     { key: "SCHEDULE_CALENDAR", label: "Schedule & Availability", icon: Calendar, badge: "Slots" },
     { key: "PROFILE_SETTINGS", label: "Profile & Settings", icon: User, badge: "Config" },
     { key: "ACCESS_HISTORY", label: "Record Access History", icon: History, badge: "Ledger" },
+    { key: "COMPLAINTS", label: "Complaints & Support", icon: MessageSquareWarning, badge: "New" },
   ];
 
   const navItems: NavItem[] = navTabs.map((t) => ({
@@ -325,6 +330,9 @@ export const DoctorView: React.FC<DoctorViewProps> = ({
         {/* DASHBOARD TAB */}
         {activeTab === "DASHBOARD" && (
           <div className="space-y-6">
+            
+            {/* Announcements / Warnings */}
+            <WarningsBanner role="DOCTOR" module="DOCTOR" />
             
             {/* Doctor Hero Header */}
             <div className="bg-gradient-to-r from-[#17C964] via-[#0f172a] to-[#0f172a] border border-[#17C964]/30 rounded-3xl p-6 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
@@ -904,6 +912,30 @@ export const DoctorView: React.FC<DoctorViewProps> = ({
             appointments={appointments}
             onUpdateDoctor={(updated) => setActiveDoctorState(updated)}
           />
+        )}
+
+        {/* COMPLAINTS & SUPPORT */}
+        {activeTab === "COMPLAINTS" && (
+          <div className="space-y-6">
+            <div className="border-b border-slate-200 pb-4">
+              <h2 className="text-xl font-bold text-slate-900 flex items-center space-x-2">
+                <MessageSquareWarning className="w-5 h-5 text-[#F2603C]" />
+                <span>Complaints & Support</span>
+              </h2>
+              <p className="text-xs text-slate-500">
+                Complaints raised against you by patients, or by you about EHR records, facilities, or workflows.
+              </p>
+            </div>
+            <ComplaintCenter
+              appUser={{
+                id: appUser?.id || doctor.id,
+                name: appUser?.name || doctorName,
+                email: appUser?.email || "doctor@nexushealth.org",
+                role: appUser?.role || "DOCTOR",
+              }}
+              module="DOCTOR"
+            />
+          </div>
         )}
 
       </AppShell>

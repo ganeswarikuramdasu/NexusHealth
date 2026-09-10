@@ -33,7 +33,11 @@ import java.util.Set;
 public class CardService {
 
     private static final SecureRandom RANDOM = new SecureRandom();
-    private static final Set<String> TOGGLEABLE_STATUSES = Set.of("ACTIVE", "TEMPORARILY_BLOCKED");
+    private static final Set<String> TOGGLEABLE_STATUSES = Set.of("ACTIVE", "TEMP_BLOCKED");
+
+    private static boolean isBlockedStatus(String status) {
+        return "TEMP_BLOCKED".equals(status) || "TEMPORARILY_BLOCKED".equals(status);
+    }
 
     private final AccessCardRepository accessCardRepository;
     private final CardAccessLogRepository cardAccessLogRepository;
@@ -43,13 +47,15 @@ public class CardService {
     private final MedicalRecordRepository medicalRecordRepository;
     private final ConsentRepository consentRepository;
     private final AuditLogService auditLogService;
+    private final RecordAccessLogService recordAccessLogService;
     private final PasswordEncoder passwordEncoder;
 
     public CardService(AccessCardRepository accessCardRepository, CardAccessLogRepository cardAccessLogRepository,
                         PatientProfileRepository patientProfileRepository, UserRepository userRepository,
                         DoctorRepository doctorRepository, MedicalRecordRepository medicalRecordRepository,
                         ConsentRepository consentRepository,
-                        AuditLogService auditLogService, PasswordEncoder passwordEncoder) {
+                        AuditLogService auditLogService, RecordAccessLogService recordAccessLogService,
+                        PasswordEncoder passwordEncoder) {
         this.accessCardRepository = accessCardRepository;
         this.cardAccessLogRepository = cardAccessLogRepository;
         this.patientProfileRepository = patientProfileRepository;
@@ -58,6 +64,7 @@ public class CardService {
         this.medicalRecordRepository = medicalRecordRepository;
         this.consentRepository = consentRepository;
         this.auditLogService = auditLogService;
+        this.recordAccessLogService = recordAccessLogService;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -72,7 +79,7 @@ public class CardService {
         var target = resolveTargetIds(patientIdOrHealthId);
         List<AccessCard> cards = accessCardRepository.findForPatient(target.userId, target.healthId);
         AccessCard card = cards.stream()
-                .filter(c -> Set.of("ACTIVE", "TEMPORARILY_BLOCKED", "REPLACEMENT_REQUESTED").contains(c.getStatus()))
+                .filter(c -> Set.of("ACTIVE", "TEMP_BLOCKED", "TEMPORARILY_BLOCKED", "REPLACEMENT_REQUESTED").contains(c.getStatus()))
                 .findFirst()
                 .or(() -> cards.stream().findFirst())
                 .orElse(null);
@@ -107,6 +114,13 @@ public class CardService {
                 req.getPinCode() != null ? req.getPinCode() : "1234");
         accessCardRepository.save(newCard);
 
+        for (AccessCard oldCard : existing) {
+            if (Set.of("LOST", "REVOKED").contains(oldCard.getStatus()) && oldCard.getReplacedBy() == null) {
+                oldCard.setReplacedBy(newCard.getId());
+                accessCardRepository.save(oldCard);
+            }
+        }
+
         auditLogService.log(target.patientName, "PATIENT", "ACCESS_CARD_ISSUED", target.healthId,
                 "Secure Patient Access Card issued with Identifier " + newCard.getCardIdentifier());
 
@@ -121,16 +135,20 @@ public class CardService {
         if (Set.of("LOST", "REVOKED").contains(card.getStatus())) {
             throw ApiException.badRequest("Cannot toggle status of a " + card.getStatus() + " card. Request a replacement card.");
         }
-        if (!TOGGLEABLE_STATUSES.contains(req.getTargetStatus())) {
+        String target = req.getTargetStatus();
+        if (isBlockedStatus(target)) {
+            target = "TEMP_BLOCKED";
+        }
+        if (!TOGGLEABLE_STATUSES.contains(target)) {
             throw ApiException.badRequest("Invalid target card status.");
         }
-        card.setStatus(req.getTargetStatus());
+        card.setStatus(target);
         accessCardRepository.save(card);
 
-        auditLogService.log(card.getPatientName(), "PATIENT", "CARD_STATUS_CHANGE_" + req.getTargetStatus(), card.getPatientHealthId(),
-                "Card " + card.getCardIdentifier() + " status updated to " + req.getTargetStatus());
+        auditLogService.log(card.getPatientName(), "PATIENT", "CARD_STATUS_CHANGE_" + target, card.getPatientHealthId(),
+                "Card " + card.getCardIdentifier() + " status updated to " + target);
 
-        return ApiResponse.ok("Card status changed to " + req.getTargetStatus() + ".").with("card", toPublic(card));
+        return ApiResponse.ok("Card status changed to " + target + ".").with("card", toPublic(card));
     }
 
     @Transactional
@@ -254,70 +272,33 @@ public class CardService {
         User user = userRepository.findById(card.getPatientId()).orElse(null);
         Map<String, Object> patientSummary = buildPatientSummary(card, profile, user);
 
-        List<Consent> activeConsents = consentRepository.findActiveForPatient(card.getPatientId());
-        boolean hasActiveConsent = activeConsents.stream().anyMatch(c ->
-                actorId.equals(c.getDoctorId()) && "GRANTED".equals(c.getStatus())
-                        && (c.getExpiresAt() == null || !LocalDate.now().isAfter(c.getExpiresAt())));
-        boolean isHospitalAdmin = "HOSPITAL_ADMIN".equals(actorRole);
-        boolean isDoctor = "DOCTOR".equals(actorRole);
-        boolean wasRevoked = isDoctor && consentRepository
-                .findFirstByPatientIdAndDoctorIdOrderByGrantedAtDesc(card.getPatientId(), actorId)
-                .map(c -> "REVOKED".equals(c.getStatus())).orElse(false);
+        try {
+            cardAccessLogRepository.save(com.nexushealth.entity.CardAccessLog.builder()
+                    .id("calog_" + System.currentTimeMillis())
+                    .cardId(card.getId()).patientId(card.getPatientId()).patientHealthId(card.getPatientHealthId())
+                    .patientName(String.valueOf(patientSummary.get("name"))).actorId(actorId).actorName(actorName)
+                    .actorRole(actorRole).hospitalId(hospitalId).hospitalName(hospitalName)
+                    .accessType("OUTPATIENT_CONSULTATION").authorizationStatus("AUTHORIZED")
+                    .recordsAccessed(List.of("Medical History", "Lab Reports", "Prescriptions", "Vitals"))
+                    .reason("Authorized Doctor Scan via NexusHealth Access Card").ipAddress("127.0.0.1").build());
 
-        if (isDoctor && !hasActiveConsent && !wasRevoked && !isHospitalAdmin) {
-            Doctor doctor = doctorRepository.findById(actorId)
-                    .orElseGet(() -> doctorRepository.findByUserId(actorId).orElse(null));
-            if (doctor != null) {
-                Consent autoConsent = Consent.builder()
-                        .id("c_auto_" + System.currentTimeMillis())
-                        .patient(user)
-                        .doctor(doctor)
-                        .consentType("TEMPORARY")
-                        .scope(List.of("ALL_RECORDS"))
-                        .expiresAt(LocalDate.now().plusDays(1))
-                        .notes("ACCESS_CARD_SCAN_AUTO_GRANT")
-                        .status("GRANTED")
-                        .build();
-                consentRepository.save(autoConsent);
-                hasActiveConsent = true;
-            }
-        }
+            recordAccessLogService.add(actorId, actorName,
+                    card.getPatientId(), card.getPatientHealthId(), String.valueOf(patientSummary.get("name")),
+                    hospitalId, hospitalName,
+                    "ACCESS_CARD", "GRANTED", "Patient card scanned & verified - access always granted via Patient Access Card",
+                    List.of("Medical History", "Lab Reports", "Prescriptions", "Vitals"), false,
+                    "QR", "VERIFIED", null, null, null);
 
-        boolean isAuthorized = hasActiveConsent || isHospitalAdmin;
-
-        if (!isAuthorized) {
-            ApiResponse resp = ApiResponse.ok();
-            resp.put("authorizationStatus", "REQUIRES_PATIENT_CONSENT");
-            resp.put("code", wasRevoked ? "PATIENT_REVOKED_ACCESS" : "REQUIRES_PATIENT_CONSENT");
-            resp.put("card", toPublic(card));
-            Map<String, Object> basic = new LinkedHashMap<>();
-            basic.put("name", patientSummary.get("name"));
-            basic.put("globalHealthId", patientSummary.get("globalHealthId"));
-            basic.put("bloodGroup", patientSummary.get("bloodGroup"));
-            basic.put("gender", patientSummary.get("gender"));
-            basic.put("emergencyContactPhone", patientSummary.get("emergencyContactPhone"));
-            resp.put("patientBasic", basic);
-            resp.put("message", wasRevoked
-                    ? "This patient has REVOKED access for this card. New access requires the patient's physical/PIN confirmation."
-                    : "Patient card scanned & verified. Please obtain patient assisted authorization to view full medical history.");
-            return resp;
+            auditLogService.log(actorName, actorRole, "CARD_SCAN_ACCESS_GRANTED", card.getPatientHealthId(),
+                    "Accessed EHR ledger for " + patientSummary.get("name") + " via Patient Access Card.");
+        } catch (Exception logEx) {
+            // Logging must never block a legitimate card grant.
         }
 
         List<MedicalRecord> records = medicalRecordRepository.findForPatient(card.getPatientId());
-        cardAccessLogRepository.save(com.nexushealth.entity.CardAccessLog.builder()
-                .id("calog_" + System.currentTimeMillis())
-                .cardId(card.getId()).patientId(card.getPatientId()).patientHealthId(card.getPatientHealthId())
-                .patientName(String.valueOf(patientSummary.get("name"))).actorId(actorId).actorName(actorName)
-                .actorRole(actorRole).hospitalId(hospitalId).hospitalName(hospitalName)
-                .accessType("OUTPATIENT_CONSULTATION").authorizationStatus("AUTHORIZED")
-                .recordsAccessed(List.of("Medical History", "Lab Reports", "Prescriptions", "Vitals"))
-                .reason("Authorized Doctor Scan via NexusHealth Access Card").ipAddress("127.0.0.1").build());
-
-        auditLogService.log(actorName, actorRole, "CARD_SCAN_ACCESS_GRANTED", card.getPatientHealthId(),
-                "Accessed EHR ledger for " + patientSummary.get("name") + " via Patient Access Card.");
-
         ApiResponse resp = ApiResponse.ok();
         resp.put("authorizationStatus", "AUTHORIZED");
+        resp.put("code", "ALWAYS_GRANTED");
         resp.put("card", toPublic(card));
         resp.put("patient", patientSummary);
         List<Map<String, Object>> recordMaps = new ArrayList<>();

@@ -40,4 +40,29 @@ body {
 .nh-side-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.18); border-radius: 999px; }
 .nh-side-scroll::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.3); }
 
+/* Single-page (85mm x 55mm) printable access card */
+@page {
+  size: 85mm 55mm;
+  margin: 0;
+}
+@media print {
+  body.nh-printing * {
+    visibility: hidden;
+  }
+  body.nh-printing #nh-print-card,
+  body.nh-printing #nh-print-card * {
+    visibility: visible;
+  }
+  #nh-print-card {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 85mm;
+    height: 55mm;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+}
+
 

@@ -70,21 +70,21 @@ public class EmergencyRequests {
 
     public static class UpdateProfileRequest {
         private String bloodGroup;
-        private String allergies;
-        private String criticalConditions;
-        private String currentMedications;
+        private List<String> allergies;
+        private List<String> criticalConditions;
+        private List<String> currentMedications;
         private String emergencyNotes;
         private String primaryPhysician;
         private List<Map<String, Object>> contacts;
 
         public String getBloodGroup() { return bloodGroup; }
         public void setBloodGroup(String bloodGroup) { this.bloodGroup = bloodGroup; }
-        public String getAllergies() { return allergies; }
-        public void setAllergies(String allergies) { this.allergies = allergies; }
-        public String getCriticalConditions() { return criticalConditions; }
-        public void setCriticalConditions(String criticalConditions) { this.criticalConditions = criticalConditions; }
-        public String getCurrentMedications() { return currentMedications; }
-        public void setCurrentMedications(String currentMedications) { this.currentMedications = currentMedications; }
+        public List<String> getAllergies() { return allergies; }
+        public void setAllergies(List<String> allergies) { this.allergies = allergies; }
+        public List<String> getCriticalConditions() { return criticalConditions; }
+        public void setCriticalConditions(List<String> criticalConditions) { this.criticalConditions = criticalConditions; }
+        public List<String> getCurrentMedications() { return currentMedications; }
+        public void setCurrentMedications(List<String> currentMedications) { this.currentMedications = currentMedications; }
         public String getEmergencyNotes() { return emergencyNotes; }
         public void setEmergencyNotes(String emergencyNotes) { this.emergencyNotes = emergencyNotes; }
         public String getPrimaryPhysician() { return primaryPhysician; }

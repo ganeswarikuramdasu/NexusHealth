@@ -3,6 +3,8 @@ import { HospitalProfile, DoctorProfile, MedicalRecord, PatientProfile, UserRole
 import { PatientRecordsTable } from "./PatientRecordsTable";
 import { HierarchicalAuditLogViewer } from "./HierarchicalAuditLogViewer";
 import { AppShell, NavItem } from "./AppShell";
+import { WarningsBanner } from "./WarningsBanner";
+import { ComplaintCenter } from "./ComplaintCenter";
 import { parseResponseSafe } from "../utils/api";
 import {
   Building2,
@@ -30,6 +32,7 @@ import {
   Clock,
   Award,
   Sparkles,
+  MessageSquareWarning,
 } from "lucide-react";
 
 interface HospitalAdminViewProps {
@@ -61,9 +64,9 @@ export const HospitalAdminView: React.FC<HospitalAdminViewProps> = ({
   onLogout,
   onGoToHome,
 }) => {
-  const HOSPITAL_ADMIN_TABS = ["ROSTER", "DEPARTMENTS", "PATIENT_RECORDS", "AUDIT_LOGS", "SETTINGS"];
+  const HOSPITAL_ADMIN_TABS = ["ROSTER", "DEPARTMENTS", "PATIENT_RECORDS", "AUDIT_LOGS", "SETTINGS", "COMPLAINTS"];
 
-  const [activeTab, setActiveTab] = useState<"ROSTER" | "DEPARTMENTS" | "PATIENT_RECORDS" | "AUDIT_LOGS" | "SETTINGS">(() => {
+  const [activeTab, setActiveTab] = useState<"ROSTER" | "DEPARTMENTS" | "PATIENT_RECORDS" | "AUDIT_LOGS" | "SETTINGS" | "COMPLAINTS">(() => {
     const saved = localStorage.getItem("nexushealth_tab_HOSPITAL_ADMIN");
     return saved && HOSPITAL_ADMIN_TABS.includes(saved) ? (saved as any) : "ROSTER";
   });
@@ -377,6 +380,7 @@ export const HospitalAdminView: React.FC<HospitalAdminViewProps> = ({
     { key: "PATIENT_RECORDS", label: "Hospital EHR & Patient Records", icon: FileText, badge: "EHR" },
     { key: "AUDIT_LOGS", label: "Patient Record Access Audit Logs", icon: ShieldCheck, badge: "SECURITY" },
     { key: "SETTINGS", label: "Hospital Settings & Security", icon: Settings },
+    { key: "COMPLAINTS", label: "Complaints & Support", icon: MessageSquareWarning, badge: "New" },
   ];
 
   const navItems: NavItem[] = navTabs.map((t) => ({
@@ -413,6 +417,7 @@ export const HospitalAdminView: React.FC<HospitalAdminViewProps> = ({
         {/* DOCTORS & PHYSICIANS ROSTER TAB */}
         {activeTab === "ROSTER" && (
           <div className="space-y-6">
+            <WarningsBanner role="HOSPITAL_ADMIN" module="HOSPITAL_ADMIN" />
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-200 pb-4">
               <div>
                 <h2 className="text-xl font-bold text-slate-900 flex items-center space-x-2">
@@ -840,6 +845,30 @@ export const HospitalAdminView: React.FC<HospitalAdminViewProps> = ({
             hospitalId={hospital.id}
             hospitalName={hospital.name}
           />
+        )}
+
+        {/* COMPLAINTS & SUPPORT TAB */}
+        {activeTab === "COMPLAINTS" && (
+          <div className="space-y-6">
+            <div className="border-b border-slate-200 pb-4">
+              <h2 className="text-xl font-bold text-slate-900 flex items-center space-x-2">
+                <MessageSquareWarning className="w-5 h-5 text-[#F2603C]" />
+                <span>Complaints & Support</span>
+              </h2>
+              <p className="text-xs text-slate-500">
+                Complaints raised by patients or doctors about this hospital, plus your own grievance submissions.
+              </p>
+            </div>
+            <ComplaintCenter
+              appUser={{
+                id: appUser?.id || hospital.id,
+                name: appUser?.name || hospital.name,
+                email: appUser?.email || hospital.email,
+                role: appUser?.role || "HOSPITAL_ADMIN",
+              }}
+              module="HOSPITAL_ADMIN"
+            />
+          </div>
         )}
 
       </AppShell>

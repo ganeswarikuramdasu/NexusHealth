@@ -39,11 +39,14 @@ export const AccessCardView: React.FC<AccessCardViewProps> = ({
   const [showLostModal, setShowLostModal] = useState<boolean>(false);
   const [showPrintModal, setShowPrintModal] = useState<boolean>(false);
   const [pinInput, setPinInput] = useState<string>("");
+  const [printQr, setPrintQr] = useState<string>("");
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const printCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
   const targetPatientId = currentUser?.id || "";
+
+  const isBlocked = (s?: string) => s === "TEMP_BLOCKED" || s === "TEMPORARILY_BLOCKED";
+  const isLostOrRevoked = (s?: string) => s === "LOST" || s === "REVOKED";
 
   // Fetch card data & access logs
   const fetchCardData = async () => {
@@ -97,24 +100,24 @@ export const AccessCardView: React.FC<AccessCardViewProps> = ({
 
   // Render QR Code for Printable Card Modal
   useEffect(() => {
-    if (showPrintModal && card && card.qrCodeData && printCanvasRef.current) {
-      QRCode.toCanvas(
-        printCanvasRef.current,
-        card.qrCodeData,
-        {
-          width: 180,
-          margin: 1,
-          color: {
-            dark: "#000000",
-            light: "#FFFFFF",
-          },
-        },
-        (err) => {
-          if (err) console.error("Print QR Render Error:", err);
-        }
-      );
+    if (showPrintModal && card && card.qrCodeData) {
+      QRCode.toDataURL(card.qrCodeData, {
+        width: 220,
+        margin: 1,
+        color: { dark: "#000000", light: "#FFFFFF" },
+      })
+        .then((url) => setPrintQr(url))
+        .catch((err) => console.error("Print QR Render Error:", err));
     }
   }, [showPrintModal, card]);
+
+  const handlePrintCard = () => {
+    document.body.classList.add("nh-printing");
+    setTimeout(() => {
+      window.print();
+      setTimeout(() => document.body.classList.remove("nh-printing"), 500);
+    }, 200);
+  };
 
   // Handle Issue Card
   const handleIssueCard = async () => {
@@ -144,7 +147,7 @@ export const AccessCardView: React.FC<AccessCardViewProps> = ({
   // Handle Toggle Active/Block Status
   const handleToggleStatus = async () => {
     if (!card) return;
-    const targetStatus = card.status === "ACTIVE" ? "TEMPORARILY_BLOCKED" : "ACTIVE";
+    const targetStatus = isBlocked(card.status) ? "ACTIVE" : "TEMP_BLOCKED";
     try {
       setActionMsg(null);
       const res = await fetch("/api/card/toggle-status", {
@@ -160,7 +163,7 @@ export const AccessCardView: React.FC<AccessCardViewProps> = ({
         setCard(data.card);
         setActionMsg({
           type: "success",
-          text: `Card is now ${targetStatus === "ACTIVE" ? "ACTIVE" : "TEMPORARILY BLOCKED"}.`,
+          text: targetStatus === "ACTIVE" ? "Card is now ACTIVE." : "Card is now temporarily blocked.",
         });
         fetchCardData();
       } else {
@@ -226,7 +229,7 @@ export const AccessCardView: React.FC<AccessCardViewProps> = ({
           </p>
         </div>
 
-        {card && (
+        {card && !isLostOrRevoked(card.status) && (
           <div className="flex items-center space-x-2">
             <button
               onClick={() => setShowPrintModal(true)}
@@ -235,13 +238,15 @@ export const AccessCardView: React.FC<AccessCardViewProps> = ({
               <Printer className="w-4 h-4 text-[#17C964]" />
               <span>Print / Download Card</span>
             </button>
-            <button
-              onClick={() => setShowLostModal(true)}
-              className="px-4 py-2 bg-[#F2603C] hover:bg-[#E23A2E] text-white text-xs font-bold rounded-xl transition flex items-center space-x-1.5 border border-[#F2603C]/40"
-            >
-              <ShieldAlert className="w-4 h-4" />
-              <span>Report Lost Card</span>
-            </button>
+            {!isBlocked(card.status) && card.status === "ACTIVE" && (
+              <button
+                onClick={() => setShowLostModal(true)}
+                className="px-4 py-2 bg-[#F2603C] hover:bg-[#E23A2E] text-white text-xs font-bold rounded-xl transition flex items-center space-x-1.5 border border-[#F2603C]/40"
+              >
+                <ShieldAlert className="w-4 h-4" />
+                <span>Report Lost Card</span>
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -275,13 +280,17 @@ export const AccessCardView: React.FC<AccessCardViewProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* LEFT COLUMN: THE PHYSICAL ACCESS CARD DISPLAY */}
         <div className="lg:col-span-6 space-y-6">
-          {!card || card.status === "NOT_ISSUED" ? (
+          {!card || card.status === "NOT_ISSUED" || isLostOrRevoked(card.status) ? (
             <div className="bg-[#FFFFFF] border border-slate-200 rounded-3xl p-8 text-center space-y-4 shadow-xl">
               <CreditCard className="w-16 h-16 text-[#17C964]/40 mx-auto" />
               <div className="space-y-1">
-                <h3 className="text-lg font-bold text-slate-900">No Active Access Card Issued</h3>
+                <h3 className="text-lg font-bold text-slate-900">
+                  {isLostOrRevoked(card?.status) ? "Issue a New Access Card" : "No Active Access Card Issued"}
+                </h3>
                 <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                  Issue your official NexusHealth Patient Access Card to enable effortless hospital visits without carrying a smartphone.
+                  {isLostOrRevoked(card?.status)
+                    ? "Your previous card was " + (card?.status === "LOST" ? "reported LOST" : "REVOKED") + ". The old token is dead and can never be scanned again. Issue a fresh card with a new secure token."
+                    : "Issue your official NexusHealth Patient Access Card to enable effortless hospital visits without carrying a smartphone."}
                 </p>
                 <p className="text-[10px] text-slate-500">Set a 4-digit Visa PIN for your card. It is required when presenting the card at hospitals.</p>
               </div>
@@ -331,7 +340,7 @@ export const AccessCardView: React.FC<AccessCardViewProps> = ({
                     className={`px-3 py-1 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider shadow-sm ${
                       card.status === "ACTIVE"
                         ? "bg-[#17C964]/30 text-[#3CE584] border border-[#17C964]/60"
-                        : card.status === "TEMPORARILY_BLOCKED"
+                        : isBlocked(card.status)
                         ? "bg-amber-500/20 text-amber-300 border border-amber-500/50"
                         : "bg-[#F2603C]/25 text-[#FF9E86] border border-[#F2603C]/60"
                     }`}
@@ -401,13 +410,13 @@ export const AccessCardView: React.FC<AccessCardViewProps> = ({
                   <button
                     onClick={handleToggleStatus}
                     className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center space-x-1 ${
-                      card.status === "ACTIVE"
-                        ? "bg-amber-50 hover:bg-amber-100 border border-amber-500/40 text-amber-700"
-                        : "bg-[#E9FBF1] hover:bg-[#D6F5E4] border border-[#17C964]/40 text-[#17C964]"
+                      isBlocked(card.status)
+                        ? "bg-[#E9FBF1] hover:bg-[#D6F5E4] border border-[#17C964]/40 text-[#17C964]"
+                        : "bg-amber-50 hover:bg-amber-100 border border-amber-500/40 text-amber-700"
                     }`}
                   >
                     <Lock className="w-3.5 h-3.5" />
-                    <span>{card.status === "ACTIVE" ? "Temporarily Block" : "Activate Card"}</span>
+                    <span>{isBlocked(card.status) ? "Activate Card" : "Temporarily Block"}</span>
                   </button>
                 </div>
               </div>
@@ -558,8 +567,8 @@ export const AccessCardView: React.FC<AccessCardViewProps> = ({
               <h3 className="font-bold text-slate-900 text-base">Print Physical Patient Access Card</h3>
             </div>
 
-            {/* PRINTABLE CARD LAYOUT */}
-            <div id="printableCardArea" className="bg-white text-slate-900 p-5 rounded-2xl border-2 border-[#17C964] space-y-3 font-sans shadow-lg">
+            {/* SCREEN PREVIEW */}
+            <div className="bg-white text-slate-900 p-5 rounded-2xl border-2 border-[#17C964] space-y-3 font-sans shadow-lg">
               <div className="flex justify-between items-center border-b border-slate-300 pb-2">
                 <span className="font-black text-[#17C964] text-sm tracking-wider uppercase">NEXUSHEALTH</span>
                 <span className="text-[10px] font-mono text-[#17C964] font-bold">GLOBAL HEALTH CARD</span>
@@ -574,7 +583,11 @@ export const AccessCardView: React.FC<AccessCardViewProps> = ({
                 </div>
 
                 <div className="p-1 bg-white rounded border border-slate-300">
-                  <canvas ref={printCanvasRef} className="w-24 h-24" />
+                  {printQr ? (
+                    <img src={printQr} alt="Card QR" className="w-24 h-24" />
+                  ) : (
+                    <div className="w-24 h-24 bg-slate-100 animate-pulse" />
+                  )}
                 </div>
               </div>
 
@@ -583,13 +596,47 @@ export const AccessCardView: React.FC<AccessCardViewProps> = ({
               </div>
             </div>
 
+            <p className="text-[10px] text-center text-slate-500">
+              Prints on a single 85mm x 55mm card page.
+            </p>
+
             <button
-              onClick={() => window.print()}
+              onClick={handlePrintCard}
               className="w-full py-3 bg-[#17C964] hover:bg-[#0EA653] text-white font-bold rounded-2xl transition text-xs flex items-center justify-center space-x-2 shadow-lg"
             >
               <Printer className="w-4 h-4" />
               <span>Print Card / Save as PDF</span>
             </button>
+          </div>
+
+          {/* PRINT-ONLY NODE */}
+          <div id="nh-print-card" className="bg-white text-slate-900 p-4 rounded-none" style={{ width: "85mm", height: "55mm" }}>
+            <div className="flex justify-between items-center border-b-2 border-slate-900 pb-1">
+              <span className="font-black text-[#0F172A] text-sm tracking-wider uppercase">NEXUSHEALTH</span>
+              <span className="text-[10px] font-mono text-[#0F172A] font-bold">GLOBAL HEALTH CARD</span>
+            </div>
+
+            <div className="flex justify-between items-center" style={{ paddingTop: "4mm" }}>
+              <div>
+                <p className="text-[9px] text-slate-600 uppercase font-mono">Patient Name</p>
+                <p className="text-base font-extrabold text-slate-900">{card.patientName}</p>
+                <p className="text-xs font-mono font-bold text-[#0F172A]">ID: {card.patientHealthId}</p>
+                <p className="text-[10px] text-slate-700">Blood Group: <strong>{patientProfile?.bloodGroup || "B+"}</strong></p>
+                <p className="text-[9px] text-slate-700">Emergency: {patientProfile?.emergencyContactPhone || "+91 98765 43210"}</p>
+              </div>
+
+              <div className="p-1 bg-white rounded border-2 border-slate-900">
+                {printQr ? (
+                  <img src={printQr} alt="Card QR" className="w-24 h-24" />
+                ) : (
+                  <div className="w-24 h-24 bg-slate-100" />
+                )}
+              </div>
+            </div>
+
+            <div className="pt-1 text-[8px] text-center text-slate-700 font-mono">
+              {card.cardIdentifier} • Scan QR at any NexusHealth-affiliated hospital
+            </div>
           </div>
         </div>
       )}

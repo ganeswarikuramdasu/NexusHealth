@@ -348,6 +348,7 @@ export interface JavaCodeFile {
 export type CardStatus =
   | "NOT_ISSUED"
   | "ACTIVE"
+  | "TEMP_BLOCKED"
   | "TEMPORARILY_BLOCKED"
   | "LOST"
   | "REPLACEMENT_REQUESTED"
