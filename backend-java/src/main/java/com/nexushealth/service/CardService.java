@@ -159,8 +159,10 @@ public class CardService {
     // card is the critical action and must commit even if the optional automatic
     // replacement card cannot be generated (so this endpoint never 500s).
     public ApiResponse reportLost(ReportLostRequest req) {
-        AccessCard card = accessCardRepository.findByIdOrPatientId(req.getCardId(), req.getPatientId())
-                .orElseThrow(() -> ApiException.notFound("Access Card record not found."));
+        AccessCard card = resolveCard(req.getCardId(), req.getPatientId());
+        if (card == null) {
+            throw ApiException.notFound("Access Card record not found.");
+        }
 
         card.setStatus("LOST");
         card.setLostAt(LocalDateTime.now());
@@ -198,8 +200,10 @@ public class CardService {
 
     @Transactional
     public ApiResponse requestReplacement(RequestReplacementRequest req) {
-        AccessCard oldCard = accessCardRepository.findByIdOrPatientId(req.getCardId(), req.getPatientId())
-                .orElseThrow(() -> ApiException.notFound("Card not found."));
+        AccessCard oldCard = resolveCard(req.getCardId(), req.getPatientId());
+        if (oldCard == null) {
+            throw ApiException.notFound("Card not found.");
+        }
 
         String enteredPin = req.getPinCode();
         if (enteredPin == null || enteredPin.isBlank() || !enteredPin.equals(oldCard.getPinCode())) {
@@ -249,7 +253,12 @@ public class CardService {
             }
         }
 
-        AccessCard card = accessCardRepository.findByAnyIdentifier(token).orElse(null);
+        List<AccessCard> identifierMatches = accessCardRepository.findAllByAnyIdentifier(token);
+        final String lookupToken = token;
+        AccessCard card = identifierMatches.stream()
+                .filter(c -> lookupToken.equals(c.getSecureToken()) || lookupToken.equals(c.getCardIdentifier()))
+                .findFirst()
+                .orElse(identifierMatches.isEmpty() ? null : identifierMatches.get(0));
         if (card == null) {
             ApiResponse resp = ApiResponse.fail("Unrecognized or Invalid NexusHealth Access Card Token. Ensure valid NexusHealth card.");
             resp.put("code", "CARD_NOT_FOUND");
@@ -424,6 +433,23 @@ public class CardService {
         User user = userId != null ? userRepository.findById(userId).orElse(null) : null;
         String patientName = user != null ? user.getName() : "Patient Citizen";
         return new TargetIds(userId, healthId, patientName);
+    }
+
+    /**
+     * Resolve a card by exact id when supplied, otherwise the patient's most
+     * recent card. The repository returns a List (never a single-row Optional)
+     * because a patient can hold several cards (original + replacements), and a
+     * multi-row Optional causes a NonUniqueResultException -> 500.
+     */
+    private AccessCard resolveCard(String cardId, String patientId) {
+        List<AccessCard> matches = accessCardRepository.findAllByIdOrPatientId(cardId, patientId);
+        if (cardId != null) {
+            return matches.stream()
+                    .filter(c -> cardId.equals(c.getId()))
+                    .findFirst()
+                    .orElse(matches.stream().findFirst().orElse(null));
+        }
+        return matches.stream().findFirst().orElse(null);
     }
 
     private AccessCard createNewCard(String userId, String healthId, String patientName, String pinCode) {
