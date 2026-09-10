@@ -3,10 +3,15 @@ import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
 import {installApiBase} from './utils/apiBase.ts';
+import {installBusyButtons} from './utils/busyButton.ts';
 
 // Point all relative "/api/..." calls at the backend. No-op when
 // VITE_API_BASE_URL is not set (local dev / Vercel proxy handle it).
 installApiBase();
+
+// Every clicked button immediately shows a busy state and cannot be re-clicked
+// until the triggered work completes.
+installBusyButtons();
 
 // Prevent benign Vite HMR WebSocket connection errors from producing unhandled rejections
 if (typeof window !== 'undefined') {

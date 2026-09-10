@@ -224,36 +224,52 @@ public class AIService {
     public ApiResponse analyzeLabAttachment(AnalyzeLabAttachmentRequest req) {
         String fileName = req.getAttachmentName() != null ? req.getAttachmentName() : "lab_report";
         String dataUrl = req.getAttachmentDataUrl();
-        if (dataUrl == null || dataUrl.isBlank()) {
-            throw ApiException.badRequest("An attachment scan (image or PDF) is required for AI analysis.");
-        }
-
-        String mime = "image/png";
-        String base64 = dataUrl;
-        int comma = dataUrl.indexOf(',');
-        if (comma >= 0) {
-            String meta = dataUrl.substring(0, comma);
-            if (meta.contains("data:")) {
-                String mt = meta.substring(meta.indexOf("data:") + 5);
-                int semi = mt.indexOf(';');
-                if (semi >= 0) mt = mt.substring(0, semi);
-                if (!mt.isBlank()) mime = mt;
-            }
-            base64 = dataUrl.substring(comma + 1);
+        String reportText = req.getReportText() != null ? req.getReportText().trim() : "";
+        if ((dataUrl == null || dataUrl.isBlank()) && reportText.isEmpty()) {
+            throw ApiException.badRequest("Upload a lab report / scan image (or paste the report text) for AI analysis.");
         }
 
         Map<String, Object> extracted = null;
-        String vision = callGeminiVision(mime, base64);
-        if (vision != null) {
-            extracted = parseExtractedLabReport(vision);
+        String source = "SIMULATED";
+
+        if (dataUrl != null && !dataUrl.isBlank()) {
+            String mime = "image/png";
+            String base64 = dataUrl;
+            int comma = dataUrl.indexOf(',');
+            if (comma >= 0) {
+                String meta = dataUrl.substring(0, comma);
+                if (meta.contains("data:")) {
+                    String mt = meta.substring(meta.indexOf("data:") + 5);
+                    int semi = mt.indexOf(';');
+                    if (semi >= 0) mt = mt.substring(0, semi);
+                    if (!mt.isBlank()) mime = mt;
+                }
+                base64 = dataUrl.substring(comma + 1);
+            }
+
+            String vision = callGeminiVision(mime, base64);
+            if (vision != null) {
+                extracted = parseExtractedLabReport(vision);
+                source = "GEMINI";
+            }
         }
+
+        if (extracted == null && !reportText.isEmpty()) {
+            String textAi = callGeminiTextExtraction(reportText);
+            if (textAi != null) {
+                extracted = parseExtractedLabReport(textAi);
+                source = "GEMINI";
+            }
+        }
+
         if (extracted == null) {
-            extracted = simulateLabExtraction(fileName);
+            String hint = reportText.isEmpty() ? fileName : reportText;
+            extracted = simulateLabExtraction(hint);
         }
 
         return ApiResponse.ok()
                 .with("report", extracted)
-                .with("source", vision != null ? "GEMINI" : "SIMULATED");
+                .with("source", source);
     }
 
     public ApiResponse generateDietPlan(GenerateDietPlanRequest req) {
@@ -639,6 +655,7 @@ public class AIService {
             report.put("labName", node.path("labName").asText(null));
             String dateStr = node.path("date").asText(null);
             report.put("date", dateStr != null && !dateStr.isBlank() ? dateStr : java.time.LocalDate.now().toString());
+            report.put("recordType", inferRecordType(node));
             JsonNode diagNode = node.path("diagnosis");
             if (!diagNode.isMissingNode() && !diagNode.isNull() && !diagNode.asText("").isBlank()) {
                 report.put("diagnosis", diagNode.asText());
@@ -664,6 +681,32 @@ public class AIService {
         }
     }
 
+    /**
+     * Normalises the record category returned by the AI (or infers it from the
+     * report content) so the UI can pre-select "what the report belongs to", e.g.
+     * a blood panel vs an X-ray/MRI/CT scan.
+     */
+    private String inferRecordType(JsonNode node) {
+        String rt = node.path("recordType").asText("");
+        if (rt != null && !rt.isBlank()) {
+            String u = rt.toUpperCase();
+            if (u.contains("IMAGING") || u.contains("SCAN") || u.contains("XRAY") || u.contains("X-RAY")
+                    || u.contains("MRI") || u.contains("CT ") || u.contains("CTSCAN") || u.contains("ULTRASOUND")
+                    || u.contains("SONOGRAPHY")) {
+                return "IMAGING_SCAN";
+            }
+            if (u.contains("PRESCRIPTION")) return "PRESCRIPTION";
+            if (u.contains("MANUAL")) return "MANUAL_RECORD";
+        }
+        String blob = (node.path("title").asText("") + " " + node.path("diagnosis").asText("")).toLowerCase();
+        if (blob.contains("x-ray") || blob.contains("xray") || blob.contains("mri") || blob.contains("ct scan")
+                || blob.contains("ctscan") || blob.contains("ultrasound") || blob.contains("sonography")
+                || blob.contains("scan") || blob.contains("imaging")) {
+            return "IMAGING_SCAN";
+        }
+        return "LAB_REPORT";
+    }
+
     private String callGeminiVision(String mimeType, String base64Image) {
         if (!geminiEnabled()) {
             log.warn("[Gemini] disabled: key len={}", geminiApiKey == null ? -1 : geminiApiKey.length());
@@ -676,9 +719,12 @@ public class AIService {
         sys.put("parts", List.of(Map.of("text",
                 "You are NexusHealth's diagnostic AI. Read the uploaded lab report / diagnostic scan image. "
                         + "Extract its details and return a SINGLE compact JSON object containing exactly: "
-                        + "{\"title\": string, \"labName\": string, \"date\": \"YYYY-MM-DD\" or null if not visible, "
+                        + "{\"recordType\": \"LAB_REPORT\" | \"IMAGING_SCAN\" | \"PRESCRIPTION\" | \"MANUAL_RECORD\", "
+                        + "\"title\": string, \"labName\": string, \"date\": \"YYYY-MM-DD\" or null if not visible, "
+                        + "\"diagnosis\": string (a 1-2 sentence plain-language summary of what this report is about and its overall result/findings), "
                         + "\"parameters\": [{\"name\": string, \"value\": string, \"unit\": string, \"referenceRange\": string, \"status\": \"NORMAL\"|\"HIGH\"|\"LOW\"}]}. "
-                        + "For X-ray/MRI/CT/ultrasound scans that have no numeric parameters, return parameters as an empty array and set \"diagnosis\" to a short summary of the visible findings. "
+                        + "recordType is which kind of report this is: a blood/pathology panel is LAB_REPORT, an X-ray/MRI/CT/ultrasound is IMAGING_SCAN, a prescription is PRESCRIPTION, anything else MANUAL_RECORD. "
+                        + "For X-ray/MRI/CT/ultrasound scans that have no numeric parameters, return parameters as an empty array and put the findings summary in \"diagnosis\". "
                         + "Return ONLY valid JSON, no markdown, no commentary.")));
         body.put("systemInstruction", sys);
 
@@ -696,6 +742,28 @@ public class AIService {
         ));
 
         return postGemini(body);
+    }
+
+    /**
+     * Analyses pasted report text (no image available) using the same Gemini
+     * extraction contract as the vision path, so patients can paste a report
+     * and have every field auto-filled.
+     */
+    private String callGeminiTextExtraction(String reportText) {
+        String snippets = reportText != null && reportText.length() > 7500
+                ? reportText.substring(0, 7500)
+                : reportText;
+        return callGemini(
+                "You are NexusHealth's diagnostic AI. Read the pasted lab report / diagnostic scan text below and return a SINGLE compact JSON object containing exactly: "
+                        + "{\"recordType\": \"LAB_REPORT\" | \"IMAGING_SCAN\" | \"PRESCRIPTION\" | \"MANUAL_RECORD\", "
+                        + "\"title\": string, \"labName\": string, \"date\": \"YYYY-MM-DD\" or null if not present, "
+                        + "\"diagnosis\": string (a 1-2 sentence plain-language summary of what this report is about and its overall result/findings), "
+                        + "\"parameters\": [{\"name\": string, \"value\": string, \"unit\": string, \"referenceRange\": string, \"status\": \"NORMAL\"|\"HIGH\"|\"LOW\"}]}. "
+                        + "recordType is which kind of report this is: a blood/pathology panel is LAB_REPORT, an X-ray/MRI/CT/ultrasound is IMAGING_SCAN, a prescription is PRESCRIPTION, anything else MANUAL_RECORD. "
+                        + "For scan texts with no numeric parameters, return parameters as an empty array and put the findings summary in \"diagnosis\". "
+                        + "Return ONLY valid JSON, no markdown, no commentary.",
+                "Pasted report content:\n" + snippets
+        );
     }
 
     private String postGemini(Map<String, Object> body) {
@@ -787,6 +855,7 @@ public class AIService {
             title = "Diagnostic Imaging Report";
             Map<String, Object> report = new LinkedHashMap<>();
             report.put("title", title);
+            report.put("recordType", "IMAGING_SCAN");
             report.put("labName", "NexusHealth Imaging & Diagnostics Centre");
             report.put("date", java.time.LocalDate.now().toString());
             report.put("parameters", List.of());
@@ -807,9 +876,11 @@ public class AIService {
 
         Map<String, Object> report = new LinkedHashMap<>();
         report.put("title", title);
+        report.put("recordType", "LAB_REPORT");
         report.put("labName", labName);
         report.put("date", java.time.LocalDate.now().toString());
         report.put("parameters", params);
+        report.put("diagnosis", "Routine screening results. All measured parameters are within or near reference ranges; review the report with your physician.");
         return report;
     }
 

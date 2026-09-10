@@ -112,11 +112,20 @@ export const AccessCardView: React.FC<AccessCardViewProps> = ({
   }, [showPrintModal, card]);
 
   const handlePrintCard = () => {
+    const source = document.getElementById("nh-print-card");
+    if (!source) return;
+    document.getElementById("nh-print-card-sheet")?.remove();
+    const sheet = source.cloneNode(true) as HTMLElement;
+    sheet.id = "nh-print-card-sheet";
+    document.body.appendChild(sheet);
     document.body.classList.add("nh-printing");
     setTimeout(() => {
       window.print();
-      setTimeout(() => document.body.classList.remove("nh-printing"), 500);
-    }, 200);
+      setTimeout(() => {
+        document.body.classList.remove("nh-printing");
+        document.getElementById("nh-print-card-sheet")?.remove();
+      }, 500);
+    }, 250);
   };
 
   // Handle Issue Card
@@ -610,31 +619,47 @@ export const AccessCardView: React.FC<AccessCardViewProps> = ({
           </div>
 
           {/* PRINT-ONLY NODE */}
-          <div id="nh-print-card" className="bg-white text-slate-900 p-4 rounded-none" style={{ width: "85mm", height: "55mm" }}>
-            <div className="flex justify-between items-center border-b-2 border-slate-900 pb-1">
-              <span className="font-black text-[#0F172A] text-sm tracking-wider uppercase">NEXUSHEALTH</span>
-              <span className="text-[10px] font-mono text-[#0F172A] font-bold">GLOBAL HEALTH CARD</span>
-            </div>
+          <div
+            id="nh-print-card"
+            className="rounded-none"
+            style={{
+              width: "85mm",
+              height: "55mm",
+              background: "linear-gradient(135deg, #0B1120 0%, #0F172A 40%, #133CA6 75%, #17C964 130%)",
+              color: "#ffffff",
+              overflow: "hidden",
+              position: "relative",
+              flexShrink: 0,
+            }}
+          >
+            <div style={{ height: "3mm", background: "linear-gradient(90deg, #17C964 0%, #3CE584 60%, #ffffff 100%)" }} />
 
-            <div className="flex justify-between items-center" style={{ paddingTop: "4mm" }}>
+            <div style={{ padding: "4mm 5mm", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
               <div>
-                <p className="text-[9px] text-slate-600 uppercase font-mono">Patient Name</p>
-                <p className="text-base font-extrabold text-slate-900">{card.patientName}</p>
-                <p className="text-xs font-mono font-bold text-[#0F172A]">ID: {card.patientHealthId}</p>
-                <p className="text-[10px] text-slate-700">Blood Group: <strong>{patientProfile?.bloodGroup || "B+"}</strong></p>
-                <p className="text-[9px] text-slate-700">Emergency: {patientProfile?.emergencyContactPhone || "+91 98765 43210"}</p>
+                <div style={{ display: "flex", alignItems: "baseline", gap: "6px" }}>
+                  <span style={{ fontWeight: 900, fontSize: "13px", letterSpacing: "1px", color: "#3CE584" }}>NEXUSHEALTH</span>
+                  <span style={{ fontSize: "8px", color: "#9CA3AF", letterSpacing: "1px", fontWeight: 600 }}>GLOBAL HEALTH CARD</span>
+                </div>
+
+                <div style={{ marginTop: "4mm" }}>
+                  <p style={{ fontSize: "7px", color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.5px", fontFamily: "monospace", margin: 0 }}>Patient Name</p>
+                  <p style={{ fontSize: "14px", fontWeight: 800, color: "#ffffff", lineHeight: 1.15, margin: 0 }}>{card.patientName}</p>
+                  <p style={{ fontSize: "10px", fontFamily: "monospace", fontWeight: 700, color: "#3CE584", margin: "1.5mm 0 0", letterSpacing: "0.3px" }}>ID: {card.patientHealthId}</p>
+                  <p style={{ fontSize: "8px", color: "#D1D5DB", margin: "1.5mm 0 0" }}>Blood Group: <strong style={{ color: "#ffffff" }}>{patientProfile?.bloodGroup || "B+"}</strong></p>
+                  <p style={{ fontSize: "8px", color: "#9CA3AF", margin: "0.8mm 0 0" }}>Emergency: {patientProfile?.emergencyContactPhone || "+91 98765 43210"}</p>
+                </div>
               </div>
 
-              <div className="p-1 bg-white rounded border-2 border-slate-900">
+              <div style={{ background: "#ffffff", borderRadius: "2.5mm", padding: "1.8mm", flexShrink: 0 }}>
                 {printQr ? (
-                  <img src={printQr} alt="Card QR" className="w-24 h-24" />
+                  <img src={printQr} alt="Card QR" style={{ width: "21mm", height: "21mm", display: "block" }} />
                 ) : (
-                  <div className="w-24 h-24 bg-slate-100" />
+                  <div style={{ width: "21mm", height: "21mm", background: "#E5E7EB" }} />
                 )}
               </div>
             </div>
 
-            <div className="pt-1 text-[8px] text-center text-slate-700 font-mono">
+            <div style={{ position: "absolute", bottom: "1.6mm", left: 0, right: 0, textAlign: "center", fontSize: "6.5px", color: "#9CA3AF", fontFamily: "monospace" }}>
               {card.cardIdentifier} • Scan QR at any NexusHealth-affiliated hospital
             </div>
           </div>

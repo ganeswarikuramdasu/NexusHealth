@@ -20,6 +20,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.security.SecureRandom;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -34,6 +37,7 @@ public class CardService {
 
     private static final SecureRandom RANDOM = new SecureRandom();
     private static final Set<String> TOGGLEABLE_STATUSES = Set.of("ACTIVE", "TEMP_BLOCKED");
+    private static final Logger log = LoggerFactory.getLogger(CardService.class);
 
     private static boolean isBlockedStatus(String status) {
         return "TEMP_BLOCKED".equals(status) || "TEMPORARILY_BLOCKED".equals(status);
@@ -151,7 +155,9 @@ public class CardService {
         return ApiResponse.ok("Card status changed to " + target + ".").with("card", toPublic(card));
     }
 
-    @Transactional
+    // NOTE: deliberately NOT @Transactional. The revocation of the reported-lost
+    // card is the critical action and must commit even if the optional automatic
+    // replacement card cannot be generated (so this endpoint never 500s).
     public ApiResponse reportLost(ReportLostRequest req) {
         AccessCard card = accessCardRepository.findByIdOrPatientId(req.getCardId(), req.getPatientId())
                 .orElseThrow(() -> ApiException.notFound("Access Card record not found."));
@@ -166,17 +172,26 @@ public class CardService {
 
         AccessCard replacementCard = null;
         if (Boolean.TRUE.equals(req.getAutoReplace())) {
-            replacementCard = createNewCard(card.getPatientId(), card.getPatientHealthId(), card.getPatientName(),
-                    card.getPinCode() != null ? card.getPinCode() : "1234");
-            accessCardRepository.save(replacementCard);
-            card.setReplacedBy(replacementCard.getId());
-            accessCardRepository.save(card);
+            try {
+                replacementCard = createNewCard(card.getPatientId(), card.getPatientHealthId(), card.getPatientName(),
+                        card.getPinCode() != null ? card.getPinCode() : "1234");
+                accessCardRepository.saveAndFlush(replacementCard);
+                card.setReplacedBy(replacementCard.getId());
+                accessCardRepository.save(card);
 
-            auditLogService.log(card.getPatientName(), "PATIENT", "REPLACEMENT_CARD_ISSUED", card.getPatientHealthId(),
-                    "Replacement Card " + replacementCard.getCardIdentifier() + " generated with new secure token.");
+                auditLogService.log(card.getPatientName(), "PATIENT", "REPLACEMENT_CARD_ISSUED", card.getPatientHealthId(),
+                        "Replacement Card " + replacementCard.getCardIdentifier() + " generated with new secure token.");
+            } catch (Exception e) {
+                replacementCard = null;
+                log.warn("[Card] replacement card generation failed for patient {}: {}",
+                        card.getPatientHealthId(), e.toString());
+            }
         }
 
-        return ApiResponse.ok("Card reported LOST. Old token revoked immediately to protect medical history.")
+        return ApiResponse.ok("Card reported LOST. Old token revoked immediately to protect medical history."
+                        + (replacementCard != null
+                        ? " A replacement card has been generated."
+                        : " We could not auto-generate a replacement right now — please order one from your dashboard."))
                 .with("card", toPublic(card))
                 .with("replacementCard", replacementCard != null ? toPublic(replacementCard) : null);
     }
@@ -414,11 +429,13 @@ public class CardService {
     private AccessCard createNewCard(String userId, String healthId, String patientName, String pinCode) {
         int cardSeq = 1000 + RANDOM.nextInt(8999);
         String suffix = healthId != null ? healthId.replace("NH-IND-2026-", "") : "0000";
-        String cardIdentifier = "NX-CARD-" + suffix + "-" + cardSeq;
+        // Random tiebreakers make PK / unique-card-identifier collisions ~impossible,
+        // even for two cards created within the same millisecond.
+        String cardIdentifier = "NX-CARD-" + suffix + "-" + cardSeq + "-" + randomHex(3);
         String secureToken = "NXAC-" + randomHex(24);
 
         AccessCard.Builder builder = AccessCard.builder()
-                .id("card_" + System.currentTimeMillis())
+                .id("card_" + System.currentTimeMillis() + "_" + randomHex(4))
                 .patientId(userId)
                 .patientHealthId(healthId)
                 .patientName(patientName)

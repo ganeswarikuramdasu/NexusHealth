@@ -130,6 +130,9 @@ export const PatientView: React.FC<PatientViewProps> = ({
   const [uploadLabName, setUploadLabName] = useState("");
   const [uploadDate, setUploadDate] = useState(new Date().toISOString().split("T")[0]);
   const [uploadDoctor, setUploadDoctor] = useState("");
+  const [uploadCategory, setUploadCategory] = useState<"LAB_REPORT" | "IMAGING_SCAN" | "PRESCRIPTION" | "MANUAL_RECORD">("LAB_REPORT");
+  const [uploadDiagnosis, setUploadDiagnosis] = useState("");
+  const [uploadReportText, setUploadReportText] = useState("");
   const [uploadParamName, setUploadParamName] = useState("");
   const [uploadParamVal, setUploadParamVal] = useState("");
   const [uploadParamUnit, setUploadParamUnit] = useState("");
@@ -150,7 +153,30 @@ export const PatientView: React.FC<PatientViewProps> = ({
   // In-app attachment viewer (open without downloading)
   const [viewAttachment, setViewAttachment] = useState<{ name: string; dataUrl: string } | null>(null);
 
-  const runAiLabAnalysis = async (fileName: string, dataUrl: string) => {
+  const applyAiReport = (rep: any, source: string) => {
+    if (rep.title) setUploadTitle(rep.title);
+    if (rep.labName) setUploadLabName(rep.labName);
+    if (rep.date) setUploadDate(rep.date);
+    if (rep.recordType && ["LAB_REPORT", "IMAGING_SCAN", "PRESCRIPTION", "MANUAL_RECORD"].includes(rep.recordType)) {
+      setUploadCategory(rep.recordType);
+    }
+    if (rep.diagnosis) setUploadDiagnosis(rep.diagnosis);
+    if (Array.isArray(rep.parameters)) {
+      setUploadParamsList(
+        rep.parameters.map((p: any) => ({
+          name: p.name || "Parameter",
+          value: p.value != null ? String(p.value) : "—",
+          unit: p.unit || "",
+          referenceRange: p.referenceRange || "-",
+          status: p.status || "NORMAL",
+        }))
+      );
+      setAiExtractedEmpty(rep.parameters.length === 0);
+    }
+    setAiSource(source);
+  };
+
+  const runAiLabAnalysis = async (fileName: string, dataUrl: string, reportText?: string) => {
     setAiAnalyzing(true);
     setAiAnalyzeError("");
     setAiSource(null);
@@ -162,6 +188,7 @@ export const PatientView: React.FC<PatientViewProps> = ({
         body: JSON.stringify({
           attachmentName: fileName,
           attachmentDataUrl: dataUrl,
+          reportText: reportText || "",
           patientHealthId: profile.globalHealthId,
         }),
       });
@@ -170,28 +197,20 @@ export const PatientView: React.FC<PatientViewProps> = ({
         setAiAnalyzeError(data?.message || "AI could not read this report. You can fill the details manually.");
         return;
       }
-      const rep = data.report || {};
-      if (rep.title) setUploadTitle(rep.title);
-      if (rep.labName) setUploadLabName(rep.labName);
-      if (rep.date) setUploadDate(rep.date);
-      if (Array.isArray(rep.parameters)) {
-        setUploadParamsList(
-          rep.parameters.map((p: any) => ({
-            name: p.name || "Parameter",
-            value: p.value != null ? String(p.value) : "—",
-            unit: p.unit || "",
-            referenceRange: p.referenceRange || "-",
-            status: p.status || "NORMAL",
-          }))
-        );
-        setAiExtractedEmpty(rep.parameters.length === 0);
-      }
-      setAiSource(data.source || "SIMULATED");
+      applyAiReport(data.report || {}, data.source || "SIMULATED");
     } catch (err) {
       setAiAnalyzeError("Could not reach the AI service. Please fill the details manually.");
     } finally {
       setAiAnalyzing(false);
     }
+  };
+
+  const handleAiAnalyzeWithoutAttachment = () => {
+    if (!uploadReportText.trim() && !uploadTitle.trim()) {
+      alert("Please paste the report content (or enter a title) first so the AI can auto-fill the details.");
+      return;
+    }
+    runAiLabAnalysis(uploadTitle.trim() || "pasted_report", "", uploadReportText.trim());
   };
 
   const handleLabFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -2531,6 +2550,43 @@ className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2.5 te
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
+                  <label className="block text-slate-700 font-bold mb-1">What does this report belong to? *</label>
+                  <select
+                    value={uploadCategory}
+                    onChange={(e) => setUploadCategory(e.target.value as any)}
+                    className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900"
+                  >
+                    <option value="LAB_REPORT">Lab Report (Blood / Pathology)</option>
+                    <option value="IMAGING_SCAN">Imaging / Scan (X-ray / MRI / CT)</option>
+                    <option value="PRESCRIPTION">Prescription</option>
+                    <option value="MANUAL_RECORD">Other Medical Record</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1">Ordering Doctor (Optional)</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Dr. Meera Nair"
+                    value={uploadDoctor}
+                    onChange={(e) => setUploadDoctor(e.target.value)}
+                    className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900 placeholder-slate-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-slate-700 font-bold mb-1">Summary / Findings *</label>
+                <textarea
+                  value={uploadDiagnosis}
+                  onChange={(e) => setUploadDiagnosis(e.target.value)}
+                  rows={3}
+                  placeholder="What is the overall result of this report? e.g. TSH raised, consistent with subclinical hypothyroidism..."
+                  className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900 placeholder-slate-500 resize-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
                   <label className="block text-slate-700 font-bold mb-1">Lab / Diagnostic Facility</label>
                   <input
                     type="text"
@@ -2622,6 +2678,29 @@ className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2.5 te
                 )}
               </div>
 
+              {/* Paste-report-text Auto-Fill */}
+              <div className="bg-[#EDF1F5] p-3.5 rounded-2xl border border-slate-200 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-[#17C964] uppercase text-[10px]">Don't have an image? Paste the report text</span>
+                </div>
+                <textarea
+                  value={uploadReportText}
+                  onChange={(e) => setUploadReportText(e.target.value)}
+                  rows={3}
+                  placeholder="Paste the lab report / scan findings text here, e.g. 'TSH - 6.8 uIU/mL (Ref 0.4-4.0) ...', and let NexusHealth AI fill in the title, category, summary and parameters."
+                  className="w-full bg-[#FFFFFF] border border-slate-200 rounded-xl px-3 py-2 text-slate-900 placeholder-slate-500 text-[11px] resize-none"
+                />
+                <button
+                  type="button"
+                  onClick={handleAiAnalyzeWithoutAttachment}
+                  disabled={aiAnalyzing}
+                  className="w-full py-2 bg-[#0F172A] hover:bg-[#1E293B] disabled:opacity-60 text-white rounded-xl text-[11px] font-bold flex items-center justify-center space-x-2 transition"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  <span>{aiAnalyzing ? "NexusHealth AI is reading the details..." : "AI Analyze & Auto-Fill Every Blank"}</span>
+                </button>
+              </div>
+
               {/* Document File Attachment */}
               <div>
                 <label className="block text-slate-700 font-bold mb-1">Attachment (PDF / PNG / JPG)</label>
@@ -2668,32 +2747,74 @@ className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2.5 te
             </div>
 
             <button
-              onClick={() => {
+              onClick={async () => {
+                const parameters = uploadParamsList.length > 0
+                  ? uploadParamsList
+                  : (aiExtractedEmpty ? [] : [
+                      { name: "Fasting Blood Sugar", value: "92", unit: "mg/dL", referenceRange: "70 - 99", status: "NORMAL" }
+                    ]);
                 const newReport = {
                   id: `manual_lab_${Date.now()}`,
                   title: uploadTitle.trim() || "Diagnostic Lab Report",
+                  recordType: uploadCategory,
                   labName: uploadLabName || "Patient Uploaded Diagnostics",
                   date: uploadDate,
+                  diagnosis: uploadDiagnosis || `Patient uploaded ${uploadCategory === "IMAGING_SCAN" ? "diagnostic scan" : "lab report"} - review with physician.`,
+                  doctorName: uploadDoctor || "Self / External Physician",
+                  patientName,
                   status: "COMPLETED",
                   attachmentName: uploadAttachment ? uploadAttachment.name : null,
                   attachmentDataUrl: uploadAttachment ? uploadAttachment.dataUrl : null,
-                  parameters: uploadParamsList.length > 0
-                    ? uploadParamsList
-                    : (aiExtractedEmpty ? [] : [
-                        { name: "Fasting Blood Sugar", value: "92", unit: "mg/dL", referenceRange: "70 - 99", status: "NORMAL" }
-                      ]),
+                  parameters,
                 };
+                try {
+                  const res = await fetch("/api/patient/add-manual-record", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      patientId: profile.userId || appUser?.id || "",
+                      patientHealthId: profile.globalHealthId || appUser?.globalHealthId || "",
+                      date: uploadDate,
+                      recordType: uploadCategory,
+                      title: newReport.title,
+                      diagnosis: newReport.diagnosis,
+                      doctorName: uploadDoctor || "Self / External Physician",
+                      hospitalName: uploadLabName || "Independent Diagnostics / Self Upload",
+                      symptoms: uploadReportText.trim() || `Patient uploaded ${uploadCategory === "IMAGING_SCAN" ? "diagnostic scan" : "lab report"}`,
+                      doctorNotes: uploadDiagnosis || "Patient uploaded health record via NexusHealth PHR.",
+                      labResults: parameters.map((p: any) => ({
+                        parameter: p.name,
+                        value: p.value,
+                        unit: p.unit,
+                        referenceRange: p.referenceRange,
+                        status: p.status,
+                      })),
+                      attachmentUrl: uploadAttachment ? `patient_uploaded:${uploadAttachment.name}` : null,
+                    }),
+                  });
+                  const data = await parseResponseSafe<any>(res, { success: false });
+                  if (data && data.success && data.record && data.record.id) {
+                    newReport.id = data.record.id;
+                  }
+                } catch (err) {
+                  console.warn("Lab report saved locally only:", err);
+                }
                 setPatientUploadedReports((prev) => [newReport, ...prev]);
                 setShowManualLabModal(false);
                 setUploadTitle("");
                 setUploadLabName("");
+                setUploadDate(new Date().toISOString().split("T")[0]);
+                setUploadDoctor("");
+                setUploadCategory("LAB_REPORT");
+                setUploadDiagnosis("");
+                setUploadReportText("");
                 setUploadParamsList([]);
                 setUploadAttachment(null);
                 setAiAnalyzeError("");
                 setAiSource(null);
                 setAiExtractedEmpty(false);
                 if (labFileInputRef.current) labFileInputRef.current.value = "";
-                alert(uploadAttachment ? "Diagnostic Lab Report and attachment uploaded and linked to Health ID!" : "Diagnostic Lab Report Uploaded and Linked to Health ID!");
+                alert("Diagnostic Lab Report saved and linked to your Health ID" + (uploadAttachment ? " with attachment" : "") + "!");
               }}
               className="w-full py-3 bg-[#17C964] hover:bg-[#0f172a] text-white font-bold rounded-xl transition text-xs shadow-lg shadow-[#17C964]/30"
             >
