@@ -139,6 +139,9 @@ public class EmergencyService {
         }
 
         Map<String, Object> prof = resolvePatientByIdentity(card.getPatientId());
+        if (prof == null) {
+            prof = fallbackPatientProfileFor(card.getPatientName(), card.getPatientHealthId());
+        }
         String name = card.getPatientName() != null && !card.getPatientName().isBlank()
                 ? card.getPatientName() : patientName(card.getPatientId());
 
@@ -929,6 +932,25 @@ public class EmergencyService {
         out.put("name", user.getName());
         out.put("dob", user.getDateOfBirth() != null ? user.getDateOfBirth().toString() : "");
         out.put("gender", user.getGender() != null ? user.getGender() : "");
+        out.put("bloodGroup", "");
+        out.put("heightCm", 0);
+        out.put("weightKg", 0);
+        out.put("organDonor", false);
+        out.put("allergies", List.of());
+        out.put("chronicConditions", List.of());
+        out.put("emergencyContactName", "");
+        out.put("emergencyContactPhone", "");
+        out.put("emergencyContactRelation", "");
+        return out;
+    }
+
+    private Map<String, Object> fallbackPatientProfileFor(String name, String healthId) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("userId", "");
+        out.put("globalHealthId", healthId != null ? healthId : "");
+        out.put("name", name != null ? name : "");
+        out.put("dob", "");
+        out.put("gender", "");
         out.put("bloodGroup", "");
         out.put("heightCm", 0);
         out.put("weightKg", 0);

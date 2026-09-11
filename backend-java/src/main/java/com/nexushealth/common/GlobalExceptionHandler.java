@@ -50,6 +50,14 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.fail("Malformed or invalid request body."));
     }
 
+    // Date / number parsing failures that escaped service-level guarding produce
+    // a clean 400 instead of a generic 500.
+    @ExceptionHandler({java.time.format.DateTimeParseException.class, IllegalArgumentException.class})
+    public ResponseEntity<ApiResponse> handleBadRequestValue(Exception ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.fail("Invalid request value provided. Check date fields (YYYY-MM-DD) and numeric fields."));
+    }
+
     // FK / unique violations leak raw DB messages; map them to a clean 409/400.
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ApiResponse> handleDataIntegrity(DataIntegrityViolationException ex) {

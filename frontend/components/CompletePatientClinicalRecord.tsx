@@ -480,7 +480,7 @@ export const CompletePatientClinicalRecord: React.FC<CompletePatientClinicalReco
           accessSessionId: accessSession?.id,
         }),
       });
-      const data = await parseResponseSafe<any>(res, { success: false, error: "Failed to add medication." });
+      const data = await parseResponseSafe<any>(res, { success: false, message: "Failed to add medication." });
       if (data && data.success) {
         await logSessionAction("ADDED_MEDICATION", "MEDICATIONS");
         setShowAddMedicationModal(false);
@@ -492,7 +492,7 @@ export const CompletePatientClinicalRecord: React.FC<CompletePatientClinicalReco
         fetchMedications();
         alert(`Medication ${medName} added to patient active record.`);
       } else {
-        alert(data?.error || "Failed to add medication.");
+        alert(data?.message || "Failed to add medication.");
       }
     } catch (err) {
       console.error(err);
@@ -520,7 +520,7 @@ export const CompletePatientClinicalRecord: React.FC<CompletePatientClinicalReco
           accessSessionId: accessSession?.id,
         }),
       });
-      const data = await parseResponseSafe<any>(res, { success: false, error: "Failed to discontinue medication." });
+      const data = await parseResponseSafe<any>(res, { success: false, message: "Failed to discontinue medication." });
       if (data && data.success) {
         await logSessionAction("DISCONTINUED_MEDICATION", "MEDICATIONS");
         setDiscontinuingMedication(null);
@@ -528,7 +528,7 @@ export const CompletePatientClinicalRecord: React.FC<CompletePatientClinicalReco
         fetchMedications();
         alert(`Medication ${discontinuingMedication.medicationName} discontinued.`);
       } else {
-        alert(data?.error || "Failed to discontinue medication.");
+        alert(data?.message || "Failed to discontinue medication.");
       }
     } catch (err) {
       console.error(err);
@@ -764,7 +764,7 @@ export const CompletePatientClinicalRecord: React.FC<CompletePatientClinicalReco
   const handleEndEmergency = async () => {
     if (accessSession?.id) {
       try {
-        await fetch(`/api/emergency/session/${accessSession.id}/end`, { method: "POST" });
+        await fetch(`/api/doctor/access-sessions/${accessSession.id}/end`, { method: "POST" });
       } catch (e) {}
     }
     setSessionEnded(true);

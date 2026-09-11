@@ -94,7 +94,7 @@ public class AppointmentService {
 
         String dayName = targetDate.getDayOfWeek().getDisplayName(java.time.format.TextStyle.FULL, java.util.Locale.ENGLISH);
         Object weeklyScheduleObj = extra.get("weeklySchedule");
-        Map<String, Object> daySchedule = asMap(weeklyScheduleObj != null ? ((Map<?, ?>) weeklyScheduleObj).get(dayName) : null);
+        Map<String, Object> daySchedule = asMap(weeklyScheduleObj instanceof Map<?, ?> ws ? ws.get(dayName) : null);
 
         boolean dayActive = !daySchedule.isEmpty() && Boolean.TRUE.equals(daySchedule.get("active"));
         if (!dayActive) {
@@ -283,7 +283,12 @@ public class AppointmentService {
         if (isBlank(req.getNewDate()) || isBlank(req.getNewSlotTime())) {
             throw ApiException.badRequest("New date and new slot time are required to reschedule.");
         }
-        LocalDate newDate = LocalDate.parse(req.getNewDate(), ISO_DATE);
+        LocalDate newDate;
+        try {
+            newDate = LocalDate.parse(req.getNewDate(), ISO_DATE);
+        } catch (Exception e) {
+            throw ApiException.badRequest("Invalid new appointment date. Provide a valid date (YYYY-MM-DD).");
+        }
         LocalTime newTime = toLocalTime(req.getNewSlotTime());
 
         Doctor doctor = doctorRepository.findById(apt.getDoctorId()).orElse(null);

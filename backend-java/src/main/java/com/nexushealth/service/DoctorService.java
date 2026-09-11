@@ -487,6 +487,7 @@ public class DoctorService {
                 || !isBlank(req.getEmergencyReason());
 
         Doctor doctor = resolveDoctor(doctorId).orElse(null);
+        String effectiveDoctorId = doctor != null ? doctor.getId() : doctorId;
 
         if (doctor != null && !"APPROVED".equals(doctor.getStatus())) {
             recordAccessLogService.add(
@@ -541,6 +542,23 @@ public class DoctorService {
         }
         effectiveHealthId = resolvedHealthId;
 
+        // A card credential that does not resolve to an ACTIVE card is rejected
+        // here, BEFORE the token can be reinterpreted as a raw patient ID /
+        // health ID (which would turn the rejection into a misleading 404).
+        if (cardRequested && !cardAuthorized) {
+            recordAccessLogService.add(
+                    doctor != null ? doctor.getId() : doctorId,
+                    doctorName != null ? doctorName : (doctor != null ? doctor.getName() : null),
+                    cardRequested ? resolvedHealthId : effectiveHealthId, effectiveHealthId, null,
+                    doctor != null ? doctor.getHospitalId() : null,
+                    doctor != null ? doctor.getHospitalName() : null,
+                    "ACCESS_CARD", "DENIED",
+                    "Attempted record access with a token that is not an active patient access card.",
+                    List.of(), false, "ACCESS_CARD_SCAN", "FAILED", null, null,
+                    "INVALID_OR_INACTIVE_ACCESS_CARD");
+            throw ApiException.forbidden("Access permission is not given. The provided token is not an active patient access card. Scan a valid NexusHealth Patient Access Card to open this patient's record.");
+        }
+
         // Resolve patient
         String patientUserId = resolvedHealthId;
         String patientName = "Patient Citizen";
@@ -560,9 +578,9 @@ public class DoctorService {
         // Check consent - try by patientUserId first, then effectiveHealthId
         boolean hasConsent = false;
         Consent activeConsent = null;
-        Optional<Consent> consentOpt = consentRepository.findFirstByPatientIdAndDoctorIdOrderByGrantedAtDesc(patientUserId, doctorId);
+        Optional<Consent> consentOpt = consentRepository.findFirstByPatientIdAndDoctorIdOrderByGrantedAtDesc(patientUserId, effectiveDoctorId);
         if (consentOpt.isEmpty() && !patientUserId.equals(effectiveHealthId)) {
-            consentOpt = consentRepository.findFirstByPatientIdAndDoctorIdOrderByGrantedAtDesc(effectiveHealthId, doctorId);
+            consentOpt = consentRepository.findFirstByPatientIdAndDoctorIdOrderByGrantedAtDesc(effectiveHealthId, effectiveDoctorId);
         }
         if (consentOpt.isPresent()) {
             Consent c = consentOpt.get();
@@ -576,9 +594,9 @@ public class DoctorService {
         // Check appointment
         boolean hasAppointment = false;
         Appointment activeApt = null;
-        List<Appointment> apts = appointmentRepository.search(patientUserId, effectiveHealthId, doctorId, null);
+        List<Appointment> apts = appointmentRepository.search(patientUserId, effectiveHealthId, effectiveDoctorId, null);
         for (Appointment a : apts) {
-            if ("ACCEPTED".equals(a.getStatus()) && doctorId.equals(a.getDoctorId())) {
+            if ("ACCEPTED".equals(a.getStatus()) && effectiveDoctorId.equals(a.getDoctorId())) {
                 hasAppointment = true;
                 activeApt = a;
                 break;
@@ -685,6 +703,7 @@ public class DoctorService {
         }
 
         Doctor doctor = resolveDoctor(doctorId).orElse(null);
+        String effectiveDoctorId = doctor != null ? doctor.getId() : doctorId;
 
         if (doctor != null && !"APPROVED".equals(doctor.getStatus())) {
             recordAccessLogService.add(
@@ -725,6 +744,7 @@ public class DoctorService {
         // as a card credential.
         boolean isCardMethod = "PATIENT_ACCESS_CARD".equals(accessMethod);
         boolean cardAuthorized = false;
+        AccessCard matchedCard = null;
         String effectivePatientHealthId = patientHealthId;
         String cardToken = !isBlank(req.getAccessCardId())
                 ? req.getAccessCardId().trim()
@@ -732,13 +752,34 @@ public class DoctorService {
         if (cardToken != null && !cardToken.isEmpty()) {
             List<AccessCard> cardHits = accessCardRepository.findAllByCardIdentifier(cardToken);
             if (!cardHits.isEmpty()) {
-                AccessCard card = cardHits.get(0);
-                effectivePatientHealthId = card.getPatientHealthId();
-                cardAuthorized = "ACTIVE".equals(card.getStatus());
+                matchedCard = cardHits.get(0);
+                effectivePatientHealthId = matchedCard.getPatientHealthId();
+                cardAuthorized = "ACTIVE".equals(matchedCard.getStatus());
             }
         }
 
         boolean isEmergency = "EMERGENCY_BREAK_GLASS".equals(accessMethod) || "EMERGENCY".equals(accessMethod);
+
+        // A card credential that does not resolve to an ACTIVE card is rejected
+        // here, BEFORE the token can be reinterpreted as a raw patient ID /
+        // health ID (which would turn the rejection into a misleading 404).
+        if (isCardMethod && !cardAuthorized) {
+            recordAccessLogService.add(
+                    doctor != null ? doctor.getId() : doctorId,
+                    doctor != null ? doctor.getName() : "Doctor",
+                    matchedCard != null ? matchedCard.getPatientId() : null,
+                    matchedCard != null ? matchedCard.getPatientHealthId() : patientHealthId,
+                    matchedCard != null && matchedCard.getPatientName() != null ? matchedCard.getPatientName() : "Patient",
+                    doctor != null ? doctor.getHospitalId() : null,
+                    doctor != null ? doctor.getHospitalName() : null,
+                    "PATIENT_ACCESS_CARD", "DENIED",
+                    matchedCard == null
+                            ? "Scanned token is not a recognized NexusHealth Patient Access Card."
+                            : "Card is " + matchedCard.getStatus() + ".",
+                    List.of(), false, "ACCESS_CARD_SCAN", "FAILED", null, null,
+                    "INVALID_OR_INACTIVE_ACCESS_CARD");
+            throw ApiException.forbidden("Access permission is not given. The provided token is not an active patient access card. Scan a valid NexusHealth Patient Access Card to open this patient's record.");
+        }
 
         // Resolve patient using PatientResolver
         PatientResolver.Resolved patientResolved = patientResolver.resolve(effectivePatientHealthId).orElse(null);
@@ -755,24 +796,10 @@ public class DoctorService {
         // Authorization gate: Emergency Break-Glass overrides consent; every other
         // method requires an ACTIVE access card, an active consent, or a scheduled
         // appointment. Never opens a session without permission.
-        if (isCardMethod && !cardAuthorized) {
-            recordAccessLogService.add(
-                    doctor != null ? doctor.getId() : doctorId,
-                    doctor != null ? doctor.getName() : "Doctor",
-                    patientUserId, patientGlobalId, patientName,
-                    doctor != null ? doctor.getHospitalId() : null,
-                    doctor != null ? doctor.getHospitalName() : null,
-                    "PATIENT_ACCESS_CARD", "DENIED",
-                    "Attempted session with a token that is not an active patient access card.",
-                    List.of(), false, "ACCESS_CARD_SCAN", "FAILED", null, null,
-                    "INVALID_OR_INACTIVE_ACCESS_CARD");
-            throw ApiException.forbidden("Access permission is not given. The provided token is not an active patient access card. Scan a valid NexusHealth Patient Access Card to open this patient's record.");
-        }
-
         boolean hasConsent = false;
-        Optional<Consent> consentOpt = consentRepository.findFirstByPatientIdAndDoctorIdOrderByGrantedAtDesc(patientUserId, doctorId);
+        Optional<Consent> consentOpt = consentRepository.findFirstByPatientIdAndDoctorIdOrderByGrantedAtDesc(patientUserId, effectiveDoctorId);
         if (consentOpt.isEmpty() && !patientUserId.equals(patientGlobalId)) {
-            consentOpt = consentRepository.findFirstByPatientIdAndDoctorIdOrderByGrantedAtDesc(patientGlobalId, doctorId);
+            consentOpt = consentRepository.findFirstByPatientIdAndDoctorIdOrderByGrantedAtDesc(patientGlobalId, effectiveDoctorId);
         }
         if (consentOpt.isPresent()) {
             Consent c = consentOpt.get();
@@ -783,8 +810,8 @@ public class DoctorService {
         }
 
         boolean hasAppointment = false;
-        for (Appointment a : appointmentRepository.search(patientUserId, patientGlobalId, doctorId, null)) {
-            if ("ACCEPTED".equals(a.getStatus()) && doctorId.equals(a.getDoctorId())) {
+        for (Appointment a : appointmentRepository.search(patientUserId, patientGlobalId, effectiveDoctorId, null)) {
+            if ("ACCEPTED".equals(a.getStatus()) && effectiveDoctorId.equals(a.getDoctorId())) {
                 hasAppointment = true;
                 break;
             }

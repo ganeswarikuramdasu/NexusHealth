@@ -52,6 +52,7 @@ public class CardService {
     private final ConsentRepository consentRepository;
     private final AuditLogService auditLogService;
     private final RecordAccessLogService recordAccessLogService;
+    private final CardAccessLogService cardAccessLogService;
     private final PasswordEncoder passwordEncoder;
 
     public CardService(AccessCardRepository accessCardRepository, CardAccessLogRepository cardAccessLogRepository,
@@ -59,6 +60,7 @@ public class CardService {
                         DoctorRepository doctorRepository, MedicalRecordRepository medicalRecordRepository,
                         ConsentRepository consentRepository,
                         AuditLogService auditLogService, RecordAccessLogService recordAccessLogService,
+                        CardAccessLogService cardAccessLogService,
                         PasswordEncoder passwordEncoder) {
         this.accessCardRepository = accessCardRepository;
         this.cardAccessLogRepository = cardAccessLogRepository;
@@ -69,6 +71,7 @@ public class CardService {
         this.consentRepository = consentRepository;
         this.auditLogService = auditLogService;
         this.recordAccessLogService = recordAccessLogService;
+        this.cardAccessLogService = cardAccessLogService;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -272,7 +275,7 @@ public class CardService {
         String hospitalName = req.getHospitalName() != null ? req.getHospitalName() : "Healthcare Facility";
 
         if (!"ACTIVE".equals(card.getStatus())) {
-            cardAccessLogRepository.save(com.nexushealth.entity.CardAccessLog.builder()
+            cardAccessLogService.record(com.nexushealth.entity.CardAccessLog.builder()
                     .id("calog_" + System.currentTimeMillis())
                     .cardId(card.getId()).patientId(card.getPatientId()).patientHealthId(card.getPatientHealthId())
                     .patientName(card.getPatientName()).actorId(actorId).actorName(actorName).actorRole(actorRole)
@@ -296,28 +299,24 @@ public class CardService {
         User user = userRepository.findById(card.getPatientId()).orElse(null);
         Map<String, Object> patientSummary = buildPatientSummary(card, profile, user);
 
-        try {
-            cardAccessLogRepository.save(com.nexushealth.entity.CardAccessLog.builder()
-                    .id("calog_" + System.currentTimeMillis())
-                    .cardId(card.getId()).patientId(card.getPatientId()).patientHealthId(card.getPatientHealthId())
-                    .patientName(String.valueOf(patientSummary.get("name"))).actorId(actorId).actorName(actorName)
-                    .actorRole(actorRole).hospitalId(hospitalId).hospitalName(hospitalName)
-                    .accessType("OUTPATIENT_CONSULTATION").authorizationStatus("AUTHORIZED")
-                    .recordsAccessed(List.of("Medical History", "Lab Reports", "Prescriptions", "Vitals"))
-                    .reason("Authorized Doctor Scan via NexusHealth Access Card").ipAddress("127.0.0.1").build());
+        cardAccessLogService.record(com.nexushealth.entity.CardAccessLog.builder()
+                .id("calog_" + System.currentTimeMillis())
+                .cardId(card.getId()).patientId(card.getPatientId()).patientHealthId(card.getPatientHealthId())
+                .patientName(String.valueOf(patientSummary.get("name"))).actorId(actorId).actorName(actorName)
+                .actorRole(actorRole).hospitalId(hospitalId).hospitalName(hospitalName)
+                .accessType("OUTPATIENT_CONSULTATION").authorizationStatus("AUTHORIZED")
+                .recordsAccessed(List.of("Medical History", "Lab Reports", "Prescriptions", "Vitals"))
+                .reason("Authorized Doctor Scan via NexusHealth Access Card").ipAddress("127.0.0.1").build());
 
-            recordAccessLogService.add(actorId, actorName,
-                    card.getPatientId(), card.getPatientHealthId(), String.valueOf(patientSummary.get("name")),
-                    hospitalId, hospitalName,
-                    "ACCESS_CARD", "GRANTED", "Patient card scanned & verified - access always granted via Patient Access Card",
-                    List.of("Medical History", "Lab Reports", "Prescriptions", "Vitals"), false,
-                    "QR", "VERIFIED", null, null, null);
+        recordAccessLogService.add(actorId, actorName,
+                card.getPatientId(), card.getPatientHealthId(), String.valueOf(patientSummary.get("name")),
+                hospitalId, hospitalName,
+                "ACCESS_CARD", "GRANTED", "Patient card scanned & verified - access always granted via Patient Access Card",
+                List.of("Medical History", "Lab Reports", "Prescriptions", "Vitals"), false,
+                "QR", "VERIFIED", null, null, null);
 
-            auditLogService.log(actorName, actorRole, "CARD_SCAN_ACCESS_GRANTED", card.getPatientHealthId(),
-                    "Accessed EHR ledger for " + patientSummary.get("name") + " via Patient Access Card.");
-        } catch (Exception logEx) {
-            // Logging must never block a legitimate card grant.
-        }
+        auditLogService.log(actorName, actorRole, "CARD_SCAN_ACCESS_GRANTED", card.getPatientHealthId(),
+                "Accessed EHR ledger for " + patientSummary.get("name") + " via Patient Access Card.");
 
         List<MedicalRecord> records = medicalRecordRepository.findForPatient(card.getPatientId());
         ApiResponse resp = ApiResponse.ok();
@@ -428,8 +427,17 @@ public class CardService {
     private TargetIds resolveTargetIds(String identifier) {
         PatientProfile profile = identifier != null ? patientProfileRepository.findById(identifier).orElse(null) : null;
         if (profile == null && identifier != null) profile = patientProfileRepository.findByPatientHealthId(identifier).orElse(null);
-        String userId = profile != null ? profile.getUserId() : identifier;
-        String healthId = profile != null ? profile.getPatientHealthId() : identifier;
+
+        if (profile == null) {
+            User user = identifier != null ? userRepository.findById(identifier).orElse(null) : null;
+            if (user == null || !"PATIENT".equals(user.getRole())) {
+                throw ApiException.notFound("Patient record not found. The provided health ID does not belong to a registered patient.");
+            }
+            return new TargetIds(user.getId(), null, user.getName());
+        }
+
+        String userId = profile.getUserId();
+        String healthId = profile.getPatientHealthId();
         User user = userId != null ? userRepository.findById(userId).orElse(null) : null;
         String patientName = user != null ? user.getName() : "Patient Citizen";
         return new TargetIds(userId, healthId, patientName);

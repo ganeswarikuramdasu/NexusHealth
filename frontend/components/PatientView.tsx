@@ -572,7 +572,7 @@ export const PatientView: React.FC<PatientViewProps> = ({
       if (data && data.success) {
         fetchPatientMedications();
       } else {
-        alert(data?.error || "Failed to log dose status");
+        alert(data?.message || "Failed to log dose status");
       }
     } catch (err) {
       console.error("Failed to log dose status:", err);
