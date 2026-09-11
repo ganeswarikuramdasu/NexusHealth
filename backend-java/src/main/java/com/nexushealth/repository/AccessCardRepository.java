@@ -20,4 +20,13 @@ public interface AccessCardRepository extends JpaRepository<AccessCard, String> 
     @Query("SELECT c FROM AccessCard c WHERE c.secureToken = :token OR c.patientHealthId = :token OR c.cardIdentifier = :token " +
             "ORDER BY c.issuedAt DESC")
     List<AccessCard> findAllByAnyIdentifier(@Param("token") String token);
+
+    /**
+     * Card-credential lookup that matches ONLY access-card identifiers
+     * (card id / cardIdentifier / secureToken). A raw patient ID or Global
+     * Health ID must never be accepted as a card credential.
+     */
+    @Query("SELECT c FROM AccessCard c WHERE c.id = :token OR c.secureToken = :token OR c.cardIdentifier = :token " +
+            "ORDER BY c.issuedAt DESC")
+    List<AccessCard> findAllByCardIdentifier(@Param("token") String token);
 }

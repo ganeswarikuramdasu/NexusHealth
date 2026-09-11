@@ -26,10 +26,11 @@ public class RecordAccessLog {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "doctor_id", referencedColumnName = "id",
+                insertable = false, updatable = false,
                 foreignKey = @ForeignKey(name = "fk_ral_doctor"))
     private Doctor doctor;
 
-    @Column(name = "doctor_id", insertable = false, updatable = false, length = 64)
+    @Column(name = "doctor_id", length = 64)
     private String doctorId;
 
     @Column(name = "doctor_name")
@@ -37,10 +38,11 @@ public class RecordAccessLog {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "patient_id", referencedColumnName = "id",
+                insertable = false, updatable = false,
                 foreignKey = @ForeignKey(name = "fk_ral_patient"))
     private User patient;
 
-    @Column(name = "patient_id", insertable = false, updatable = false, length = 64)
+    @Column(name = "patient_id", length = 64)
     private String patientId;
 
     @Column(name = "patient_health_id")
@@ -51,10 +53,11 @@ public class RecordAccessLog {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "hospital_id", referencedColumnName = "id",
+                insertable = false, updatable = false,
                 foreignKey = @ForeignKey(name = "fk_ral_hospital"))
     private Hospital hospital;
 
-    @Column(name = "hospital_id", insertable = false, updatable = false, length = 64)
+    @Column(name = "hospital_id", length = 64)
     private String hospitalId;
 
     @Column(name = "hospital_name")
@@ -90,18 +93,20 @@ public class RecordAccessLog {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "session_id", referencedColumnName = "id",
+                insertable = false, updatable = false,
                 foreignKey = @ForeignKey(name = "fk_ral_session"))
     private AccessSession session;
 
-    @Column(name = "session_id", insertable = false, updatable = false, length = 64)
+    @Column(name = "session_id", length = 64)
     private String sessionId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "appointment_id", referencedColumnName = "id",
+                insertable = false, updatable = false,
                 foreignKey = @ForeignKey(name = "fk_ral_appointment"))
     private Appointment appointment;
 
-    @Column(name = "appointment_id", insertable = false, updatable = false, length = 64)
+    @Column(name = "appointment_id", length = 64)
     private String appointmentId;
 
     @Column(nullable = false)

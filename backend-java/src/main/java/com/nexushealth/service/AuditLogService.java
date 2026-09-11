@@ -5,6 +5,8 @@ import com.nexushealth.repository.AuditLogRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class AuditLogService {
@@ -22,6 +24,12 @@ public class AuditLogService {
         return s.length() <= max ? s : s.substring(0, max);
     }
 
+    /**
+     * Best-effort, side-effect-free audit write. REQUIRES_NEW keeps this save
+     * in its own transaction so a persistence failure can never poison the
+     * caller's outer transaction into an unrelated 500 at commit time.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void log(String actorName, String actorRole, String action, String targetPatientHealthId, String details) {
         try {
             AuditLog entry = AuditLog.builder()

@@ -21,10 +21,11 @@ public class AuditLog {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "actor_user_id", referencedColumnName = "id",
+                insertable = false, updatable = false,
                 foreignKey = @ForeignKey(name = "fk_audit_actor"))
     private User actorUser;
 
-    @Column(name = "actor_user_id", insertable = false, updatable = false, length = 64)
+    @Column(name = "actor_user_id", length = 64)
     private String actorUserId;
 
     @Column(name = "actor_name")

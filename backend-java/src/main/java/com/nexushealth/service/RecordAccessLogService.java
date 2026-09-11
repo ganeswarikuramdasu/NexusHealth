@@ -5,6 +5,8 @@ import com.nexushealth.repository.RecordAccessLogRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -30,6 +32,13 @@ public class RecordAccessLogService {
         return s.length() <= max ? s : s.substring(0, max);
     }
 
+    /**
+     * Best-effort, side-effect-free log write. REQUIRES_NEW keeps this save in
+     * its own transaction so a persistence failure can never mark the caller's
+     * (outer) transaction rollback-only - which would surface as an unrelated
+     * 500 "unexpected server error" at commit time.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     @SuppressWarnings("unchecked")
     public RecordAccessLog add(
             String doctorId, String doctorName,

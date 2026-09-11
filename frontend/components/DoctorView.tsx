@@ -498,7 +498,7 @@ export const DoctorView: React.FC<DoctorViewProps> = ({
                 <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500 pt-1">
                   <div className="flex items-center space-x-1.5">
                     <ShieldCheck className="w-3.5 h-3.5 text-[#17C964] shrink-0" />
-                    <span>Enter a valid 16-character Global Unique Health ID to verify identity and fetch clinical records.</span>
+                    <span>Enter the patient's Global Unique Health ID to verify identity and fetch clinical records. Access requires active consent, a scheduled appointment, or Emergency Break-Glass authorization.</span>
                   </div>
                 </div>
               </form>

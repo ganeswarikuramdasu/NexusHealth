@@ -521,25 +521,22 @@ public class DoctorService {
             }
         }
 
-        // Resolve card token if provided via accessCardId or when method is PATIENT_ACCESS_CARD
+        // Resolve card credential if provided via accessCardId or when the method is PATIENT_ACCESS_CARD.
+        // Cards are resolved ONLY by card identifiers (card id / cardIdentifier / secureToken) -
+        // a raw patient ID or Global Health ID is never accepted as a card credential.
         if (isBlank(effectiveHealthId) && isBlank(req.getAccessCardId())) {
             throw ApiException.badRequest("A patient health ID, card ID, or scannable identifier is required to access records.");
         }
+        boolean cardRequested = !isBlank(req.getAccessCardId()) || "PATIENT_ACCESS_CARD".equals(req.getAccessMethod());
         boolean cardAuthorized = false;
         String resolvedHealthId = effectiveHealthId;
-        if (!isBlank(req.getAccessCardId())) {
-            List<AccessCard> cardHits = accessCardRepository.findAllByAnyIdentifier(req.getAccessCardId().trim());
+        if (cardRequested) {
+            String cardToken = !isBlank(req.getAccessCardId()) ? req.getAccessCardId().trim() : effectiveHealthId.trim();
+            List<AccessCard> cardHits = accessCardRepository.findAllByCardIdentifier(cardToken);
             if (!cardHits.isEmpty()) {
                 AccessCard card = cardHits.get(0);
                 resolvedHealthId = card.getPatientHealthId();
-                cardAuthorized = "ACTIVE".equals(card.getStatus()) || "LOST".equals(card.getStatus());
-            }
-        } else if ("PATIENT_ACCESS_CARD".equals(req.getAccessMethod())) {
-            List<AccessCard> cardHits = accessCardRepository.findAllByAnyIdentifier(effectiveHealthId.trim());
-            if (!cardHits.isEmpty()) {
-                AccessCard card = cardHits.get(0);
-                resolvedHealthId = card.getPatientHealthId();
-                cardAuthorized = "ACTIVE".equals(card.getStatus()) || "LOST".equals(card.getStatus());
+                cardAuthorized = "ACTIVE".equals(card.getStatus());
             }
         }
         effectiveHealthId = resolvedHealthId;
@@ -555,6 +552,9 @@ public class DoctorService {
             patientUserId = resolved.userId;
             patientProf = resolved.profile;
             patientName = resolved.name;
+        }
+        if (resolvedOpt.isEmpty()) {
+            throw ApiException.notFound("Patient record not found. The provided Global Health ID, card, or name does not belong to a registered patient.");
         }
 
         // Check consent - try by patientUserId first, then effectiveHealthId
@@ -659,13 +659,14 @@ public class DoctorService {
                 patientUserId, effectiveHealthId, null,
                 doctor != null ? doctor.getHospitalId() : null,
                 doctor != null ? doctor.getHospitalName() : null,
-                "PATIENT_ID", "DENIED",
+                cardRequested ? "PATIENT_ACCESS_CARD" : "PATIENT_ID", "DENIED",
                 "Attempted unconsented lookup without active consent, appointment, or break-glass authorization.",
                 List.of(), false, "DIRECT_LOOKUP", "FAILED", null, null,
-                "NO_ACTIVE_CONSENT_OR_APPOINTMENT"
+                cardRequested ? "INVALID_OR_INACTIVE_ACCESS_CARD" : "NO_ACTIVE_CONSENT_OR_APPOINTMENT"
         );
-        throw new ApiException(HttpStatus.FORBIDDEN,
-                "Critical Privacy Violation: Doctors cannot search or view patient records without active patient consent, scheduled appointment, or Emergency Break-Glass authorization.");
+        throw ApiException.forbidden(cardRequested
+                ? "Access permission is not given. The provided token is not an active patient access card. Scan a valid NexusHealth Patient Access Card to open this patient's record."
+                : "Access permission is not given. Patient records can only be viewed with active patient consent, a scheduled appointment, or Emergency Break-Glass authorization.");
     }
 
     /** POST /access-sessions */
@@ -718,30 +719,90 @@ public class DoctorService {
             }
         }
 
-        // Resolve card token if provided via accessCardId or patientHealthId
+        // Resolve card credential if provided via accessCardId or patientHealthId.
+        // Cards are resolved ONLY by card identifiers (card id / cardIdentifier /
+        // secureToken) - a raw patient ID or Global Health ID is never accepted
+        // as a card credential.
+        boolean isCardMethod = "PATIENT_ACCESS_CARD".equals(accessMethod);
+        boolean cardAuthorized = false;
         String effectivePatientHealthId = patientHealthId;
-        if (!isBlank(req.getAccessCardId())) {
-            List<AccessCard> cardHits = accessCardRepository.findAllByAnyIdentifier(req.getAccessCardId().trim());
+        String cardToken = !isBlank(req.getAccessCardId())
+                ? req.getAccessCardId().trim()
+                : (isCardMethod ? (patientHealthId != null ? patientHealthId.trim() : null) : null);
+        if (cardToken != null && !cardToken.isEmpty()) {
+            List<AccessCard> cardHits = accessCardRepository.findAllByCardIdentifier(cardToken);
             if (!cardHits.isEmpty()) {
                 AccessCard card = cardHits.get(0);
                 effectivePatientHealthId = card.getPatientHealthId();
-            }
-        } else if ("PATIENT_ACCESS_CARD".equals(accessMethod)) {
-            List<AccessCard> cardHits = accessCardRepository.findAllByAnyIdentifier(patientHealthId.trim());
-            if (!cardHits.isEmpty()) {
-                AccessCard card = cardHits.get(0);
-                effectivePatientHealthId = card.getPatientHealthId();
+                cardAuthorized = "ACTIVE".equals(card.getStatus());
             }
         }
 
+        boolean isEmergency = "EMERGENCY_BREAK_GLASS".equals(accessMethod) || "EMERGENCY".equals(accessMethod);
+
         // Resolve patient using PatientResolver
         PatientResolver.Resolved patientResolved = patientResolver.resolve(effectivePatientHealthId).orElse(null);
+        if (patientResolved == null) {
+            throw ApiException.notFound("Patient record not found. The provided Global Health ID, card, or name does not belong to a registered patient.");
+        }
 
-        String patientUserId = patientResolved != null ? patientResolved.userId : effectivePatientHealthId;
-        String patientGlobalId = patientResolved != null ? patientResolved.globalHealthId : effectivePatientHealthId;
-        String patientName = patientResolved != null && patientResolved.name != null && !patientResolved.name.isBlank()
+        String patientUserId = patientResolved.userId;
+        String patientGlobalId = patientResolved.globalHealthId;
+        String patientName = patientResolved.name != null && !patientResolved.name.isBlank()
                 ? patientResolved.name : "Patient Citizen";
-        PatientProfile patientProf = patientResolved != null ? patientResolved.profile : null;
+        PatientProfile patientProf = patientResolved.profile;
+
+        // Authorization gate: Emergency Break-Glass overrides consent; every other
+        // method requires an ACTIVE access card, an active consent, or a scheduled
+        // appointment. Never opens a session without permission.
+        if (isCardMethod && !cardAuthorized) {
+            recordAccessLogService.add(
+                    doctor != null ? doctor.getId() : doctorId,
+                    doctor != null ? doctor.getName() : "Doctor",
+                    patientUserId, patientGlobalId, patientName,
+                    doctor != null ? doctor.getHospitalId() : null,
+                    doctor != null ? doctor.getHospitalName() : null,
+                    "PATIENT_ACCESS_CARD", "DENIED",
+                    "Attempted session with a token that is not an active patient access card.",
+                    List.of(), false, "ACCESS_CARD_SCAN", "FAILED", null, null,
+                    "INVALID_OR_INACTIVE_ACCESS_CARD");
+            throw ApiException.forbidden("Access permission is not given. The provided token is not an active patient access card. Scan a valid NexusHealth Patient Access Card to open this patient's record.");
+        }
+
+        boolean hasConsent = false;
+        Optional<Consent> consentOpt = consentRepository.findFirstByPatientIdAndDoctorIdOrderByGrantedAtDesc(patientUserId, doctorId);
+        if (consentOpt.isEmpty() && !patientUserId.equals(patientGlobalId)) {
+            consentOpt = consentRepository.findFirstByPatientIdAndDoctorIdOrderByGrantedAtDesc(patientGlobalId, doctorId);
+        }
+        if (consentOpt.isPresent()) {
+            Consent c = consentOpt.get();
+            if (!"REVOKED".equals(c.getStatus())
+                    && (c.getExpiresAt() == null || !LocalDate.now().isAfter(c.getExpiresAt()))) {
+                hasConsent = true;
+            }
+        }
+
+        boolean hasAppointment = false;
+        for (Appointment a : appointmentRepository.search(patientUserId, patientGlobalId, doctorId, null)) {
+            if ("ACCEPTED".equals(a.getStatus()) && doctorId.equals(a.getDoctorId())) {
+                hasAppointment = true;
+                break;
+            }
+        }
+
+        if (!isEmergency && !cardAuthorized && !hasConsent && !hasAppointment) {
+            recordAccessLogService.add(
+                    doctor != null ? doctor.getId() : doctorId,
+                    doctor != null ? doctor.getName() : "Doctor",
+                    patientUserId, patientGlobalId, patientName,
+                    doctor != null ? doctor.getHospitalId() : null,
+                    doctor != null ? doctor.getHospitalName() : null,
+                    accessMethod != null ? accessMethod : "PATIENT_ID", "DENIED",
+                    "Access permission is not given: no active consent, appointment, or break-glass authorization.",
+                    List.of(), false, "DIRECT_SESSION_TOKEN", "FAILED", null, null,
+                    "NO_ACTIVE_CONSENT_OR_APPOINTMENT");
+            throw ApiException.forbidden("Access permission is not given. You can only open a patient record with active patient consent, a scheduled appointment, or Emergency Break-Glass authorization.");
+        }
 
         // Fetch patient records
         List<MedicalRecord> patientRecords = medicalRecordRepository.findForPatient(patientUserId);
@@ -749,16 +810,18 @@ public class DoctorService {
                 .map(this::mapMedicalRecordToResponse)
                 .collect(Collectors.toList());
 
-        boolean isEmergency = "EMERGENCY_BREAK_GLASS".equals(accessMethod) || "EMERGENCY".equals(accessMethod);
-
         // Build session
         String sessionId = "sess_" + System.currentTimeMillis();
+        String sessionDoctorId = doctor != null ? doctor.getId() : doctorId;
+        String sessionDoctorName = doctor != null ? doctor.getName() : "Attending Physician";
+        String sessionHospitalId = doctor != null && doctor.getHospitalId() != null ? doctor.getHospitalId() : "hosp_1";
+        String sessionHospitalName = doctor != null && doctor.getHospitalName() != null ? doctor.getHospitalName() : "Apollo Multi-Specialty Hospital";
         Map<String, Object> accessSession = new LinkedHashMap<>();
         accessSession.put("id", sessionId);
-        accessSession.put("doctorId", doctor != null ? doctor.getId() : doctorId);
-        accessSession.put("doctorName", doctor != null ? doctor.getName() : "Attending Physician");
-        accessSession.put("hospitalId", doctor != null ? doctor.getHospitalId() : "hosp_1");
-        accessSession.put("hospitalName", doctor != null ? (doctor.getHospitalName() != null ? doctor.getHospitalName() : "Apollo Multi-Specialty Hospital") : "Apollo Multi-Specialty Hospital");
+        accessSession.put("doctorId", sessionDoctorId);
+        accessSession.put("doctorName", sessionDoctorName);
+        accessSession.put("hospitalId", sessionHospitalId);
+        accessSession.put("hospitalName", sessionHospitalName);
         accessSession.put("patientId", patientUserId);
         accessSession.put("patientHealthId", patientGlobalId);
         accessSession.put("patientName", patientName);
@@ -773,11 +836,11 @@ public class DoctorService {
 
         // Create access log
         RecordAccessLog accessLog = recordAccessLogService.add(
-                accessSession.get("doctorId").toString(),
-                accessSession.get("doctorName").toString(),
+                sessionDoctorId,
+                sessionDoctorName,
                 patientUserId, patientGlobalId, patientName,
-                accessSession.get("hospitalId").toString(),
-                accessSession.get("hospitalName").toString(),
+                sessionHospitalId,
+                sessionHospitalName,
                 isEmergency ? "EMERGENCY" : (accessMethod != null ? accessMethod : "PATIENT_ID"),
                 "SUCCESS",
                 isEmergency
@@ -787,7 +850,7 @@ public class DoctorService {
                 isEmergency,
                 isEmergency ? "EMERGENCY_OVERRIDE" : "DIRECT_SESSION_TOKEN",
                 "VERIFIED",
-                sessionId, req.getAppointmentId(), null
+                null, req.getAppointmentId(), null
         );
 
         // Audit log
