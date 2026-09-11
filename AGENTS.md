@@ -69,3 +69,15 @@
 - `frontend/components/EmergencyAccessDoctorView.tsx` — emergency/break-glass UI (identify works, authorize fails).
 - `frontend/utils/api.ts` — safe fetch wrappers (never throw; return error body/fallback).
 - `backend-java/src/main/java/com/nexushealth/repository/{AppointmentRepository,MedicalRecordRepository,ConsentRepository}.java` — NULL-tolerant queries used by the flows.
+## Current Live State (2026-09-11)
+- All four doctor-module bugs AND all remaining latent 500 paths are fixed and pushed (commits 48ffd02, 305ed35). Latest: 305ed35 "harden doctor access flows against remaining 500s".
+- Fixes in 305ed35: new CardAccessLogService (best-effort REQUIRES_NEW card-log tx - card-scan logging can never roll back a grant); card credentials rejected with 403 BEFORE token can be misread as a patient ID (404); consent/appointment matching uses the resolved Doctor entity id so userId/email login forms grant correctly; EmergencyService.identifyByCard null-guard; AppointmentService reschedule date parse -> 400 + weeklySchedule instanceof guard; GlobalExceptionHandler parses DateTimeParseException/IllegalArgumentException -> 400; frontend reads data.message (not data.error) in CompletePatientClinicalRecord/PatientView and ends emergency sessions via /api/doctor/access-sessions/{id}/end.
+- Verified: 20-test API suite on a live MySQL nexushealth DB - granted flows returns 200, denied -> 403 clean, unknown patient -> 404, bad/missing input -> 400, card flow 403 for non-card tokens, no backend stack traces. Backend mvn -DskipTests package exit 0; frontend 
+pm run lint + 
+pm run build clean.
+- LOCAL DEMO ACCOUNTS (seeded MySQL, BCrypt cost-12 hashes; login sends ole field):
+  - Dr. Anand Rao: doctorA@nexus.in / Doctor@123 (DOCTOR). Patient Ananya Sharma: ananya@nexus.in / Patient@123 (PATIENT). Dr. No Perm (no consent): doctorB@nexus.in / Doctor@123.
+  - demo data: health ID NH-IND-2026-88392014; access card NX-CARD-88392014-01 / NXAC-TOKEN-1 ACTIVE; consent cons_pat u_pat->docA GRANTED to 2026-10-11; appointment apt_pat_test ACCEPTED with extra patient JSON.
+- IMPORTANT: demo users/card/consent/appointment live ONLY in the local DB (schema migration V1 is tables-only, no seed rows). Dropping the DB wipes the demo accounts; re-seed manually. Passwords used to be 4-char stubs (broken login) - fixed to real BCrypt.
+- Both dev servers currently running: backend jar target/nexushealth-backend.jar on 8080 (env MYSQL_* overrides); frontend vite on 127.0.0.1:5173 (IPv4 only; vite's ::1-only binding is unreachable on this box - launch with 
+px vite --host 127.0.0.1 --port 5173 --strictPort).
