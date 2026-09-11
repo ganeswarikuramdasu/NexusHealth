@@ -95,9 +95,18 @@ public class AppointmentService {
         String dayName = targetDate.getDayOfWeek().getDisplayName(java.time.format.TextStyle.FULL, java.util.Locale.ENGLISH);
         Object weeklyScheduleObj = extra.get("weeklySchedule");
         Map<String, Object> daySchedule = asMap(weeklyScheduleObj != null ? ((Map<?, ?>) weeklyScheduleObj).get(dayName) : null);
-        if (daySchedule.isEmpty() || !Boolean.TRUE.equals(daySchedule.get("active"))) {
-            return ApiResponse.ok("Dr. " + doctor.getName() + " is NOT AVAILABLE on " + dayName + " (" + targetDateStr + ").")
-                    .with("slots", List.of());
+
+        boolean dayActive = !daySchedule.isEmpty() && Boolean.TRUE.equals(daySchedule.get("active"));
+        if (!dayActive) {
+            if (!daySchedule.isEmpty()) {
+                return ApiResponse.ok("Dr. " + doctor.getName() + " is NOT AVAILABLE on " + dayName + " (" + targetDateStr + ").")
+                        .with("slots", List.of());
+            }
+            // Missing day entry — treat as active with defaults for new doctors
+            daySchedule = new java.util.LinkedHashMap<>();
+            daySchedule.put("active", true);
+            daySchedule.put("startTime", "09:00 AM");
+            daySchedule.put("endTime", "05:00 PM");
         }
 
         if (isDateInAnyRange(extra.get("leaves"), targetDateStr)) {

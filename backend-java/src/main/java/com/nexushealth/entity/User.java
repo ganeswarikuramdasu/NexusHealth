@@ -38,6 +38,9 @@ public class User {
     @Column(length = 16, nullable = false)
     private String status = "ACTIVE";
 
+    @Column(name = "malpractice_count", nullable = false)
+    private int malpracticeCount = 0;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
@@ -97,6 +100,8 @@ public class User {
     public void setDateOfBirth(LocalDate dateOfBirth) { this.dateOfBirth = dateOfBirth; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+    public int getMalpracticeCount() { return malpracticeCount; }
+    public void setMalpracticeCount(int malpracticeCount) { this.malpracticeCount = malpracticeCount; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }

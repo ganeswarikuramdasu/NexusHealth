@@ -39,4 +39,9 @@ public class ComplaintController {
     public ApiResponse resolve(@PathVariable String complaintId, @RequestBody ResolveComplaintRequest req) {
         return complaintService.resolve(complaintId, req);
     }
+
+    @PostMapping("/{complaintId}/reply")
+    public ApiResponse reply(@PathVariable String complaintId, @RequestBody ResolveComplaintRequest req) {
+        return complaintService.reply(complaintId, req);
+    }
 }

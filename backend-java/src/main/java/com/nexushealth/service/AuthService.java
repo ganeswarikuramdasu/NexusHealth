@@ -355,7 +355,10 @@ public class AuthService {
             user = userRepository.findById(req.getUserId()).orElse(null);
         }
         if (user == null && !cleanEmail.isBlank()) {
-            user = userRepository.findByEmailIgnoreCase(cleanEmail).orElse(null);
+            java.util.List<User> byEmail = userRepository.findAllByEmailIgnoreCase(cleanEmail);
+            if (!byEmail.isEmpty()) {
+                user = byEmail.get(0);
+            }
         }
         if (user == null) {
             throw ApiException.notFound("User account not found.");

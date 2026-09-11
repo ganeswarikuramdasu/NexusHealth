@@ -226,23 +226,66 @@ export const PatientRecordsTable: React.FC<PatientRecordsTableProps> = ({
                 <div>Date: <strong className="text-slate-900">{selectedRecordDetail.date}</strong></div>
                 <div>Attending Doctor: <strong className="text-slate-900">{selectedRecordDetail.doctorName}</strong></div>
                 <div>Facility: <strong className="text-slate-900">{selectedRecordDetail.hospitalName || "Central Hospital"}</strong></div>
-                <div>Digital Signature: <strong className="text-[#17C964]">VERIFIED CLINICAL SIGN</strong></div>
+                <div>Digital Signature: <strong className="text-[#17C964]">{selectedRecordDetail.doctorSignature || "VERIFIED CLINICAL SIGN"}</strong></div>
               </div>
 
               <div className="space-y-1">
                 <span className="font-bold text-slate-500 uppercase text-[10px]">Clinical Symptoms & Findings</span>
                 <div className="bg-[#EDF1F5] p-3 rounded-xl border border-slate-200 text-slate-800">
-                  {selectedRecordDetail.symptoms || "Standard outpatient medical review."}
+                  {Array.isArray(selectedRecordDetail.symptoms)
+                    ? (selectedRecordDetail.symptoms as any[]).join(", ") || "Standard outpatient medical review."
+                    : selectedRecordDetail.symptoms || "Standard outpatient medical review."}
                 </div>
               </div>
 
-              {selectedRecordDetail.prescriptions && selectedRecordDetail.prescriptions.length > 0 && (
+              {(selectedRecordDetail.labResults as any[] | undefined) && (selectedRecordDetail.labResults as any[]).length > 0 && (
+                <div className="space-y-1">
+                  <span className="font-bold text-slate-500 uppercase text-[10px]">Lab / Diagnostic Results</span>
+                  <div className="bg-[#EDF1F5] p-3 rounded-xl border border-slate-200 space-y-1.5 font-mono">
+                    {(selectedRecordDetail.labResults as any[]).map((l, idx) => (
+                      <div key={idx} className="flex justify-between items-center border-b border-slate-200/60 pb-1">
+                        <span className="text-slate-800 font-bold">{l.name || l.parameter || l.testName}</span>
+                        <span className="text-slate-500">
+                          {l.value} {l.unit || ""}{l.referenceRange ? ` (Ref: ${l.referenceRange})` : ""}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {selectedRecordDetail.aiSummary && (
+                <div className="space-y-1">
+                  <span className="font-bold text-slate-500 uppercase text-[10px]">AI Clinical Summary</span>
+                  <div className="bg-[#E9FBF1] p-3 rounded-xl border border-[#17C964]/40 text-slate-800 leading-relaxed">
+                    {selectedRecordDetail.aiSummary}
+                  </div>
+                </div>
+              )}
+
+              {(selectedRecordDetail.flaggedValues as any[] | undefined) && (selectedRecordDetail.flaggedValues as any[]).length > 0 && (
+                <div className="space-y-1">
+                  <span className="font-bold text-slate-500 uppercase text-[10px]">Flagged Values</span>
+                  <div className="p-2.5 bg-[#FDECE8] border border-[#F2603C]/40 rounded-xl space-y-1.5 font-mono">
+                    {(selectedRecordDetail.flaggedValues as any[]).map((f, idx) => (
+                      <div key={idx} className="flex justify-between items-center">
+                        <span className="text-[#C83E1E] font-bold">{f.name}</span>
+                        <span className="text-[#C83E1E]">
+                          {f.value} {f.unit || ""}{f.referenceRange ? ` (Ref: ${f.referenceRange})` : ""} — {f.status}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {(selectedRecordDetail.prescriptions || selectedRecordDetail.medicines || []).length > 0 && (
                 <div className="space-y-1">
                   <span className="font-bold text-slate-500 uppercase text-[10px]">Attached Prescriptions</span>
                   <div className="bg-[#EDF1F5] p-3 rounded-xl border border-slate-200 space-y-2 font-mono">
-                    {selectedRecordDetail.prescriptions.map((p, idx) => (
+                    {(selectedRecordDetail.prescriptions || selectedRecordDetail.medicines || []).map((p, idx) => (
                       <div key={idx} className="flex justify-between items-center border-b border-slate-200/60 pb-1">
-                        <span className="text-[#17C964] font-bold">{p.medicationName}</span>
+                        <span className="text-[#17C964] font-bold">{p.medicationName || p.name}</span>
                         <span className="text-slate-500">{p.dosage} ({p.frequency}) - {p.durationDays} days</span>
                       </div>
                     ))}
@@ -250,12 +293,12 @@ export const PatientRecordsTable: React.FC<PatientRecordsTableProps> = ({
                 </div>
               )}
 
-              {selectedRecordDetail.attachmentUrl && (
+              {(selectedRecordDetail.attachmentUrl || selectedRecordDetail.attachmentDataUrl) && (
                 <div className="space-y-1">
                   <span className="font-bold text-slate-500 uppercase text-[10px]">Diagnostic Scan / Document Attachment</span>
                   <div className="rounded-xl overflow-hidden border border-slate-200 max-h-48">
                     <img
-                      src={selectedRecordDetail.attachmentUrl}
+                      src={selectedRecordDetail.attachmentUrl || selectedRecordDetail.attachmentDataUrl}
                       alt="Medical Record Attachment"
                       className="w-full h-full object-cover"
                     />

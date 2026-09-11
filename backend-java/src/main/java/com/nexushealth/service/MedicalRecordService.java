@@ -5,6 +5,7 @@ import com.nexushealth.common.ApiResponse;
 import com.nexushealth.dto.medicalRecord.MedicalRecordRequests.CreateLabRequest;
 import com.nexushealth.dto.medicalRecord.MedicalRecordRequests.CreateRecordRequest;
 import com.nexushealth.dto.medicalRecord.MedicalRecordRequests.CreateVitalsRequest;
+import com.nexushealth.dto.medicalRecord.MedicalRecordRequests.UpdateRecordRequest;
 import com.nexushealth.entity.Doctor;
 import com.nexushealth.entity.MedicalRecord;
 import com.nexushealth.entity.PatientMedication;
@@ -13,6 +14,7 @@ import com.nexushealth.repository.MedicalRecordRepository;
 import com.nexushealth.repository.PatientMedicationRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -455,41 +457,109 @@ public class MedicalRecordService {
 
         List<MedicalRecord> records = medicalRecordRepository.findForPatient(targetUserId);
 
-        List<Map<String, Object>> shaped = records.stream().map(r -> {
-            Map<String, Object> extra = r.getExtra() != null ? r.getExtra() : new LinkedHashMap<>();
-            Map<String, Object> shape = new LinkedHashMap<>();
-            shape.put("id", r.getId());
-            shape.put("patientId", r.getPatientId());
-            shape.put("patientHealthId", r.getPatientHealthId());
-            shape.put("doctorId", r.getDoctorId());
-            shape.put("date", r.getRecordDate() != null ? r.getRecordDate().toString() : null);
-            shape.put("recordType", r.getRecordType());
-            shape.put("title", r.getTitle());
-            shape.put("diagnosis", r.getDiagnosis());
-            shape.put("clinicalNotes", r.getClinicalNotes());
-            shape.put("description", r.getDescription());
-
-            shape.put("doctorName", extra.get("doctorName"));
-            shape.put("hospitalName", extra.get("hospitalName"));
-            shape.put("category", extra.get("category"));
-            shape.put("symptoms", extra.get("symptoms"));
-            shape.put("vitals", extra.get("vitals"));
-            shape.put("medicines", extra.get("medicines"));
-            shape.put("labResults", extra.get("labResults"));
-            shape.put("doctorNotes", extra.get("doctorNotes"));
-            shape.put("doctorSignature", extra.get("doctorSignature"));
-            shape.put("testName", extra.get("testName"));
-            shape.put("testCategory", extra.get("testCategory"));
-            shape.put("referenceRange", extra.get("referenceRange"));
-            shape.put("attachmentUrl", extra.get("attachmentUrl"));
-            shape.put("fileName", extra.get("fileName"));
-            shape.put("fileSize", extra.get("fileSize"));
-            shape.put("imagingCategory", extra.get("imagingCategory"));
-            shape.put("createdAt", r.getCreatedAt() != null ? r.getCreatedAt().toString() : null);
-
-            return shape;
-        }).collect(Collectors.toList());
+        List<Map<String, Object>> shaped = records.stream().map(this::mapRecord).collect(Collectors.toList());
 
         return ApiResponse.ok().with("records", shaped);
+    }
+
+    public Map<String, Object> mapRecord(MedicalRecord r) {
+        Map<String, Object> extra = r.getExtra() != null ? r.getExtra() : new LinkedHashMap<>();
+        Map<String, Object> shape = new LinkedHashMap<>();
+        shape.put("id", r.getId());
+        shape.put("patientId", r.getPatientId());
+        shape.put("patientHealthId", r.getPatientHealthId());
+        shape.put("doctorId", r.getDoctorId());
+        shape.put("date", r.getRecordDate() != null ? r.getRecordDate().toString() : null);
+        shape.put("recordType", r.getRecordType());
+        shape.put("title", r.getTitle());
+        shape.put("diagnosis", r.getDiagnosis());
+        shape.put("clinicalNotes", r.getClinicalNotes());
+        shape.put("description", r.getDescription());
+
+        shape.put("doctorName", extra.get("doctorName"));
+        shape.put("hospitalName", extra.get("hospitalName"));
+        shape.put("category", extra.get("category"));
+        shape.put("symptoms", extra.get("symptoms"));
+        shape.put("vitals", extra.get("vitals"));
+        shape.put("medicines", extra.get("medicines"));
+        shape.put("labResults", extra.get("labResults"));
+        shape.put("doctorNotes", extra.get("doctorNotes"));
+        shape.put("doctorSignature", extra.get("doctorSignature"));
+        shape.put("testName", extra.get("testName"));
+        shape.put("testCategory", extra.get("testCategory"));
+        shape.put("referenceRange", extra.get("referenceRange"));
+        shape.put("attachmentUrl", extra.get("attachmentUrl"));
+        shape.put("fileName", extra.get("fileName"));
+        shape.put("fileSize", extra.get("fileSize"));
+        shape.put("imagingCategory", extra.get("imagingCategory"));
+        shape.put("aiSummary", extra.get("aiSummary"));
+        shape.put("flaggedValues", extra.get("flaggedValues") != null ? extra.get("flaggedValues") : new ArrayList<>());
+        shape.put("attachmentDataUrl", extra.get("attachmentDataUrl"));
+        shape.put("createdAt", r.getCreatedAt() != null ? r.getCreatedAt().toString() : null);
+
+        return shape;
+    }
+
+    @Transactional
+    public ApiResponse updateRecord(UpdateRecordRequest req) {
+        if (req.getRecordId() == null || req.getRecordId().isBlank()) {
+            throw ApiException.badRequest("recordId is required.");
+        }
+        MedicalRecord record = medicalRecordRepository.findById(req.getRecordId()).orElse(null);
+        if (record == null) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "Medical record not found.");
+        }
+
+        if (req.getTitle() != null) record.setTitle(req.getTitle());
+        if (req.getDiagnosis() != null) record.setDiagnosis(req.getDiagnosis());
+        if (req.getRecordType() != null) record.setRecordType(req.getRecordType());
+        if (req.getDate() != null && !req.getDate().isBlank()) {
+            record.setRecordDate(parseIsoDate(req.getDate(), "date"));
+        }
+        if (req.getClinicalNotes() != null) record.setClinicalNotes(req.getClinicalNotes());
+
+        Map<String, Object> extra = record.getExtra() != null ? record.getExtra() : new LinkedHashMap<>();
+        if (req.getDoctorNotes() != null) extra.put("doctorNotes", req.getDoctorNotes());
+        if (req.getHospitalName() != null) extra.put("hospitalName", req.getHospitalName());
+        if (req.getTestName() != null) extra.put("testName", req.getTestName());
+        if (req.getTestCategory() != null) extra.put("testCategory", req.getTestCategory());
+        if (req.getReferenceRange() != null) extra.put("referenceRange", req.getReferenceRange());
+        if (req.getLabResults() != null) extra.put("labResults", req.getLabResults());
+        if (req.getSymptoms() != null) extra.put("symptoms", req.getSymptoms());
+        if (req.getAiSummary() != null) extra.put("aiSummary", req.getAiSummary());
+        if (req.getFlaggedValues() != null) extra.put("flaggedValues", req.getFlaggedValues());
+        if (req.getFileName() != null) extra.put("fileName", req.getFileName());
+        if (req.getFileSize() != null) extra.put("fileSize", req.getFileSize());
+        if (req.getAttachmentUrl() != null) extra.put("attachmentUrl", req.getAttachmentUrl());
+        if (req.getAttachmentDataUrl() != null) extra.put("attachmentDataUrl", req.getAttachmentDataUrl());
+        record.setExtra(extra);
+
+        medicalRecordRepository.save(record);
+
+        auditLogService.log("User", "USER", "MEDICAL_RECORD_UPDATED", record.getPatientHealthId(),
+                "Updated " + record.getRecordType() + " record '" + record.getTitle() + "'.");
+
+        return ApiResponse.ok().with("record", mapRecord(record));
+    }
+
+    @Transactional
+    public ApiResponse deleteRecord(String recordId) {
+        if (recordId == null || recordId.isBlank()) {
+            throw ApiException.badRequest("recordId is required.");
+        }
+        MedicalRecord record = medicalRecordRepository.findById(recordId).orElse(null);
+        if (record == null) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "Medical record not found.");
+        }
+        String patientHealthId = record.getPatientHealthId();
+        String title = record.getTitle();
+        String recordType = record.getRecordType();
+
+        medicalRecordRepository.delete(record);
+
+        auditLogService.log("User", "USER", "MEDICAL_RECORD_DELETED", patientHealthId,
+                "Deleted " + recordType + " record '" + title + "'.");
+
+        return ApiResponse.ok("Medical record deleted.");
     }
 }

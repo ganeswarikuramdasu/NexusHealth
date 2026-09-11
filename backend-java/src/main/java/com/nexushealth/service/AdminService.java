@@ -22,12 +22,15 @@ public class AdminService {
     private final DoctorRepository doctorRepository;
     private final HospitalRepository hospitalRepository;
     private final MedicalRecordRepository medicalRecordRepository;
+    private final MedicalRecordService medicalRecordService;
+    private final MalpracticeService malpracticeService;
 
     public AdminService(UserRepository userRepository, PatientProfileRepository patientProfileRepository,
                          AuditLogRepository auditLogRepository, AuditLogService auditLogService,
                          RecordAccessLogRepository recordAccessLogRepository,
                          DoctorRepository doctorRepository, HospitalRepository hospitalRepository,
-                         MedicalRecordRepository medicalRecordRepository) {
+                         MedicalRecordRepository medicalRecordRepository, MedicalRecordService medicalRecordService,
+                         MalpracticeService malpracticeService) {
         this.userRepository = userRepository;
         this.patientProfileRepository = patientProfileRepository;
         this.auditLogRepository = auditLogRepository;
@@ -36,6 +39,8 @@ public class AdminService {
         this.doctorRepository = doctorRepository;
         this.hospitalRepository = hospitalRepository;
         this.medicalRecordRepository = medicalRecordRepository;
+        this.medicalRecordService = medicalRecordService;
+        this.malpracticeService = malpracticeService;
     }
 
     public List<Map<String, Object>> getPatients() {
@@ -90,30 +95,19 @@ public class AdminService {
     private static final DateTimeFormatter ISO_TIMESTAMP = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
     public List<Map<String, Object>> getAllRecords() {
+        Map<String, String> patientNames = new HashMap<>();
+        for (User u : userRepository.findAll()) {
+            if ("PATIENT".equals(u.getRole())) {
+                patientNames.put(u.getId(), u.getName());
+            }
+        }
         List<Map<String, Object>> out = new ArrayList<>();
         for (MedicalRecord r : medicalRecordRepository.findAll()) {
-            Map<String, Object> extra = r.getExtra() != null ? r.getExtra() : Collections.emptyMap();
-            Map<String, Object> entry = new LinkedHashMap<>();
-            entry.put("id", r.getId());
-            entry.put("patientId", r.getPatientId());
-            entry.put("patientHealthId", r.getPatientHealthId());
-            entry.put("doctorId", r.getDoctorId());
-            entry.put("date", r.getRecordDate() != null ? r.getRecordDate().toString() : null);
-            entry.put("recordType", r.getRecordType());
-            entry.put("title", r.getTitle());
-            entry.put("diagnosis", r.getDiagnosis());
-            entry.put("clinicalNotes", r.getClinicalNotes());
-            entry.put("description", r.getDescription());
-            entry.put("doctorName", extra.get("doctorName"));
-            entry.put("hospitalName", extra.get("hospitalName"));
-            entry.put("category", extra.get("category"));
-            entry.put("symptoms", extra.get("symptoms"));
-            entry.put("vitals", extra.get("vitals"));
-            entry.put("medicines", extra.get("medicines"));
-            entry.put("labResults", extra.get("labResults"));
-            entry.put("doctorNotes", extra.get("doctorNotes"));
-            entry.put("doctorSignature", extra.get("doctorSignature"));
-            entry.put("createdAt", r.getCreatedAt() != null ? r.getCreatedAt().toString() : null);
+            Map<String, Object> entry = medicalRecordService.mapRecord(r);
+            String name = patientNames.get(r.getPatientId());
+            if (name != null) {
+                entry.put("patientName", name);
+            }
             out.add(entry);
         }
         return out;
@@ -339,5 +333,48 @@ public class AdminService {
         stats.put("suspiciousActivitiesCount", suspicious.size());
         stats.put("recentSuspiciousActivities", recentSuspicious);
         return stats;
+    }
+
+    public List<Map<String, Object>> getMalpracticeDoctors() {
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (User u : userRepository.findAll()) {
+            if (!"DOCTOR".equals(u.getRole())) continue;
+            if (u.getMalpracticeCount() <= 0 && !"DELETED".equals(u.getStatus())) continue;
+            Doctor d = doctorRepository.findByUserId(u.getId()).orElse(null);
+            Map<String, Object> entry = new LinkedHashMap<>();
+            entry.put("id", u.getId());
+            entry.put("name", u.getName());
+            entry.put("email", u.getEmail());
+            entry.put("malpracticeCount", u.getMalpracticeCount());
+            entry.put("status", u.getStatus());
+            entry.put("hospitalId", d != null ? d.getHospitalId() : "N/A");
+            entry.put("hospitalName", d != null ? d.getHospitalName() : "N/A");
+            entry.put("specialization", d != null ? d.getSpecialization() : "N/A");
+            out.add(entry);
+        }
+        out.sort((a, b) -> Integer.compare((Integer) b.get("malpracticeCount"), (Integer) a.get("malpracticeCount")));
+        return out;
+    }
+
+    @Transactional
+    public ApiResponse incrementMalpractice(String doctorUserId, String adminName, String reason) {
+        User user = malpracticeService.increment(doctorUserId, adminName, null, "manually incremented", reason);
+        int newCount = user.getMalpracticeCount();
+
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("doctorId", doctorUserId);
+        out.put("doctorName", user.getName());
+        out.put("previousCount", newCount - 1);
+        out.put("newCount", newCount);
+        out.put("deleted", newCount >= 3);
+        return ApiResponse.ok("Malpractice count incremented to " + newCount
+                + (newCount >= 3 ? ". Account has been deleted (3+ malpractices)." : "."))
+                .with("details", out);
+    }
+
+    @Transactional
+    public ApiResponse resetMalpractice(String doctorUserId, String adminName) {
+        malpracticeService.reset(doctorUserId, adminName);
+        return ApiResponse.ok("Malpractice count reset to 0. Account reactivated.");
     }
 }

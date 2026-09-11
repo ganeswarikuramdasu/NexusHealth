@@ -137,7 +137,7 @@ public class PatientService {
         String docId = doctor.getId();
         String docName = doctor.getName();
 
-        Consent existing = consentRepository.findByPatientIdAndDoctorId(targetPatientUserId, docId).orElse(null);
+        Consent existing = consentRepository.findFirstByPatientIdAndDoctorIdOrderByGrantedAtDesc(targetPatientUserId, docId).orElse(null);
 
         Consent consent = existing != null ? existing : Consent.builder()
                 .id("c_" + System.currentTimeMillis())

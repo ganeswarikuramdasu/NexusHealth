@@ -8,6 +8,14 @@ export interface User {
   isVerified: boolean;
 }
 
+export interface PatientLifestyle {
+  smoking?: string;
+  alcohol?: string;
+  exerciseDaysPerWeek?: number;
+  diet?: string;
+  sleepHours?: number;
+}
+
 export interface PatientProfile {
   id: string;
   userId: string;
@@ -21,6 +29,12 @@ export interface PatientProfile {
   dob: string;
   emergencyContactName?: string;
   emergencyContactPhone?: string;
+  emergencyContactRelation?: string;
+  organDonor?: boolean;
+  insuranceProvider?: string;
+  insurancePolicyNumber?: string;
+  lifestyle?: PatientLifestyle;
+  qrCodeData?: string;
   heightCm?: number;
   weightKg?: number;
   allergies?: string[];
@@ -154,6 +168,7 @@ export interface DoctorProfile {
   securitySettings?: SecuritySettings;
   morningShiftCapacity?: number;
   afternoonShiftCapacity?: number;
+  malpracticeCount?: number;
 }
 
 export interface AvailableSlot {
@@ -187,6 +202,7 @@ export interface HospitalProfile {
   phone: string;
   email: string;
   departments: string[];
+  departmentStatuses?: Record<string, "ACTIVE" | "INACTIVE">;
   status: "PENDING_APPROVAL" | "APPROVED" | "REJECTED" | "SUSPENDED";
   location?: string;
   city?: string;

@@ -4,8 +4,11 @@ import com.nexushealth.common.ApiResponse;
 import com.nexushealth.dto.medicalRecord.MedicalRecordRequests.CreateLabRequest;
 import com.nexushealth.dto.medicalRecord.MedicalRecordRequests.CreateRecordRequest;
 import com.nexushealth.dto.medicalRecord.MedicalRecordRequests.CreateVitalsRequest;
+import com.nexushealth.dto.medicalRecord.MedicalRecordRequests.UpdateRecordRequest;
 import com.nexushealth.service.MedicalRecordService;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 @RestController
 @RequestMapping({"/api/medical-records", "/api/medical-record"})
@@ -35,5 +38,15 @@ public class MedicalRecordController {
     @GetMapping("/patient/{patientHealthId}")
     public ApiResponse getPatientRecords(@PathVariable String patientHealthId) {
         return medicalRecordService.getPatientRecords(patientHealthId);
+    }
+
+    @PostMapping("/update")
+    public ApiResponse update(@RequestBody UpdateRecordRequest req) {
+        return medicalRecordService.updateRecord(req);
+    }
+
+    @PostMapping("/delete")
+    public ApiResponse delete(@RequestBody Map<String, String> body) {
+        return medicalRecordService.deleteRecord(body.get("recordId"));
     }
 }

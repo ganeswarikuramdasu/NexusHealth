@@ -75,6 +75,7 @@ export default function App() {
 
   // Load data from Express server on mount and user switch
   const refreshData = async (userToLoad = currentUser) => {
+    if (!userToLoad) return;
     try {
       const targetPatientId = userToLoad?.role === "PATIENT" ? (userToLoad.id || "") : "";
 
@@ -91,14 +92,20 @@ export default function App() {
       const prof = isPatient ? await safeFetchJson<PatientProfile | null>(`/api/patient/profile/${targetPatientId}`, null) : null;
       const con = isPatient ? await safeFetchJson<ConsentGrant[]>(`/api/patient/consents/${targetPatientId}`, []) : [];
       const isPatientAppt = !!targetPatientId ? `/api/appointments?patientId=${targetPatientId}` : "/api/appointments";
+      const auditPromise =
+        userToLoad?.role === "SUPER_ADMIN"
+          ? safeFetchJson<AuditLog[]>("/api/admin/audit-logs", [])
+          : Promise.resolve([]);
+      const patientsPromise =
+        userToLoad?.role === "PATIENT" ? Promise.resolve([]) : safeFetchJson<any[]>("/api/admin/patients", []);
 
       const [rec, doc, hosp, apt, aud, patList] = await Promise.all([
         safeFetchJson<MedicalRecord[]>(recordUrl, []),
         safeFetchJson<DoctorProfile[]>("/api/doctors", []),
         safeFetchJson<HospitalProfile[]>("/api/hospitals", []),
         safeFetchJson<Appointment[]>(isPatientAppt, []),
-        safeFetchJson<AuditLog[]>("/api/admin/audit-logs", []),
-        safeFetchJson<any[]>("/api/admin/patients", []),
+        auditPromise,
+        patientsPromise,
       ]);
 
       if (prof) setPatientProfile(prof);
@@ -376,9 +383,16 @@ export default function App() {
             role: role,
             globalHealthId: user.globalHealthId,
           };
+          // Fresh login must land on the Dashboard for every role
+          try {
+            ["PATIENT", "DOCTOR", "HOSPITAL_ADMIN", "SUPER_ADMIN"].forEach((r) => {
+              localStorage.removeItem(`nexushealth_tab_${r}`);
+            });
+          } catch {
+            // storage unavailable
+          }
           setCurrentUser(newUser);
           setViewMode("WORKSPACE");
-          refreshData(newUser);
         }}
       />
     );

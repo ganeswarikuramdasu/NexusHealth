@@ -62,6 +62,96 @@ export const DoctorCardScannerSection: React.FC<DoctorCardScannerSectionProps> =
   const [medsList, setMedsList] = useState<any[]>([]);
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
 
+  // Edit / Delete scanned records
+  const [editingRec, setEditingRec] = useState<any>(null);
+  const [editRecForm, setEditRecForm] = useState({ title: "", diagnosis: "", doctorNotes: "", hospitalName: "", date: "" });
+  const [savingEditRec, setSavingEditRec] = useState<boolean>(false);
+
+  const openEditRec = (rec: any) => {
+    setEditingRec(rec);
+    setEditRecForm({
+      title: rec.title || rec.testName || "",
+      diagnosis: rec.diagnosis || "",
+      doctorNotes: rec.doctorNotes || rec.clinicalNotes || "",
+      hospitalName: rec.hospitalName || "",
+      date: rec.date || new Date().toISOString().split("T")[0],
+    });
+  };
+
+  const saveEditRec = async () => {
+    if (!editingRec) return;
+    setSavingEditRec(true);
+    try {
+      const res = await fetch("/api/medical-records/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          recordId: editingRec.id,
+          title: editRecForm.title,
+          diagnosis: editRecForm.diagnosis,
+          doctorNotes: editRecForm.doctorNotes,
+          hospitalName: editRecForm.hospitalName,
+          date: editRecForm.date,
+        }),
+      });
+      const data = await parseResponseSafe<any>(res, { success: false });
+      if (!res.ok || !data || !data.success) {
+        alert(data?.message || "Failed to update the record.");
+        return;
+      }
+      if (scanResult) {
+        setScanResult({
+          ...scanResult,
+          records: (scanResult.records || []).map((x) =>
+            x.id === editingRec.id
+              ? {
+                  ...x,
+                  title: editRecForm.title || x.title,
+                  diagnosis: editRecForm.diagnosis || x.diagnosis,
+                  doctorNotes: editRecForm.doctorNotes || x.doctorNotes,
+                  hospitalName: editRecForm.hospitalName || x.hospitalName,
+                  date: editRecForm.date || x.date,
+                }
+              : x
+          ),
+        });
+      }
+      setEditingRec(null);
+    } catch (err) {
+      console.warn(err);
+      alert("Could not reach the server. Please try again.");
+    } finally {
+      setSavingEditRec(false);
+    }
+  };
+
+  const deleteRec = async (rec: any) => {
+    if (!rec?.id) return;
+    if (!window.confirm(`Delete "${rec.title || "this record"}"? This cannot be undone.`)) return;
+    try {
+      const res = await fetch("/api/medical-records/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recordId: rec.id }),
+      });
+      const data = await parseResponseSafe<any>(res, { success: false });
+      if (!res.ok || !data || !data.success) {
+        alert(data?.message || "Failed to delete the record.");
+        return;
+      }
+      if (scanResult) {
+        setScanResult({
+          ...scanResult,
+          records: (scanResult.records || []).filter((x) => x.id !== rec.id),
+        });
+      }
+      if (onRefreshRecords) onRefreshRecords();
+    } catch (err) {
+      console.warn(err);
+      alert("Could not reach the server. Please try again.");
+    }
+  };
+
   // Doctor Scan Logs
   const [recentDoctorLogs, setRecentDoctorLogs] = useState<any[]>([]);
 
@@ -622,7 +712,21 @@ export const DoctorCardScannerSection: React.FC<DoctorCardScannerSectionProps> =
                             <span className="font-bold text-[#17C964] text-sm">{rec.title}</span>
                             <p className="text-[11px] text-slate-500">{rec.doctorName} • {rec.hospitalName}</p>
                           </div>
-                          <span className="text-[11px] font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded">{rec.date}</span>
+                          <div className="flex items-center space-x-1.5 shrink-0">
+                            <span className="text-[11px] font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded">{rec.date}</span>
+                            <button
+                              onClick={() => openEditRec(rec)}
+                              className="px-2 py-1 bg-[#0f172a] hover:bg-slate-700 text-white font-bold rounded-lg transition text-[10px]"
+                            >
+                              Modify
+                            </button>
+                            <button
+                              onClick={() => deleteRec(rec)}
+                              className="px-2 py-1 bg-[#E23A2E] hover:bg-[#C9302A] text-white font-bold rounded-lg transition text-[10px]"
+                            >
+                              Delete
+                            </button>
+                          </div>
                         </div>
                         <p className="text-slate-800"><strong>Diagnosis:</strong> {rec.diagnosis}</p>
                         <p className="text-slate-500 text-[11px]"><strong>Doctor Advice:</strong> {rec.doctorNotes}</p>
@@ -728,6 +832,92 @@ className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text
                 Save & Link to Patient EHR
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT RECORD MODAL */}
+      {editingRec && (
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-[60] flex items-center justify-center p-4">
+          <div className="bg-[#FFFFFF] border border-slate-200 rounded-3xl w-full max-w-xl p-6 space-y-4 text-slate-900 shadow-2xl relative">
+            <button
+              onClick={() => setEditingRec(null)}
+              className="absolute top-4 right-4 text-slate-500 hover:text-slate-900"
+            >
+              ✕
+            </button>
+
+            <h3 className="font-bold text-slate-900 text-base flex items-center space-x-2 border-b border-slate-200 pb-2">
+              <FileText className="w-5 h-5 text-[#17C964]" />
+              <span>Modify Record</span>
+            </h3>
+
+            <div>
+              <label className="block text-slate-700 font-bold mb-1">Title</label>
+              <input
+                type="text"
+                value={editRecForm.title}
+                onChange={(e) => setEditRecForm((f) => ({ ...f, title: e.target.value }))}
+                className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-slate-700 font-bold mb-1">Facility</label>
+                <input
+                  type="text"
+                  value={editRecForm.hospitalName}
+                  onChange={(e) => setEditRecForm((f) => ({ ...f, hospitalName: e.target.value }))}
+                  className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900"
+                />
+              </div>
+              <div>
+                <label className="block text-slate-700 font-bold mb-1">Date</label>
+                <input
+                  type="date"
+                  value={editRecForm.date}
+                  onChange={(e) => setEditRecForm((f) => ({ ...f, date: e.target.value }))}
+                  className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-slate-700 font-bold mb-1">Diagnosis</label>
+              <input
+                type="text"
+                value={editRecForm.diagnosis}
+                onChange={(e) => setEditRecForm((f) => ({ ...f, diagnosis: e.target.value }))}
+                className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2 text-slate-900"
+              />
+            </div>
+
+            <div>
+              <label className="block text-slate-700 font-bold mb-1">Doctor Notes</label>
+              <textarea
+                rows={3}
+                value={editRecForm.doctorNotes}
+                onChange={(e) => setEditRecForm((f) => ({ ...f, doctorNotes: e.target.value }))}
+                className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl p-3 text-slate-900"
+              />
+            </div>
+
+            <div className="flex justify-end space-x-2 pt-2">
+              <button
+                onClick={() => setEditingRec(null)}
+                className="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveEditRec}
+                disabled={savingEditRec}
+                className="px-5 py-2 bg-[#17C964] hover:bg-[#0EA653] text-white font-bold rounded-xl disabled:opacity-60"
+              >
+                {savingEditRec ? "Saving..." : "Save Changes"}
+              </button>
+            </div>
           </div>
         </div>
       )}

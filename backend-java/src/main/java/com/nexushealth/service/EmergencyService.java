@@ -544,7 +544,7 @@ public class EmergencyService {
         String userId = String.valueOf(prof.get("userId"));
 
         Map<String, Object> emgProfile = null;
-        EmergencyProfile dbProfile = emergencyProfileRepository.findByPatientId(userId).orElse(null);
+        EmergencyProfile dbProfile = emergencyProfileRepository.findFirstByPatientId(userId).orElse(null);
         if (dbProfile != null) {
             emgProfile = emergencyProfileToMap(dbProfile, userId, prof);
         } else {
@@ -611,7 +611,7 @@ public class EmergencyService {
 
         User patientUser = userRepository.findById(userId).orElse(null);
         if (patientUser != null) {
-            EmergencyProfile dbProfile = emergencyProfileRepository.findByPatientId(userId).orElse(null);
+            EmergencyProfile dbProfile = emergencyProfileRepository.findFirstByPatientId(userId).orElse(null);
             if (dbProfile != null) {
                 dbProfile.setBloodGroup((String) emgProfile.get("bloodGroup"));
                 dbProfile.setAllergies(allergies);
@@ -830,12 +830,16 @@ public class EmergencyService {
                 expiryMillis = Long.MAX_VALUE;
             }
             if (expiryMillis < System.currentTimeMillis()) {
-                session.put("status", "EXPIRED");
-                session.put("endedAt", session.get("expiresAt"));
-                auditLogService.log("System Security Gateway", "SYSTEM", "EMERGENCY_SESSION_EXPIRED",
-                        String.valueOf(session.get("patientHealthId")),
-                        "Emergency Access Session " + session.get("id")
-                                + " automatically expired after 45 minutes limit.");
+                synchronized (session) {
+                    if ("ACTIVE".equals(session.get("status")) && session.putIfAbsent("expiryLogged", Boolean.TRUE) == null) {
+                        session.put("status", "EXPIRED");
+                        session.put("endedAt", session.get("expiresAt"));
+                        auditLogService.log("System Security Gateway", "SYSTEM", "EMERGENCY_SESSION_EXPIRED",
+                                String.valueOf(session.get("patientHealthId")),
+                                "Emergency Access Session " + session.get("id")
+                                        + " automatically expired after 45 minutes limit.");
+                    }
+                }
             }
         }
     }

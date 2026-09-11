@@ -26,9 +26,10 @@ interface ComplaintItem {
   relatedDoctorId?: string;
   relatedDoctorName?: string;
   accessedMethod?: string;
-  status: "OPEN" | "IN_REVIEW" | "RESOLVED" | "REJECTED";
+  status: "OPEN" | "IN_REVIEW" | "TAKEN_ACTION" | "RESOLVED" | "REJECTED";
   resolutionNote?: string;
   resolvedBy?: string;
+  replies?: { id: string; authorId: string; authorName: string; authorRole: string; message: string; timestamp: string }[];
   createdAt: string;
   resolvedAt?: string;
 }
@@ -37,7 +38,6 @@ interface ComplaintCenterProps {
   appUser: { id: string; name: string; email: string; role: string };
   module: string;
   patientContext?: { patientId: string; patientHealthId: string; patientName?: string };
-  canResolve?: boolean;
   linkedAccess?: LinkedAccessEvent | null;
   onLinkedAccessCleared?: () => void;
 }
@@ -55,6 +55,7 @@ const CATEGORIES = [
 const STATUS_STYLE: Record<string, string> = {
   OPEN: "bg-amber-50 text-amber-700 border-amber-500/40",
   IN_REVIEW: "bg-blue-50 text-blue-700 border-blue-500/40",
+  TAKEN_ACTION: "bg-purple-50 text-purple-700 border-purple-500/40",
   RESOLVED: "bg-[#E9FBF1] text-[#0EA653] border-[#17C964]/40",
   REJECTED: "bg-[#FDE9E3] text-[#C83E1E] border-[#F2603C]/40",
 };
@@ -63,7 +64,6 @@ export const ComplaintCenter: React.FC<ComplaintCenterProps> = ({
   appUser,
   module,
   patientContext,
-  canResolve,
   linkedAccess,
   onLinkedAccessCleared,
 }) => {
@@ -77,8 +77,16 @@ export const ComplaintCenter: React.FC<ComplaintCenterProps> = ({
   const [description, setDescription] = useState<string>("");
 
   const [resolvingId, setResolvingId] = useState<string | null>(null);
-  const [resolveStatus, setResolveStatus] = useState<string>("RESOLVED");
+  const [resolveStatus, setResolveStatus] = useState<string>("IN_REVIEW");
   const [resolutionNote, setResolutionNote] = useState<string>("");
+  const [replyingToId, setReplyingToId] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState<string>("");
+
+  const isSuperAdmin = appUser.role === "SUPER_ADMIN";
+  const isDoctor = appUser.role === "DOCTOR";
+  const isHospitalAdmin = appUser.role === "HOSPITAL_ADMIN";
+  const canRaise = appUser.role === "PATIENT";
+  const canResolve = isSuperAdmin || isDoctor || isHospitalAdmin;
 
   const fetchComplaints = useCallback(async () => {
     setLoading(true);
@@ -101,11 +109,11 @@ export const ComplaintCenter: React.FC<ComplaintCenterProps> = ({
   }, [fetchComplaints, linkedAccess]);
 
   useEffect(() => {
-    if (linkedAccess && (linkedAccess.accessLogId || linkedAccess.doctorName)) {
+    if (canRaise && linkedAccess && (linkedAccess.accessLogId || linkedAccess.doctorName)) {
       setMsg(null);
       setShowForm(true);
     }
-  }, [linkedAccess]);
+  }, [linkedAccess, canRaise]);
 
   const resetForm = () => {
     setCategory("GENERAL");
@@ -163,6 +171,7 @@ export const ComplaintCenter: React.FC<ComplaintCenterProps> = ({
           resolutionNote: resolutionNote.trim(),
           resolvedBy: appUser.id,
           resolvedByName: appUser.name,
+          authorRole: appUser.role,
         }),
       });
       const data = await parseResponseSafe<any>(res, { success: false });
@@ -179,6 +188,33 @@ export const ComplaintCenter: React.FC<ComplaintCenterProps> = ({
     }
   };
 
+  const handleReply = async (complaintId: string) => {
+    if (!replyText.trim()) return;
+    try {
+      const res = await fetch(`/api/complaints/${complaintId}/reply`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          resolutionNote: replyText.trim(),
+          resolvedBy: appUser.id,
+          resolvedByName: appUser.name,
+          authorRole: appUser.role,
+        }),
+      });
+      const data = await parseResponseSafe<any>(res, { success: false });
+      if (data?.success) {
+        setMsg({ type: "success", text: "Reply posted successfully." });
+        setReplyingToId(null);
+        setReplyText("");
+        fetchComplaints();
+      } else {
+        setMsg({ type: "error", text: data?.message || "Failed to post reply." });
+      }
+    } catch (err) {
+      setMsg({ type: "error", text: "Server error posting reply." });
+    }
+  };
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between border-b border-slate-200 pb-3">
@@ -188,16 +224,22 @@ export const ComplaintCenter: React.FC<ComplaintCenterProps> = ({
             <span>Complaint Center</span>
           </h3>
           <p className="text-xs text-slate-500">
-            Raise a complaint about access, treatment, records, or privacy. Reviewed by the Super Admin team.
+            {isSuperAdmin
+              ? "Review and handle every complaint raised by patients. Update the status and reply to patients as it is investigated."
+              : canRaise
+              ? "Raise a complaint about access, treatment, records, or privacy. Reviewed by the support team."
+              : "View and respond to patient complaints. Reply to patients and update complaint status."}
           </p>
         </div>
-        <button
-          onClick={() => setShowForm((v) => !v)}
-          className="px-4 py-2 bg-[#F2603C] hover:bg-[#E23A2E] text-white text-xs font-bold rounded-xl transition flex items-center space-x-1.5 shadow-md"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Raise a Complaint</span>
-        </button>
+        {canRaise && (
+          <button
+            onClick={() => setShowForm((v) => !v)}
+            className="px-4 py-2 bg-[#F2603C] hover:bg-[#E23A2E] text-white text-xs font-bold rounded-xl transition flex items-center space-x-1.5 shadow-md"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Raise a Complaint</span>
+          </button>
+        )}
       </div>
 
       {msg && (
@@ -213,7 +255,7 @@ export const ComplaintCenter: React.FC<ComplaintCenterProps> = ({
         </div>
       )}
 
-      {showForm && (
+      {canRaise && showForm && (
         <div className="bg-[#FFFFFF] border border-slate-200 rounded-2xl p-5 space-y-4 shadow-lg">
           {linkedAccess && (linkedAccess.accessLogId || linkedAccess.doctorName) && (
             <div className="p-3 bg-[#EDF1F5] border border-slate-200 rounded-xl text-[11px] text-slate-700">
@@ -308,43 +350,102 @@ export const ComplaintCenter: React.FC<ComplaintCenterProps> = ({
 
             {c.resolutionNote && (
               <div className="p-2.5 bg-[#EDF1F5] border border-slate-200 rounded-xl text-[11px] text-slate-700">
-                <span className="font-bold">Resolution: </span>
+                <span className="font-bold">Status Note: </span>
                 {c.resolutionNote}
-                {c.resolvedBy ? ` (${c.resolvedBy})` : ""}
+                {c.resolvedBy ? ` (by ${c.resolvedBy})` : ""}
+                {c.resolvedAt ? ` • ${new Date(c.resolvedAt).toLocaleString()}` : ""}
+              </div>
+            )}
+
+            {c.replies && c.replies.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-[10px] font-bold text-slate-700">Replies:</p>
+                {c.replies.map((r) => (
+                  <div key={r.id} className="p-2.5 bg-[#F8F9FB] border border-slate-200 rounded-xl text-[11px] text-slate-700">
+                    <div className="flex items-center space-x-2 mb-1">
+                      <span className="font-bold text-slate-900">{r.authorName}</span>
+                      <span className="text-[9px] px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded text-slate-500 font-mono">
+                        {r.authorRole}
+                      </span>
+                      <span className="text-[9px] text-slate-400 font-mono">{new Date(r.timestamp).toLocaleString()}</span>
+                    </div>
+                    <p>{r.message}</p>
+                  </div>
+                ))}
               </div>
             )}
 
             <div className="pt-1 border-t border-slate-200/60 flex justify-between text-[10px] text-slate-500 font-mono flex-wrap gap-2">
               <span>{c.createdAt ? new Date(c.createdAt).toLocaleString() : ""}</span>
 
-              {canResolve && c.status === "OPEN" && (
-                <span className="flex items-center space-x-2">
-                  <select
-                    value={resolveStatus}
-                    onChange={(e) => setResolveStatus(e.target.value)}
-                    className="bg-white border border-slate-300 rounded-lg px-2 py-1 text-[10px] font-bold outline-none"
-                  >
-                    <option value="IN_REVIEW">IN REVIEW</option>
-                    <option value="RESOLVED">RESOLVED</option>
-                    <option value="REJECTED">REJECTED</option>
-                  </select>
-                  <input
-                    value={resolvingId === c.id ? resolutionNote : ""}
-                    onChange={(e) => {
-                      setResolvingId(c.id);
-                      setResolutionNote(e.target.value);
-                    }}
-                    placeholder="Resolution note..."
-                    className="bg-white border border-slate-300 rounded-lg px-2 py-1 text-[10px] outline-none w-40"
-                  />
-                  <button
-                    onClick={() => handleResolve(c.id)}
-                    className="px-3 py-1.5 bg-[#17C964] hover:bg-[#0EA653] text-white font-bold rounded-lg text-[10px]"
-                  >
-                    Update
-                  </button>
-                </span>
-              )}
+              <span className="flex items-center space-x-2">
+                {canResolve && (c.status === "OPEN" || c.status === "IN_REVIEW" || c.status === "TAKEN_ACTION") && (
+                  <>
+                    <select
+                      value={resolvingId === c.id ? resolveStatus : c.status}
+                      onChange={(e) => {
+                        setResolvingId(c.id);
+                        setResolveStatus(e.target.value);
+                      }}
+                      className="bg-white border border-slate-300 rounded-lg px-2 py-1 text-[10px] font-bold outline-none"
+                    >
+                      <option value="IN_REVIEW">IN REVIEW</option>
+                      <option value="TAKEN_ACTION">TAKEN ACTION</option>
+                      <option value="RESOLVED">RESOLVED</option>
+                      <option value="REJECTED">REJECTED</option>
+                    </select>
+                    <input
+                      value={resolvingId === c.id ? resolutionNote : ""}
+                      onChange={(e) => {
+                        setResolvingId(c.id);
+                        setResolutionNote(e.target.value);
+                      }}
+                      placeholder="Status note / action taken..."
+                      className="bg-white border border-slate-300 rounded-lg px-2 py-1 text-[10px] outline-none w-44"
+                    />
+                    <button
+                      onClick={() => handleResolve(c.id)}
+                      className="px-3 py-1.5 bg-[#17C964] hover:bg-[#0EA653] text-white font-bold rounded-lg text-[10px]"
+                    >
+                      Update
+                    </button>
+                  </>
+                )}
+                {canResolve && (c.status === "OPEN" || c.status === "IN_REVIEW" || c.status === "TAKEN_ACTION") && (
+                  <>
+                    {replyingToId === c.id ? (
+                      <span className="flex items-center space-x-1">
+                        <input
+                          value={replyText}
+                          onChange={(e) => setReplyText(e.target.value)}
+                          placeholder="Reply to patient..."
+                          className="bg-white border border-slate-300 rounded-lg px-2 py-1 text-[10px] outline-none w-44"
+                          onKeyDown={(e) => { if (e.key === "Enter") handleReply(c.id); }}
+                        />
+                        <button
+                          onClick={() => handleReply(c.id)}
+                          className="px-3 py-1.5 bg-[#17C964] hover:bg-[#0EA653] text-white font-bold rounded-lg text-[10px]"
+                        >
+                          Send
+                        </button>
+                        <button
+                          onClick={() => { setReplyingToId(null); setReplyText(""); }}
+                          className="px-2 py-1 text-slate-400 hover:text-slate-700 text-[10px]"
+                        >
+                          Cancel
+                        </button>
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => { setReplyingToId(c.id); setReplyText(""); }}
+                        className="px-3 py-1.5 bg-[#17C964]/10 hover:bg-[#17C964]/20 text-[#17C964] font-bold rounded-lg text-[10px] border border-[#17C964]/30"
+                      >
+                        Reply
+                      </button>
+                    )}
+                  </>
+                )}
+              </span>
             </div>
           </div>
         ))}

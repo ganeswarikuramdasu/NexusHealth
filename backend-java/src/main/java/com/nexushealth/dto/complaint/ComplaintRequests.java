@@ -50,6 +50,7 @@ public class ComplaintRequests {
         private String resolutionNote;
         private String resolvedBy;
         private String resolvedByName;
+        private String authorRole;
 
         public String getStatus() { return status; }
         public void setStatus(String status) { this.status = status; }
@@ -59,5 +60,7 @@ public class ComplaintRequests {
         public void setResolvedBy(String resolvedBy) { this.resolvedBy = resolvedBy; }
         public String getResolvedByName() { return resolvedByName; }
         public void setResolvedByName(String resolvedByName) { this.resolvedByName = resolvedByName; }
+        public String getAuthorRole() { return authorRole; }
+        public void setAuthorRole(String authorRole) { this.authorRole = authorRole; }
     }
 }

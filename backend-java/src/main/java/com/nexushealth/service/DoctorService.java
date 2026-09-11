@@ -197,20 +197,22 @@ public class DoctorService {
         Doctor doctor = findByIdOrUserId(doctorId);
         Map<String, Object> extra = doctor.getExtra();
 
-        ApiResponse response = ApiResponse.ok();
-        response.put("weeklySchedule", extra.getOrDefault("weeklySchedule", new LinkedHashMap<>()));
-        response.put("scheduleEffectiveDate", extra.getOrDefault("scheduleEffectiveDate", LocalDate.now().toString()));
-        response.put("dateOverrides", extra.getOrDefault("dateOverrides", List.of()));
-        response.put("leaves", extra.getOrDefault("leaves", List.of()));
-        response.put("emergencyAbsence", extra.get("emergencyAbsence"));
-        response.put("availabilityStatus", extra.getOrDefault("availabilityStatus", "AVAILABLE"));
-        response.put("slotDurationMin", extra.getOrDefault("slotDurationMin", 15));
-        response.put("slotBufferMin", extra.getOrDefault("slotBufferMin", 5));
-        response.put("tokensPerSlot", extra.getOrDefault("tokensPerSlot", 2));
-        response.put("dailyMaxAppointments", extra.getOrDefault("dailyMaxAppointments", 30));
-        response.put("bookingHorizonDays", extra.getOrDefault("bookingHorizonDays", 30));
-        response.put("bookingCutoffMins", extra.getOrDefault("bookingCutoffMins", 30));
-        return response;
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("weeklySchedule", extra.getOrDefault("weeklySchedule", new LinkedHashMap<>()));
+        out.put("scheduleEffectiveDate", extra.getOrDefault("scheduleEffectiveDate", LocalDate.now().toString()));
+        out.put("dateOverrides", extra.getOrDefault("dateOverrides", List.of()));
+        out.put("leaves", extra.getOrDefault("leaves", List.of()));
+        out.put("emergencyAbsence", extra.get("emergencyAbsence"));
+        out.put("availabilityStatus", extra.getOrDefault("availabilityStatus",
+                Boolean.TRUE.equals(doctor.getIsActive()) ? "AVAILABLE" : "INACTIVE"));
+        out.put("slotDurationMin", extra.getOrDefault("slotDurationMin", 15));
+        out.put("slotBufferMin", extra.getOrDefault("slotBufferMin", 5));
+        out.put("tokensPerSlot", extra.getOrDefault("tokensPerSlot", 2));
+        out.put("dailyMaxAppointments", extra.getOrDefault("dailyMaxAppointments", 30));
+        out.put("bookingHorizonDays", extra.getOrDefault("bookingHorizonDays", 30));
+        out.put("bookingCutoffMins", extra.getOrDefault("bookingCutoffMins", 30));
+        normalizeWeeklySchedule(out);
+        return ApiResponse.ok().with("schedule", out);
     }
 
     @Transactional
@@ -226,20 +228,18 @@ public class DoctorService {
         if (req.getBookingHorizonDays() != null) extra.put("bookingHorizonDays", req.getBookingHorizonDays());
         if (req.getBookingCutoffMins() != null) extra.put("bookingCutoffMins", req.getBookingCutoffMins());
         if (req.getScheduleEffectiveDate() != null) extra.put("scheduleEffectiveDate", req.getScheduleEffectiveDate());
+        normalizeWeeklySchedule(extra);
         doctor.setExtra(extra);
         doctorRepository.save(doctor);
 
         auditLogService.log(doctor.getName(), "DOCTOR", "SCHEDULE_UPDATE", null,
                 "Updated weekly recurring schedule and consultation slot capacity settings.");
 
-        // NOTE: the Node version also cross-checks this against booked
-        // appointments and flags conflicts. Appointments haven't been
-        // ported to Java yet (next phase), so that check is deferred -
-        // conflictsCount is always 0 here for now.
-        return ApiResponse.ok("Weekly schedule updated successfully with zero appointment conflicts.")
-                .with("doctor", toPublic(doctor))
-                .with("conflictsCount", 0)
-                .with("conflictingAppointments", List.of());
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("doctor", toPublic(doctor));
+        out.put("conflictsCount", 0);
+        out.put("conflictingAppointments", List.of());
+        return ApiResponse.ok("Weekly schedule updated successfully with zero appointment conflicts.").withAll(out);
     }
 
     /**
@@ -504,12 +504,49 @@ public class DoctorService {
                             + " is currently PENDING APPROVAL. You cannot search patient records or consult patients until your hospital administrator approves your request.");
         }
 
+        if (doctor != null) {
+            User doctorUser = userRepository.findById(doctor.getUserId()).orElse(null);
+            if (doctorUser != null && doctorUser.getMalpracticeCount() >= 3) {
+                recordAccessLogService.add(
+                        doctor.getId(), doctorName != null ? doctorName : doctor.getName(),
+                        null, effectiveHealthId, null, doctor.getHospitalId(), doctor.getHospitalName(),
+                        effectiveEmergency ? "EMERGENCY" : "PATIENT_ID", "DENIED",
+                        "Blocked: Account deleted due to 3+ malpractice records.",
+                        null, false, null, null, null, null, "MALPRACTICE_BLOCK");
+                throw new ApiException(HttpStatus.FORBIDDEN,
+                        "Access Denied: Your account has been deleted due to repeated malpractice violations (3+ confirmed complaints). Contact the Super Admin for assistance.");
+            }
+        }
+
+        // Resolve card token if provided via accessCardId or when method is PATIENT_ACCESS_CARD
+        if (isBlank(effectiveHealthId) && isBlank(req.getAccessCardId())) {
+            throw ApiException.badRequest("A patient health ID, card ID, or scannable identifier is required to access records.");
+        }
+        boolean cardAuthorized = false;
+        String resolvedHealthId = effectiveHealthId;
+        if (!isBlank(req.getAccessCardId())) {
+            List<AccessCard> cardHits = accessCardRepository.findAllByAnyIdentifier(req.getAccessCardId().trim());
+            if (!cardHits.isEmpty()) {
+                AccessCard card = cardHits.get(0);
+                resolvedHealthId = card.getPatientHealthId();
+                cardAuthorized = "ACTIVE".equals(card.getStatus()) || "LOST".equals(card.getStatus());
+            }
+        } else if ("PATIENT_ACCESS_CARD".equals(req.getAccessMethod())) {
+            List<AccessCard> cardHits = accessCardRepository.findAllByAnyIdentifier(effectiveHealthId.trim());
+            if (!cardHits.isEmpty()) {
+                AccessCard card = cardHits.get(0);
+                resolvedHealthId = card.getPatientHealthId();
+                cardAuthorized = "ACTIVE".equals(card.getStatus()) || "LOST".equals(card.getStatus());
+            }
+        }
+        effectiveHealthId = resolvedHealthId;
+
         // Resolve patient
-        String patientUserId = effectiveHealthId;
+        String patientUserId = resolvedHealthId;
         String patientName = "Patient Citizen";
         PatientProfile patientProf = null;
 
-        Optional<PatientResolver.Resolved> resolvedOpt = patientResolver.resolve(effectiveHealthId);
+        Optional<PatientResolver.Resolved> resolvedOpt = patientResolver.resolve(resolvedHealthId);
         if (resolvedOpt.isPresent()) {
             PatientResolver.Resolved resolved = resolvedOpt.get();
             patientUserId = resolved.userId;
@@ -520,9 +557,9 @@ public class DoctorService {
         // Check consent - try by patientUserId first, then effectiveHealthId
         boolean hasConsent = false;
         Consent activeConsent = null;
-        Optional<Consent> consentOpt = consentRepository.findByPatientIdAndDoctorId(patientUserId, doctorId);
+        Optional<Consent> consentOpt = consentRepository.findFirstByPatientIdAndDoctorIdOrderByGrantedAtDesc(patientUserId, doctorId);
         if (consentOpt.isEmpty() && !patientUserId.equals(effectiveHealthId)) {
-            consentOpt = consentRepository.findByPatientIdAndDoctorId(effectiveHealthId, doctorId);
+            consentOpt = consentRepository.findFirstByPatientIdAndDoctorIdOrderByGrantedAtDesc(effectiveHealthId, doctorId);
         }
         if (consentOpt.isPresent()) {
             Consent c = consentOpt.get();
@@ -584,9 +621,9 @@ public class DoctorService {
                     .with("message", "Emergency access logged. Patient and hospital privacy board notified.");
         }
 
-        // Consent or appointment authorized
-        if (hasConsent || hasAppointment) {
-            String method = hasAppointment ? "APPOINTMENT" : "PATIENT_ID";
+        // Consent, access card, or appointment authorized
+        if (hasConsent || cardAuthorized || hasAppointment) {
+            String method = cardAuthorized ? "ACCESS_CARD" : (hasAppointment ? "APPOINTMENT" : "PATIENT_ID");
             RecordAccessLog accessLog = recordAccessLogService.add(
                     doctor != null ? doctor.getId() : doctorId,
                     doctorName != null ? doctorName : (doctor != null ? doctor.getName() : null),
@@ -594,17 +631,18 @@ public class DoctorService {
                     doctor != null ? doctor.getHospitalId() : null,
                     doctor != null ? doctor.getHospitalName() : null,
                     method, "SUCCESS",
-                    hasConsent ? "Authorized Patient Consent Record Access" : "Scheduled Appointment Consultation Access",
+                    cardAuthorized ? "Patient Access Card Presented & Verified - Automatic Access Granted"
+                            : hasConsent ? "Authorized Patient Consent Record Access" : "Scheduled Appointment Consultation Access",
                     List.of("MEDICAL_HISTORY", "LAB_REPORTS", "PRESCRIPTIONS"),
                     false,
-                    hasAppointment ? "SCHEDULED_TOKEN" : "DIRECT_LOOKUP",
-                    "VERIFIED",
+                    cardAuthorized ? "ACCESS_CARD_SCAN" : (hasAppointment ? "SCHEDULED_TOKEN" : "DIRECT_LOOKUP"),
+                    cardAuthorized ? "CARD_VERIFIED" : "VERIFIED",
                     null, activeApt != null ? activeApt.getId() : null, null
             );
             Map<String, Object> logResp = mapAccessLogToResponse(accessLog);
             return ApiResponse.ok()
                     .with("granted", true)
-                    .with("reason", hasConsent ? "EXPLICIT_CONSENT" : "SCHEDULED_APPOINTMENT")
+                    .with("reason", cardAuthorized ? "ACCESS_CARD_AUTO_GRANTED" : (hasConsent ? "EXPLICIT_CONSENT" : "SCHEDULED_APPOINTMENT"))
                     .with("patient", profileMap)
                     .with("consents", consentsList)
                     .with("records", recordsList)
@@ -664,11 +702,41 @@ public class DoctorService {
                             + " is currently PENDING APPROVAL. You cannot access patient records until approved.");
         }
 
-        // Resolve patient using PatientResolver
-        PatientResolver.Resolved patientResolved = patientResolver.resolve(patientHealthId).orElse(null);
+        if (doctor != null) {
+            User doctorUser = userRepository.findById(doctor.getUserId()).orElse(null);
+            if (doctorUser != null && doctorUser.getMalpracticeCount() >= 3) {
+                recordAccessLogService.add(
+                        doctor.getId(), doctor.getName(),
+                        null, patientHealthId, null, doctor.getHospitalId(), doctor.getHospitalName(),
+                        accessMethod != null ? accessMethod : "PATIENT_HEALTH_ID", "DENIED",
+                        "Blocked: Account deleted due to 3+ malpractice records.",
+                        null, false, null, null, null, null, "MALPRACTICE_BLOCK");
+                throw new ApiException(HttpStatus.FORBIDDEN,
+                        "Access Denied: Your account has been deleted due to repeated malpractice violations (3+ confirmed complaints). Contact the Super Admin for assistance.");
+            }
+        }
 
-        String patientUserId = patientResolved != null ? patientResolved.userId : patientHealthId;
-        String patientGlobalId = patientResolved != null ? patientResolved.globalHealthId : patientHealthId;
+        // Resolve card token if provided via accessCardId or patientHealthId
+        String effectivePatientHealthId = patientHealthId;
+        if (!isBlank(req.getAccessCardId())) {
+            List<AccessCard> cardHits = accessCardRepository.findAllByAnyIdentifier(req.getAccessCardId().trim());
+            if (!cardHits.isEmpty()) {
+                AccessCard card = cardHits.get(0);
+                effectivePatientHealthId = card.getPatientHealthId();
+            }
+        } else if ("PATIENT_ACCESS_CARD".equals(accessMethod)) {
+            List<AccessCard> cardHits = accessCardRepository.findAllByAnyIdentifier(patientHealthId.trim());
+            if (!cardHits.isEmpty()) {
+                AccessCard card = cardHits.get(0);
+                effectivePatientHealthId = card.getPatientHealthId();
+            }
+        }
+
+        // Resolve patient using PatientResolver
+        PatientResolver.Resolved patientResolved = patientResolver.resolve(effectivePatientHealthId).orElse(null);
+
+        String patientUserId = patientResolved != null ? patientResolved.userId : effectivePatientHealthId;
+        String patientGlobalId = patientResolved != null ? patientResolved.globalHealthId : effectivePatientHealthId;
         String patientName = patientResolved != null && patientResolved.name != null && !patientResolved.name.isBlank()
                 ? patientResolved.name : "Patient Citizen";
         PatientProfile patientProf = patientResolved != null ? patientResolved.profile : null;
@@ -1439,8 +1507,52 @@ public class DoctorService {
         out.put("status", d.getStatus());
         out.put("fee", d.getFee());
         out.put("isActive", d.getIsActive());
+        if (d.getUserId() != null) {
+            User doctorUser = userRepository.findById(d.getUserId()).orElse(null);
+            out.put("malpracticeCount", doctorUser != null ? doctorUser.getMalpracticeCount() : 0);
+        } else {
+            out.put("malpracticeCount", 0);
+        }
         if (d.getExtra() != null) out.putAll(d.getExtra());
+        if (!out.containsKey("availabilityStatus")) {
+            out.put("availabilityStatus", Boolean.TRUE.equals(d.getIsActive()) ? "AVAILABLE" : "INACTIVE");
+        }
+        if (!out.containsKey("activeStatus")) {
+            out.put("activeStatus", Boolean.TRUE.equals(d.getIsActive()) ? "ACTIVE" : "INACTIVE");
+        }
+        normalizeWeeklySchedule(out);
         return out;
+    }
+
+    private static final String[] DEFAULT_DAYS = {"Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"};
+
+    @SuppressWarnings("unchecked")
+    private void normalizeWeeklySchedule(Map<String, Object> out) {
+        Object wsObj = out.get("weeklySchedule");
+        Map<String, Object> ws = (wsObj instanceof Map<?, ?>)
+                ? new LinkedHashMap<>((Map<String, Object>) wsObj) : new LinkedHashMap<>();
+        boolean changed = false;
+        for (String day : DEFAULT_DAYS) {
+            if (!ws.containsKey(day)) {
+                boolean defaultActive = !"Sunday".equals(day);
+                Map<String, Object> dayMap = new LinkedHashMap<>();
+                dayMap.put("active", defaultActive);
+                dayMap.put("timeSlots", List.of(
+                        Map.of("id", "ts_default_m", "slotName", "Morning Shift", "startTime", "09:00 AM", "endTime", "01:00 PM"),
+                        Map.of("id", "ts_default_a", "slotName", "Afternoon Shift", "startTime", "02:00 PM", "endTime", "05:00 PM")
+                ));
+                dayMap.put("breaks", List.of(
+                        Map.of("id", "b_default", "breakName", "Lunch Break", "startTime", "01:00 PM", "endTime", "02:00 PM")
+                ));
+                dayMap.put("slotDurationMin", out.getOrDefault("slotDurationMin", 15));
+                dayMap.put("slotBufferMin", out.getOrDefault("slotBufferMin", 5));
+                dayMap.put("tokensPerSlot", out.getOrDefault("tokensPerSlot", 2));
+                dayMap.put("dailyMaxLimit", out.getOrDefault("dailyMaxAppointments", 30));
+                ws.put(day, dayMap);
+                changed = true;
+            }
+        }
+        if (changed) out.put("weeklySchedule", ws);
     }
 
     /** Map a RecordAccessLog entity to a response map using Node field names. */

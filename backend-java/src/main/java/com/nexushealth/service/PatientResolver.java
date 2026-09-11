@@ -7,6 +7,7 @@ import com.nexushealth.repository.UserRepository;
 import org.springframework.stereotype.Component;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -30,7 +31,7 @@ public class PatientResolver {
         public User user;
     }
 
-    /** identifier can be a user id, a Global Health ID, or an email. */
+    /** identifier can be a user id, a Global Health ID, an email, or a patient name. */
     public Optional<Resolved> resolve(String identifier) {
         if (identifier == null || identifier.isBlank()) return Optional.empty();
 
@@ -44,6 +45,19 @@ public class PatientResolver {
             user = userRepository.findByEmailIgnoreCaseAndRole(identifier, "PATIENT").orElse(null);
             if (user != null) profile = patientProfileRepository.findById(user.getId()).orElse(null);
         }
+
+        // Fallback: name-based lookup (only if no match found yet)
+        if (profile == null || user == null) {
+            List<User> nameMatches = userRepository.findByNameContainingIgnoreCaseAndRole(identifier.trim(), "PATIENT");
+            if (nameMatches.size() == 1) {
+                user = nameMatches.get(0);
+                profile = patientProfileRepository.findById(user.getId()).orElse(null);
+            } else if (nameMatches.size() > 1) {
+                user = nameMatches.get(0);
+                profile = patientProfileRepository.findById(user.getId()).orElse(null);
+            }
+        }
+
         if (profile == null || user == null) return Optional.empty();
 
         Resolved r = new Resolved();

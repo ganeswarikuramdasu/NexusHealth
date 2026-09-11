@@ -33,6 +33,10 @@ import {
   Award,
   Sparkles,
   MessageSquareWarning,
+  LayoutDashboard,
+  CalendarClock,
+  UserCheck,
+  FileSpreadsheet,
 } from "lucide-react";
 
 interface HospitalAdminViewProps {
@@ -64,11 +68,11 @@ export const HospitalAdminView: React.FC<HospitalAdminViewProps> = ({
   onLogout,
   onGoToHome,
 }) => {
-  const HOSPITAL_ADMIN_TABS = ["ROSTER", "DEPARTMENTS", "PATIENT_RECORDS", "AUDIT_LOGS", "SETTINGS", "COMPLAINTS"];
+  const HOSPITAL_ADMIN_TABS = ["DASHBOARD", "ROSTER", "DEPARTMENTS", "PATIENT_RECORDS", "AUDIT_LOGS", "SETTINGS", "COMPLAINTS"];
 
-  const [activeTab, setActiveTab] = useState<"ROSTER" | "DEPARTMENTS" | "PATIENT_RECORDS" | "AUDIT_LOGS" | "SETTINGS" | "COMPLAINTS">(() => {
+  const [activeTab, setActiveTab] = useState<"DASHBOARD" | "ROSTER" | "DEPARTMENTS" | "PATIENT_RECORDS" | "AUDIT_LOGS" | "SETTINGS" | "COMPLAINTS">(() => {
     const saved = localStorage.getItem("nexushealth_tab_HOSPITAL_ADMIN");
-    return saved && HOSPITAL_ADMIN_TABS.includes(saved) ? (saved as any) : "ROSTER";
+    return saved && HOSPITAL_ADMIN_TABS.includes(saved) ? (saved as any) : "DASHBOARD";
   });
 
   useEffect(() => {
@@ -375,6 +379,7 @@ export const HospitalAdminView: React.FC<HospitalAdminViewProps> = ({
   );
 
   const navTabs = [
+    { key: "DASHBOARD", label: "Dashboard", icon: LayoutDashboard },
     { key: "ROSTER", label: "Doctors & Physicians Info", icon: Stethoscope, count: affiliatedDoctors.length },
     { key: "DEPARTMENTS", label: "Departments Details", icon: Layers, count: departments.length },
     { key: "PATIENT_RECORDS", label: "Hospital EHR & Patient Records", icon: FileText, badge: "EHR" },
@@ -413,6 +418,149 @@ export const HospitalAdminView: React.FC<HospitalAdminViewProps> = ({
         onLogout={onLogout}
         onGoToHome={onGoToHome}
       >
+
+        {/* DASHBOARD TAB */}
+        {activeTab === "DASHBOARD" && (
+          <div className="space-y-6">
+            <WarningsBanner role="HOSPITAL_ADMIN" module="HOSPITAL_ADMIN" />
+
+            {/* Hospital Hero Header */}
+            <div className="bg-gradient-to-r from-[#17C964] via-[#0f172a] to-[#0f172a] border border-[#17C964]/30 rounded-3xl p-6 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+              <div className="space-y-2">
+                <div className="inline-flex items-center space-x-1.5 px-3 py-1 bg-white/10 border border-white/40 rounded-full text-xs font-mono font-bold text-white">
+                  <Building2 className="w-3.5 h-3.5" />
+                  <span>{hospital.status || "APPROVED"} FACILITY</span>
+                </div>
+                <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+                  Hospital Workspace: <span className="bg-gradient-to-r from-[#3CE584] to-[#17C964] bg-clip-text text-transparent">{hospital.name || "Hospital"}</span>
+                </h1>
+                <p className="text-xs sm:text-sm text-slate-200 max-w-xl">
+                  Manage physician rosters, departments, patient EHR records, and the immutable audit ledger for {hospital.departments?.length || 0} active departments.
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-3 shrink-0">
+                <button
+                  onClick={() => setActiveTab("ROSTER")}
+                  className="px-5 py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-2xl text-xs transition flex items-center space-x-2 border border-white/40"
+                >
+                  <Stethoscope className="w-4 h-4" />
+                  <span>Manage Roster</span>
+                </button>
+                <button
+                  onClick={() => setActiveTab("PATIENT_RECORDS")}
+                  className="px-5 py-3 bg-[#17C964] hover:bg-[#0EA653] text-white font-bold rounded-2xl shadow-lg shadow-[#17C964]/30 text-xs transition flex items-center space-x-2 border border-[#17C964]/40"
+                >
+                  <FileText className="w-4 h-4" />
+                  <span>Hospital EHR Records</span>
+                </button>
+              </div>
+            </div>
+
+            {/* KPI Stat Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="bg-[#FFFFFF] border border-slate-200 rounded-2xl p-5 space-y-2 shadow-md">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-slate-500 font-bold">Affiliated Physicians</p>
+                  <Stethoscope className="w-5 h-5 text-[#17C964]" />
+                </div>
+                <p className="text-3xl font-black text-slate-900">{affiliatedDoctors.length}</p>
+                <p className="text-[10px] text-slate-400 font-mono">{pendingApprovals.length} PENDING APPROVAL</p>
+              </div>
+              <div className="bg-[#FFFFFF] border border-slate-200 rounded-2xl p-5 space-y-2 shadow-md">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-slate-500 font-bold">Clinical Departments</p>
+                  <Layers className="w-5 h-5 text-[#17C964]" />
+                </div>
+                <p className="text-3xl font-black text-slate-900">{departments.length}</p>
+                <p className="text-[10px] text-slate-400 font-mono">
+                  {Object.values(deptStatuses).filter((s) => s === "ACTIVE").length} ACTIVE
+                </p>
+              </div>
+              <div className="bg-[#FFFFFF] border border-slate-200 rounded-2xl p-5 space-y-2 shadow-md">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-slate-500 font-bold">Patient EHR Records</p>
+                  <FileSpreadsheet className="w-5 h-5 text-[#17C964]" />
+                </div>
+                <p className="text-3xl font-black text-slate-900">{(records || []).filter((r) => r.hospitalId === hospital.id || r.hospitalName === hospital.name).length}</p>
+                <p className="text-[10px] text-slate-400 font-mono">ACROSS DEPARTMENTS</p>
+              </div>
+              <div className="bg-[#FFFFFF] border border-slate-200 rounded-2xl p-5 space-y-2 shadow-md">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-slate-500 font-bold">Licensed Physicians (Active)</p>
+                  <UserCheck className="w-5 h-5 text-[#17C964]" />
+                </div>
+                <p className="text-3xl font-black text-slate-900">{affiliatedDoctors.filter((d) => d.status === "APPROVED").length}</p>
+                <p className="text-[10px] text-slate-400 font-mono">APPROVED & ACTIVE</p>
+              </div>
+            </div>
+
+            {/* Pending Approvals Quick Action */}
+            <div className={pendingApprovals.length > 0 ? "bg-amber-50 border border-amber-300 rounded-2xl p-5 space-y-3" : "bg-[#FFFFFF] border border-slate-200 rounded-2xl p-5 space-y-3 shadow-md"}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  {pendingApprovals.length > 0 ? <AlertTriangle className="w-5 h-5 text-amber-600" /> : <Check className="w-5 h-5 text-[#17C964]" />}
+                  <h3 className="font-bold text-slate-900 text-sm">
+                    {pendingApprovals.length > 0 ? `${pendingApprovals.length} Doctor${pendingApprovals.length !== 1 ? "s" : ""} Awaiting Approval` : "No Pending Approvals"}
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setActiveTab("ROSTER")}
+                  className="px-3 py-1.5 bg-[#17C964] hover:bg-[#0EA653] text-white font-bold rounded-xl text-[11px]"
+                >
+                  Review Roster
+                </button>
+              </div>
+              {pendingApprovals.length > 0 && (
+                <div className="space-y-2">
+                  {pendingApprovals.slice(0, 4).map((doc) => (
+                    <div key={doc.id} className="p-2.5 bg-white border border-amber-200 rounded-xl flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <Stethoscope className="w-3.5 h-3.5 text-amber-600" />
+                        <span className="text-xs font-bold text-slate-800">{doc.name}</span>
+                        <span className="text-[10px] text-slate-500 font-mono">{doc.specialization}</span>
+                      </div>
+                      <span className="text-[9px] px-2 py-1 bg-amber-100 text-amber-700 border border-amber-300 rounded font-mono">PENDING</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Quick Stats Strip */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-[#FFFFFF] border border-slate-200 rounded-2xl p-5 shadow-md flex items-start space-x-3">
+                <CalendarClock className="w-5 h-5 text-[#17C964] shrink-0" />
+                <div>
+                  <p className="text-xs font-bold text-slate-500">Access Audit Ledger</p>
+                  <p className="text-xl font-black text-slate-900 mt-1">Immutable</p>
+                  <button onClick={() => setActiveTab("AUDIT_LOGS")} className="text-[10px] text-[#17C964] font-bold mt-2 hover:underline">
+                    View Security Audit Logs →
+                  </button>
+                </div>
+              </div>
+              <div className="bg-[#FFFFFF] border border-slate-200 rounded-2xl p-5 shadow-md flex items-start space-x-3">
+                <Lock className="w-5 h-5 text-[#17C964] shrink-0" />
+                <div>
+                  <p className="text-xs font-bold text-slate-500">Record Security</p>
+                  <p className="text-[11px] text-slate-500 mt-1">Every physician access is logged with 256-Bit immutable audit trail.</p>
+                  <button onClick={() => setActiveTab("PATIENT_RECORDS")} className="text-[10px] text-[#17C964] font-bold mt-2 hover:underline">
+                    Browse EHR Records →
+                  </button>
+                </div>
+              </div>
+              <div className="bg-[#FFFFFF] border border-slate-200 rounded-2xl p-5 shadow-md flex items-start space-x-3">
+                <MessageSquareWarning className="w-5 h-5 text-[#17C964] shrink-0" />
+                <div>
+                  <p className="text-xs font-bold text-slate-500">Patient Complaints</p>
+                  <p className="text-[11px] text-slate-500 mt-1">Reply to patient complaints and update resolution status.</p>
+                  <button onClick={() => setActiveTab("COMPLAINTS")} className="text-[10px] text-[#17C964] font-bold mt-2 hover:underline">
+                    Open Complaints Hub →
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* DOCTORS & PHYSICIANS ROSTER TAB */}
         {activeTab === "ROSTER" && (

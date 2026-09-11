@@ -3,9 +3,7 @@ import { HospitalProfile, DoctorProfile, AuditLog, MedicalRecord, PatientProfile
 import { PatientRecordsTable } from "./PatientRecordsTable";
 import { HierarchicalAuditLogViewer } from "./HierarchicalAuditLogViewer";
 import { AppShell, NavItem } from "./AppShell";
-import { WarningsBanner } from "./WarningsBanner";
 import { ComplaintCenter } from "./ComplaintCenter";
-import { WarningComposer } from "./WarningComposer";
 import { safeFetchJson, parseResponseSafe } from "../utils/api";
 import {
   ShieldCheck,
@@ -29,7 +27,8 @@ import {
   Search,
   Filter,
   MessageSquareWarning,
-  Megaphone,
+  AlertTriangle,
+  LayoutDashboard,
 } from "lucide-react";
 
 interface SuperAdminViewProps {
@@ -61,11 +60,11 @@ export const SuperAdminView: React.FC<SuperAdminViewProps> = ({
   onLogout,
   onGoToHome,
 }) => {
-  const SUPER_ADMIN_TABS = ["HOSPITALS", "DOCTORS", "AUDIT_LOGS", "PATIENTS", "RECORDS", "COMPLAINTS", "WARNINGS"];
+  const SUPER_ADMIN_TABS = ["DASHBOARD", "HOSPITALS", "DOCTORS", "AUDIT_LOGS", "PATIENTS", "RECORDS", "COMPLAINTS", "MALPRACTICES"];
 
-  const [activeTab, setActiveTab] = useState<"HOSPITALS" | "DOCTORS" | "AUDIT_LOGS" | "PATIENTS" | "RECORDS" | "COMPLAINTS" | "WARNINGS">(() => {
+  const [activeTab, setActiveTab] = useState<"DASHBOARD" | "HOSPITALS" | "DOCTORS" | "AUDIT_LOGS" | "PATIENTS" | "RECORDS" | "COMPLAINTS" | "MALPRACTICES">(() => {
     const saved = localStorage.getItem("nexushealth_tab_SUPER_ADMIN");
-    return saved && SUPER_ADMIN_TABS.includes(saved) ? (saved as any) : "HOSPITALS";
+    return saved && SUPER_ADMIN_TABS.includes(saved) ? (saved as any) : "DASHBOARD";
   });
 
   useEffect(() => {
@@ -112,6 +111,80 @@ export const SuperAdminView: React.FC<SuperAdminViewProps> = ({
   const [newHospLat, setNewHospLat] = useState("");
   const [newHospLng, setNewHospLng] = useState("");
   const [addHospStatus, setAddHospStatus] = useState<{ type: "success" | "error"; msg: string } | null>(null);
+
+  // Malpractice Tracker State
+  const [malpracticeDoctors, setMalpracticeDoctors] = useState<any[]>([]);
+  const [malpracticeLoading, setMalpracticeLoading] = useState(false);
+  const [malpracticeError, setMalpracticeError] = useState<string | null>(null);
+  const [incrementTarget, setIncrementTarget] = useState<string | null>(null);
+  const [incrementReason, setIncrementReason] = useState("");
+  const [incrementStatus, setIncrementStatus] = useState<{ type: "success" | "error"; msg: string } | null>(null);
+
+  const fetchMalpracticeDoctors = async () => {
+    setMalpracticeLoading(true);
+    setMalpracticeError(null);
+    try {
+      const data = await safeFetchJson<any[]>("/api/admin/malpractice-doctors", undefined, []);
+      setMalpracticeDoctors(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setMalpracticeError("Failed to load malpractice data.");
+    } finally {
+      setMalpracticeLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "MALPRACTICES") fetchMalpracticeDoctors();
+  }, [activeTab]);
+
+  const handleIncrementMalpractice = async (doctorUserId: string) => {
+    setIncrementStatus(null);
+    try {
+      const res = await fetch("/api/admin/malpractice-increment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          doctorUserId,
+          adminName: appUser?.name || "Super Admin",
+          reason: incrementReason.trim() || undefined,
+        }),
+      });
+      const data = await parseResponseSafe<any>(res, { success: false });
+      if (data?.success) {
+        setIncrementStatus({ type: "success", msg: data.message || "Malpractice count incremented." });
+        setIncrementTarget(null);
+        setIncrementReason("");
+        fetchMalpracticeDoctors();
+      } else {
+        setIncrementStatus({ type: "error", msg: data?.message || "Failed to increment malpractice." });
+      }
+    } catch (err) {
+      setIncrementStatus({ type: "error", msg: "Server error." });
+    }
+  };
+
+  const handleResetMalpractice = async (doctorUserId: string) => {
+    setIncrementStatus(null);
+    try {
+      const res = await fetch("/api/admin/malpractice-reset", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          doctorUserId,
+          adminName: appUser?.name || "Super Admin",
+        }),
+      });
+      const data = await parseResponseSafe<any>(res, { success: false });
+      if (data?.success) {
+        setIncrementStatus({ type: "success", msg: data.message || "Malpractice count reset." });
+        fetchMalpracticeDoctors();
+      } else {
+        setIncrementStatus({ type: "error", msg: data?.message || "Failed to reset malpractice." });
+      }
+    } catch (err) {
+      setIncrementStatus({ type: "error", msg: "Server error." });
+    }
+  };
 
   const openEditHospitalModal = (hosp: HospitalProfile) => {
     setEditingHospital(hosp);
@@ -254,13 +327,14 @@ export const SuperAdminView: React.FC<SuperAdminViewProps> = ({
   }, [activeTab]);
 
   const navTabs = [
+    { key: "DASHBOARD", label: "Dashboard", icon: LayoutDashboard },
     { key: "HOSPITALS", label: "Hospitals", icon: Building2, count: (hospitals || []).length },
     { key: "DOCTORS", label: "Licensed Physicians", icon: Stethoscope, count: (doctors || []).length },
     { key: "PATIENTS", label: "Registered Citizens", icon: Users },
     { key: "RECORDS", label: "Global EHR & Lab Ledger", icon: FileText, badge: "Global" },
     { key: "AUDIT_LOGS", label: "256-Bit System Audit Ledger", icon: Lock, badge: "Immutable" },
     { key: "COMPLAINTS", label: "Complaints Hub", icon: MessageSquareWarning, badge: "Handle" },
-    { key: "WARNINGS", label: "Warnings & Announcements", icon: Megaphone, badge: "Broadcast" },
+    { key: "MALPRACTICES", label: "Malpractice Tracker", icon: AlertTriangle, badge: "CRITICAL" },
   ];
 
   const navItems: NavItem[] = navTabs.map((t) => ({
@@ -291,10 +365,141 @@ export const SuperAdminView: React.FC<SuperAdminViewProps> = ({
         onGoToHome={onGoToHome}
       >
 
+        {/* DASHBOARD TAB */}
+        {activeTab === "DASHBOARD" && (
+          <div className="space-y-6">
+            {/* Network Hero Header */}
+            <div className="bg-gradient-to-r from-[#17C964] via-[#0f172a] to-[#0f172a] border border-[#17C964]/30 rounded-3xl p-6 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+              <div className="space-y-2">
+                <div className="inline-flex items-center space-x-1.5 px-3 py-1 bg-white/10 border border-white/40 rounded-full text-xs font-mono font-bold text-white">
+                  <Globe className="w-3.5 h-3.5" />
+                  <span>NATIONAL HEALTH NETWORK ONLINE</span>
+                </div>
+                <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+                  Super Admin Command Center: <span className="bg-gradient-to-r from-[#3CE584] to-[#17C964] bg-clip-text text-transparent">{appUser?.name || "NexusHealth"}</span>
+                </h1>
+                <p className="text-xs sm:text-sm text-slate-200 max-w-xl">
+                  Govern the whole NexusHealth network: hospitals, licensed physicians, patients, the global EHR ledger, audit trails, complaints, and the malpractice tracker.
+                </p>
+              </div>
+              <button
+                onClick={() => setActiveTab("MALPRACTICES")}
+                className="px-5 py-3 bg-[#F2603C] hover:bg-[#E23A2E] text-white font-bold rounded-2xl shadow-lg shadow-[#F2603C]/40 text-xs transition flex items-center space-x-2 border border-[#F2603C]/40"
+              >
+                <AlertTriangle className="w-4 h-4" />
+                <span>Open Malpractice Tracker</span>
+              </button>
+            </div>
+
+            {/* KPI Stat Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="bg-[#FFFFFF] border border-slate-200 rounded-2xl p-5 space-y-2 shadow-md">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-slate-500 font-bold">Registered Hospitals</p>
+                  <Building2 className="w-5 h-5 text-[#17C964]" />
+                </div>
+                <p className="text-3xl font-black text-slate-900">{(hospitals || []).length}</p>
+                <p className="text-[10px] text-slate-400 font-mono">{(hospitals || []).filter((h) => h.status === "APPROVED").length} APPROVED</p>
+              </div>
+              <div className="bg-[#FFFFFF] border border-slate-200 rounded-2xl p-5 space-y-2 shadow-md">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-slate-500 font-bold">Licensed Physicians</p>
+                  <Stethoscope className="w-5 h-5 text-[#17C964]" />
+                </div>
+                <p className="text-3xl font-black text-slate-900">{(doctors || []).length}</p>
+                <p className="text-[10px] text-slate-400 font-mono">{(doctors || []).filter((d) => d.status === "APPROVED").length} APPROVED</p>
+              </div>
+              <div className="bg-[#FFFFFF] border border-slate-200 rounded-2xl p-5 space-y-2 shadow-md">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-slate-500 font-bold">Registered Patients</p>
+                  <Users className="w-5 h-5 text-[#17C964]" />
+                </div>
+                <p className="text-3xl font-black text-slate-900">{patientProfiles?.length || 0}</p>
+                <p className="text-[10px] text-slate-400 font-mono">PORTABLE CITIZEN EHR</p>
+              </div>
+              <div className="bg-[#FFFFFF] border border-slate-200 rounded-2xl p-5 space-y-2 shadow-md">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-slate-500 font-bold">Malpractice Flags</p>
+                  <AlertTriangle className="w-5 h-5 text-[#E23A2E]" />
+                </div>
+                <p className="text-3xl font-black text-slate-900">{(doctors || []).filter((d) => (d.malpracticeCount || 0) > 0).length}</p>
+                <p className="text-[10px] text-slate-400 font-mono">{(doctors || []).filter((d) => (d.malpracticeCount || 0) >= 3).length} ACCOUNTS DELETED</p>
+              </div>
+            </div>
+
+            {/* Middle Row: Records + Audit + Complaints Summary */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-[#FFFFFF] border border-slate-200 rounded-2xl p-5 shadow-md flex items-start space-x-3">
+                <FileText className="w-5 h-5 text-[#17C964] shrink-0" />
+                <div>
+                  <p className="text-xs font-bold text-slate-500">Global EHR & Lab Ledger</p>
+                  <p className="text-2xl font-black text-slate-900 mt-1">{(records || []).length}</p>
+                  <p className="text-[10px] text-slate-400 font-mono mt-1">MEDICAL RECORDS</p>
+                  <button onClick={() => setActiveTab("RECORDS")} className="text-[10px] text-[#17C964] font-bold mt-2 hover:underline">
+                    Browse Global EHR Ledger →
+                  </button>
+                </div>
+              </div>
+              <div className="bg-[#FFFFFF] border border-slate-200 rounded-2xl p-5 shadow-md flex items-start space-x-3">
+                <Lock className="w-5 h-5 text-[#17C964] shrink-0" />
+                <div>
+                  <p className="text-xs font-bold text-slate-500">Immutamble Audit Ledger</p>
+                  <p className="text-2xl font-black text-slate-900 mt-1">{(auditLogs || []).length}</p>
+                  <p className="text-[10px] text-slate-400 font-mono mt-1">AUDIT EVENTS</p>
+                  <button onClick={() => setActiveTab("AUDIT_LOGS")} className="text-[10px] text-[#17C964] font-bold mt-2 hover:underline">
+                    Open 256-Bit Audit Ledger →
+                  </button>
+                </div>
+              </div>
+              <div className="bg-[#FFFFFF] border border-slate-200 rounded-2xl p-5 shadow-md flex items-start space-x-3">
+                <MessageSquareWarning className="w-5 h-5 text-[#17C964] shrink-0" />
+                <div>
+                  <p className="text-xs font-bold text-slate-500">Complaints Hub</p>
+                  <p className="text-[11px] text-slate-500 mt-1">Handle incoming patient complaints, update status, and reply to patients.</p>
+                  <button onClick={() => setActiveTab("COMPLAINTS")} className="text-[10px] text-[#17C964] font-bold mt-2 hover:underline">
+                    Open Complaints Hub →
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick navigation tiles */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <button onClick={() => setActiveTab("HOSPITALS")} className="bg-[#FFFFFF] border border-slate-200 rounded-2xl p-4 shadow-md hover:border-[#17C964]/40 transition flex items-center space-x-3 text-left">
+                <Building2 className="w-5 h-5 text-[#17C964]" />
+                <div>
+                  <p className="text-xs font-bold text-slate-900">Hospitals</p>
+                  <p className="text-[9px] text-slate-400 font-mono">APPROVE / EDIT</p>
+                </div>
+              </button>
+              <button onClick={() => setActiveTab("DOCTORS")} className="bg-[#FFFFFF] border border-slate-200 rounded-2xl p-4 shadow-md hover:border-[#17C964]/40 transition flex items-center space-x-3 text-left">
+                <Stethoscope className="w-5 h-5 text-[#17C964]" />
+                <div>
+                  <p className="text-xs font-bold text-slate-900">Physicians</p>
+                  <p className="text-[9px] text-slate-400 font-mono">MASTER DIRECTORY</p>
+                </div>
+              </button>
+              <button onClick={() => setActiveTab("PATIENTS")} className="bg-[#FFFFFF] border border-slate-200 rounded-2xl p-4 shadow-md hover:border-[#17C964]/40 transition flex items-center space-x-3 text-left">
+                <Users className="w-5 h-5 text-[#17C964]" />
+                <div>
+                  <p className="text-xs font-bold text-slate-900">Patients</p>
+                  <p className="text-[9px] text-slate-400 font-mono">REGISTERED CITIZENS</p>
+                </div>
+              </button>
+              <button onClick={() => setActiveTab("MALPRACTICES")} className="bg-[#FFFFFF] border border-slate-200 rounded-2xl p-4 shadow-md hover:border-red-300 transition flex items-center space-x-3 text-left">
+                <AlertTriangle className="w-5 h-5 text-[#E23A2E]" />
+                <div>
+                  <p className="text-xs font-bold text-slate-900">Malpractice Tracker</p>
+                  <p className="text-[9px] text-slate-400 font-mono">3+ = ACCOUNT DELETED</p>
+                </div>
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* HOSPITALS TAB */}
         {activeTab === "HOSPITALS" && (
           <div className="space-y-6">
-            <WarningsBanner role="SUPER_ADMIN" module="SUPER_ADMIN" />
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-200 pb-4">
               <div>
                 <h2 className="text-xl font-bold text-slate-900 flex items-center space-x-2">
@@ -445,6 +650,21 @@ export const SuperAdminView: React.FC<SuperAdminViewProps> = ({
                       <div>Hospital: <strong className="text-slate-900">{doc.hospitalName || "Independent"}</strong></div>
                       <div>Experience: <strong className="text-[#17C964]">{doc.experienceYears} Years</strong></div>
                       <div>Fee: <strong className="text-[#17C964]">₹{doc.fee}</strong></div>
+                      {(doc.malpracticeCount ?? 0) > 0 && (
+                        <div className="flex items-center space-x-1">
+                          <span>Malpractice:</span>
+                          <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
+                            (doc.malpracticeCount ?? 0) >= 3
+                              ? "bg-red-100 text-red-700 border border-red-300"
+                              : "bg-amber-50 text-amber-700 border border-amber-300"
+                          }`}>
+                            {doc.malpracticeCount}
+                          </span>
+                          {(doc.malpracticeCount ?? 0) >= 3 && (
+                            <span className="text-[9px] text-red-600 font-bold">ACCOUNT DELETED</span>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     <div className="pt-2 border-t border-slate-200 flex justify-end">
@@ -561,31 +781,123 @@ export const SuperAdminView: React.FC<SuperAdminViewProps> = ({
                 role: appUser?.role || "SUPER_ADMIN",
               }}
               module="SUPER_ADMIN"
-              canResolve
             />
           </div>
         )}
 
-        {/* WARNINGS & ANNOUNCEMENTS TAB */}
-        {activeTab === "WARNINGS" && (
+        {/* MALPRACTICES TAB */}
+        {activeTab === "MALPRACTICES" && (
           <div className="space-y-6">
             <div className="border-b border-slate-200 pb-4">
               <h2 className="text-xl font-bold text-slate-900 flex items-center space-x-2">
-                <Megaphone className="w-5 h-5 text-[#F2603C]" />
-                <span>Warnings & Announcements Broadcast</span>
+                <AlertTriangle className="w-5 h-5 text-[#E23A2E]" />
+                <span>Malpractice Tracker</span>
               </h2>
-              <p className="text-xs text-slate-500">
-                Publish targeted warnings or announcements to patients, doctors, hospital admins, or everyone.
-              </p>
+              <p className="text-xs text-slate-500">Doctors with confirmed patient complaints. At 3 malpractices, accounts are automatically deleted.</p>
             </div>
-            <WarningComposer
-              appUser={{
-                id: appUser?.id || "super_admin",
-                name: appUser?.name || "Super Admin",
-                email: appUser?.email || "superadmin@nexushealth.org",
-                role: appUser?.role || "SUPER_ADMIN",
-              }}
-            />
+
+            {incrementStatus && (
+              <div className={`p-3 rounded-xl border text-xs font-medium flex items-center space-x-2 ${
+                incrementStatus.type === "success"
+                  ? "bg-[#E9FBF1] text-[#0EA653] border-[#17C964]/30"
+                  : "bg-[#FDECE8] text-[#E23A2E] border-[#F2603C]/30"
+              }`}>
+                <span>{incrementStatus.msg}</span>
+              </div>
+            )}
+
+            {malpracticeLoading ? (
+              <div className="p-8 text-center text-slate-500 text-sm">Loading malpractice data...</div>
+            ) : malpracticeError ? (
+              <div className="p-8 text-center text-[#E23A2E] text-sm">{malpracticeError}</div>
+            ) : malpracticeDoctors.length === 0 ? (
+              <div className="p-8 bg-[#FFFFFF] border border-slate-200 rounded-2xl text-center">
+                <CheckCircle className="w-12 h-12 text-[#17C964] mx-auto mb-3" />
+                <p className="text-slate-900 font-bold">No Malpractice Records</p>
+                <p className="text-xs text-slate-500">No doctors currently have malpractice counts. All physicians are in good standing.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {malpracticeDoctors.map((doc) => (
+                  <div key={doc.id} className={`bg-[#FFFFFF] border rounded-2xl p-5 space-y-3 shadow-md transition ${
+                    doc.status === "DELETED"
+                      ? "border-red-300 bg-red-50/30"
+                      : doc.malpracticeCount >= 2
+                      ? "border-amber-300 bg-amber-50/30"
+                      : "border-slate-200"
+                  }`}>
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h3 className="font-bold text-slate-900 text-base">{doc.name}</h3>
+                        <p className="text-xs text-slate-500">{doc.email}</p>
+                        <p className="text-xs text-[#17C964] font-mono">{doc.specialization} at {doc.hospitalName}</p>
+                      </div>
+                      <div className="text-right">
+                        <div className={`px-3 py-1 rounded-xl text-sm font-bold border ${
+                          doc.malpracticeCount >= 3
+                            ? "bg-red-100 text-red-700 border-red-300"
+                            : doc.malpracticeCount >= 2
+                            ? "bg-amber-100 text-amber-700 border-amber-300"
+                            : "bg-orange-100 text-orange-700 border-orange-300"
+                        }`}>
+                          {doc.malpracticeCount} Malpractice{doc.malpracticeCount !== 1 ? "s" : ""}
+                        </div>
+                        {doc.status === "DELETED" && (
+                          <span className="mt-1 inline-block px-2 py-0.5 bg-red-100 text-red-700 border border-red-300 rounded text-[9px] font-bold">
+                            ACCOUNT DELETED
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center space-x-2 pt-2 border-t border-slate-200">
+                      {incrementTarget === doc.id ? (
+                        <span className="flex items-center space-x-2 w-full">
+                          <input
+                            value={incrementReason}
+                            onChange={(e) => setIncrementReason(e.target.value)}
+                            placeholder="Reason for malpractice (optional)..."
+                            className="flex-1 bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs outline-none"
+                            onKeyDown={(e) => { if (e.key === "Enter") handleIncrementMalpractice(doc.id); }}
+                          />
+                          <button
+                            onClick={() => handleIncrementMalpractice(doc.id)}
+                            className="px-3 py-1.5 bg-[#E23A2E] hover:bg-red-700 text-white font-bold rounded-lg text-[10px]"
+                          >
+                            Confirm +1
+                          </button>
+                          <button
+                            onClick={() => { setIncrementTarget(null); setIncrementReason(""); }}
+                            className="px-2 py-1.5 text-slate-400 hover:text-slate-700 text-[10px]"
+                          >
+                            Cancel
+                          </button>
+                        </span>
+                      ) : (
+                        <>
+                          {doc.status !== "DELETED" && (
+                            <button
+                              onClick={() => { setIncrementTarget(doc.id); setIncrementReason(""); }}
+                              className="px-3 py-1.5 bg-[#FDECE8] hover:bg-[#FBE0DA] border border-[#F2603C]/40 text-[#E23A2E] text-xs font-bold rounded-xl transition"
+                            >
+                              +1 Malpractice
+                            </button>
+                          )}
+                          {doc.malpracticeCount > 0 && (
+                            <button
+                              onClick={() => handleResetMalpractice(doc.id)}
+                              className="px-3 py-1.5 bg-[#E9FBF1] hover:bg-[#D7F6E5] border border-[#17C964]/40 text-[#0EA653] text-xs font-bold rounded-xl transition"
+                            >
+                              Reset to 0{doc.status === "DELETED" ? " & Reactivate" : ""}
+                            </button>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 

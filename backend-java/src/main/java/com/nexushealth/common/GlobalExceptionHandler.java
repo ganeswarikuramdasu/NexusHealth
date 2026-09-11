@@ -5,10 +5,14 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.orm.jpa.JpaSystemException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.NoHandlerFoundException;
+
+import jakarta.validation.ConstraintViolationException;
+import org.springframework.dao.DataIntegrityViolationException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -44,6 +48,32 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse> handleUnreadable(HttpMessageNotReadableException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ApiResponse.fail("Malformed or invalid request body."));
+    }
+
+    // FK / unique violations leak raw DB messages; map them to a clean 409/400.
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiResponse> handleDataIntegrity(DataIntegrityViolationException ex) {
+        log.warn("Data integrity violation", ex);
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiResponse.fail("This operation conflicts with existing data (e.g. a foreign key or duplicate value)."));
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ApiResponse> handleConstraintViolation(ConstraintViolationException ex) {
+        String message = ex.getConstraintViolations().stream()
+                .findFirst()
+                .map(v -> v.getMessage())
+                .orElse("Invalid request values.");
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.fail(message));
+    }
+
+    @ExceptionHandler(JpaSystemException.class)
+    public ResponseEntity<ApiResponse> handleJpa(JpaSystemException ex) {
+        if (ex.getMostSpecificCause() instanceof DataIntegrityViolationException) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(ApiResponse.fail("This operation conflicts with existing data."));
+        }
+        throw ex;
     }
 
     // Fallback that never leaks internal exception details to the client.

@@ -39,6 +39,8 @@ import {
   AlertCircle,
   TrendingUp,
   RefreshCw,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 
 interface CompletePatientClinicalRecordProps {
@@ -331,6 +333,91 @@ export const CompletePatientClinicalRecord: React.FC<CompletePatientClinicalReco
       alert("Error uploading lab report.");
     } finally {
       setIsUploadingLab(false);
+    }
+  };
+
+  // Edit / Delete any record in this clinical folder
+  const [editingRecord, setEditingRecord] = useState<any>(null);
+  const [editForm, setEditForm] = useState({ title: "", diagnosis: "", doctorNotes: "", hospitalName: "", date: "" });
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  const openEditRecord = (r: any) => {
+    setEditingRecord(r);
+    setEditForm({
+      title: r.title || r.testName || "",
+      diagnosis: r.diagnosis || "",
+      doctorNotes: r.doctorNotes || r.clinicalNotes || "",
+      hospitalName: r.hospitalName || r.labName || "",
+      date: r.date || new Date().toISOString().split("T")[0],
+    });
+  };
+
+  const saveEditRecord = async () => {
+    if (!editingRecord) return;
+    setSavingEdit(true);
+    try {
+      const res = await fetch("/api/medical-records/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          recordId: editingRecord.id,
+          title: editForm.title,
+          diagnosis: editForm.diagnosis,
+          doctorNotes: editForm.doctorNotes,
+          hospitalName: editForm.hospitalName,
+          date: editForm.date,
+        }),
+      });
+      const data = await parseResponseSafe<any>(res, { success: false });
+      if (!res.ok || !data || !data.success) {
+        alert(data?.message || "Failed to update the record. Please try again.");
+        return;
+      }
+      setMedicalRecords((prev) =>
+        prev.map((x) =>
+          x.id === editingRecord.id
+            ? {
+                ...x,
+                title: editForm.title || x.title,
+                diagnosis: editForm.diagnosis || x.diagnosis,
+                doctorNotes: editForm.doctorNotes || x.doctorNotes,
+                hospitalName: editForm.hospitalName || x.hospitalName,
+                labName: editForm.hospitalName || x.labName,
+                date: editForm.date || x.date,
+                aiSummary: x.aiSummary,
+                flaggedValues: x.flaggedValues,
+              }
+            : x
+        )
+      );
+      setEditingRecord(null);
+    } catch (err) {
+      console.warn("Failed to update record:", err);
+      alert("Could not reach the server. Please try again.");
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const deleteRecord = async (r: any) => {
+    if (!r || !r.id) return;
+    if (!window.confirm(`Delete "${r.title || r.testName || "this record"}"? This cannot be undone.`)) return;
+    try {
+      const res = await fetch("/api/medical-records/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recordId: r.id }),
+      });
+      const data = await parseResponseSafe<any>(res, { success: false });
+      if (!res.ok || !data || !data.success) {
+        alert(data?.message || "Failed to delete the record. Please try again.");
+        return;
+      }
+      setMedicalRecords((prev) => prev.filter((x) => x.id !== r.id));
+      if (onRefreshRecords) onRefreshRecords();
+    } catch (err) {
+      console.warn("Failed to delete record:", err);
+      alert("Could not reach the server. Please try again.");
     }
   };
 
@@ -1079,10 +1166,26 @@ export const CompletePatientClinicalRecord: React.FC<CompletePatientClinicalReco
                       </span>
                       <h4 className="text-sm font-bold text-slate-900 mt-1">{r.title || "Consultation Note"}</h4>
                     </div>
-                    <div className="text-slate-500 font-mono text-[11px] text-right">
-                      <div>{r.date}</div>
-                      <div className="text-[#17C964] font-bold">{r.doctorName}</div>
-                      <div className="text-slate-500">{r.hospitalName}</div>
+                    <div className="flex items-center gap-2">
+                      <div className="text-slate-500 font-mono text-[11px] text-right mr-2">
+                        <div>{r.date}</div>
+                        <div className="text-[#17C964] font-bold">{r.doctorName}</div>
+                        <div className="text-slate-500">{r.hospitalName}</div>
+                      </div>
+                      <button
+                        onClick={() => openEditRecord(r)}
+                        className="px-2.5 py-1.5 bg-[#0f172a] hover:bg-slate-700 text-white font-bold rounded-lg transition text-[10px] flex items-center space-x-1"
+                      >
+                        <Pencil className="w-3 h-3" />
+                        <span>Modify</span>
+                      </button>
+                      <button
+                        onClick={() => deleteRecord(r)}
+                        className="px-2.5 py-1.5 bg-[#E23A2E] hover:bg-[#C9302A] text-white font-bold rounded-lg transition text-[10px] flex items-center space-x-1"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                        <span>Delete</span>
+                      </button>
                     </div>
                   </div>
 
@@ -1150,6 +1253,20 @@ export const CompletePatientClinicalRecord: React.FC<CompletePatientClinicalReco
                       >
                         <FileText className="w-3.5 h-3.5 text-[#17C964]" />
                         <span>View Attachment</span>
+                      </button>
+                      <button
+                        onClick={() => openEditRecord(lab)}
+                        className="px-2.5 py-1.5 bg-[#0f172a] hover:bg-slate-700 text-white font-bold rounded-xl transition text-[10px] flex items-center space-x-1"
+                      >
+                        <Pencil className="w-3 h-3" />
+                        <span>Modify</span>
+                      </button>
+                      <button
+                        onClick={() => deleteRecord(lab)}
+                        className="px-2.5 py-1.5 bg-[#E23A2E] hover:bg-[#C9302A] text-white font-bold rounded-xl transition text-[10px] flex items-center space-x-1"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                        <span>Delete</span>
                       </button>
                     </div>
                   </div>
@@ -2315,6 +2432,84 @@ export const CompletePatientClinicalRecord: React.FC<CompletePatientClinicalReco
                 </form>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* EDIT RECORD MODAL */}
+      {editingRecord && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
+          <div className="bg-[#FFFFFF] border border-slate-200 rounded-3xl w-full max-w-xl shadow-2xl relative overflow-hidden text-slate-900">
+            <div className="flex items-center justify-between px-5 py-3 border-b border-slate-200">
+              <h3 className="font-bold text-slate-900 text-sm flex items-center space-x-2">
+                <Pencil className="w-4 h-4 text-[#17C964]" />
+                <span>Modify Record</span>
+              </h3>
+              <button onClick={() => setEditingRecord(null)} className="text-slate-500 hover:text-slate-900">✕</button>
+            </div>
+            <div className="p-5 space-y-4 max-h-[75vh] overflow-y-auto">
+              <div>
+                <label className="block text-slate-700 font-bold mb-1 text-xs">Title / Test Name</label>
+                <input
+                  value={editForm.title}
+                  onChange={(e) => setEditForm((f) => ({ ...f, title: e.target.value }))}
+                  className="w-full px-3 py-2.5 rounded-xl border border-slate-300 focus:border-[#17C964] focus:outline-none text-sm"
+                />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1 text-xs">Facility / Hospital</label>
+                  <input
+                    value={editForm.hospitalName}
+                    onChange={(e) => setEditForm((f) => ({ ...f, hospitalName: e.target.value }))}
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-300 focus:border-[#17C964] focus:outline-none text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1 text-xs">Date</label>
+                  <input
+                    type="date"
+                    value={editForm.date}
+                    onChange={(e) => setEditForm((f) => ({ ...f, date: e.target.value }))}
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-300 focus:border-[#17C964] focus:outline-none text-sm"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-slate-700 font-bold mb-1 text-xs">Diagnosis / Result</label>
+                <textarea
+                  value={editForm.diagnosis}
+                  onChange={(e) => setEditForm((f) => ({ ...f, diagnosis: e.target.value }))}
+                  rows={2}
+                  className="w-full px-3 py-2.5 rounded-xl border border-slate-300 focus:border-[#17C964] focus:outline-none text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-slate-700 font-bold mb-1 text-xs">Doctor Notes</label>
+                <textarea
+                  value={editForm.doctorNotes}
+                  onChange={(e) => setEditForm((f) => ({ ...f, doctorNotes: e.target.value }))}
+                  rows={3}
+                  className="w-full px-3 py-2.5 rounded-xl border border-slate-300 focus:border-[#17C964] focus:outline-none text-sm"
+                />
+              </div>
+              <div className="flex items-center justify-end space-x-3 pt-2">
+                <button
+                  onClick={() => setEditingRecord(null)}
+                  className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition text-xs"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={saveEditRecord}
+                  disabled={savingEdit}
+                  className="px-5 py-2.5 bg-[#17C964] hover:bg-[#0EA653] text-white font-bold rounded-xl transition text-xs disabled:opacity-60 flex items-center space-x-1.5"
+                >
+                  {savingEdit && <RefreshCw className="w-4 h-4 animate-spin" />}
+                  <span>{savingEdit ? "Saving..." : "Save Changes"}</span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

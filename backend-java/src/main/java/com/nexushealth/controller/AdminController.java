@@ -91,4 +91,24 @@ public class AdminController {
     public Map<String, Object> auditStatistics() {
         return adminService.getAuditStatistics();
     }
+
+    @GetMapping("/malpractice-doctors")
+    public List<Map<String, Object>> malpracticeDoctors() {
+        return adminService.getMalpracticeDoctors();
+    }
+
+    @PostMapping("/malpractice-increment")
+    public ApiResponse incrementMalpractice(@RequestBody Map<String, String> req) {
+        return adminService.incrementMalpractice(
+                req.get("doctorUserId"),
+                req.getOrDefault("adminName", "Super Admin"),
+                req.get("reason"));
+    }
+
+    @PostMapping("/malpractice-reset")
+    public ApiResponse resetMalpractice(@RequestBody Map<String, String> req) {
+        return adminService.resetMalpractice(
+                req.get("doctorUserId"),
+                req.getOrDefault("adminName", "Super Admin"));
+    }
 }

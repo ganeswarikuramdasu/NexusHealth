@@ -334,6 +334,36 @@ export const DoctorView: React.FC<DoctorViewProps> = ({
             {/* Announcements / Warnings */}
             <WarningsBanner role="DOCTOR" module="DOCTOR" />
             
+            {(doctor.malpracticeCount ?? 0) > 0 && (
+              <div className={`p-4 rounded-2xl border flex items-start space-x-3 ${
+                (doctor.malpracticeCount ?? 0) >= 3
+                  ? "bg-red-50 border-red-300"
+                  : "bg-amber-50 border-amber-300"
+              }`}>
+                <AlertTriangle className={`w-5 h-5 shrink-0 mt-0.5 ${
+                  (doctor.malpracticeCount ?? 0) >= 3 ? "text-red-600" : "text-amber-600"
+                }`} />
+                <div>
+                  <p className={`text-sm font-bold ${
+                    (doctor.malpracticeCount ?? 0) >= 3 ? "text-red-800" : "text-amber-800"
+                  }`}>
+                    {(doctor.malpracticeCount ?? 0) >= 3
+                      ? "Account Deleted — Malpractice Threshold Reached"
+                      : `Malpractice Warning — ${doctor.malpracticeCount} of 3 confirmed complaint${(doctor.malpracticeCount ?? 0) !== 1 ? "s" : ""}`
+                    }
+                  </p>
+                  <p className={`text-xs mt-1 ${
+                    (doctor.malpracticeCount ?? 0) >= 3 ? "text-red-700" : "text-amber-700"
+                  }`}>
+                    {(doctor.malpracticeCount ?? 0) >= 3
+                      ? "Your account has been deleted by the Super Admin due to 3+ confirmed malpractice complaints. Patient access is blocked. Contact the Super Admin to resolve this."
+                      : "A patient complaint has been confirmed against you. At 3 confirmed malpractices, your account will be automatically deleted and patient access will be blocked. Please review the Complaints section for details."
+                    }
+                  </p>
+                </div>
+              </div>
+            )}
+            
             {/* Doctor Hero Header */}
             <div className="bg-gradient-to-r from-[#17C964] via-[#0f172a] to-[#0f172a] border border-[#17C964]/30 rounded-3xl p-6 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
               <div className="space-y-2">

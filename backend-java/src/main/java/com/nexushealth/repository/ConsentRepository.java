@@ -12,7 +12,5 @@ public interface ConsentRepository extends JpaRepository<Consent, String> {
     @Query("SELECT c FROM Consent c WHERE c.patientId = :patientId AND c.status <> 'REVOKED' ORDER BY c.grantedAt DESC")
     List<Consent> findActiveForPatient(@Param("patientId") String patientId);
 
-    Optional<Consent> findByPatientIdAndDoctorId(String patientId, String doctorId);
-
     Optional<Consent> findFirstByPatientIdAndDoctorIdOrderByGrantedAtDesc(String patientId, String doctorId);
 }

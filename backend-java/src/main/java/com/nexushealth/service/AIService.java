@@ -366,9 +366,11 @@ public class AIService {
             String hint = reportText.isEmpty() ? fileName : reportText;
             valid = basicFileValidation(fileName, hint);
             if (!valid) {
-                validationReason = "Cannot validate the document without AI. Only image files (JPG, PNG) and PDFs are accepted as lab reports.";
+                validationReason = "The document could not be verified as a health lab report or diagnostic scan. "
+                        + "Only genuine medical files (e.g. blood work, lipid profile, imaging scans) with a clear "
+                        + "medical file name are accepted when AI validation is unavailable.";
             } else {
-                validationReason = "Validated by file type (AI unavailable).";
+                validationReason = "Validated by file type and medical file name (AI unavailable).";
                 extracted = simulateLabExtraction(hint);
                 summary = buildFallbackSummary(extracted);
                 flaggedValues = extractFlaggedValues(extracted);
@@ -463,17 +465,27 @@ public class AIService {
         String name = (fileName != null ? fileName : "").toLowerCase();
         String content = (hint != null ? hint : "").toLowerCase();
         String[] validExtensions = {".pdf", ".jpg", ".jpeg", ".png", ".dcm", ".dicom", ".tiff", ".bmp"};
+        boolean hasValidExtension = false;
         for (String ext : validExtensions) {
-            if (name.endsWith(ext)) return true;
+            if (name.endsWith(ext)) {
+                hasValidExtension = true;
+                break;
+            }
         }
         String[] medicalKeywords = {"lab", "report", "blood", "test", "scan", "x-ray", "mri", "ct",
                 "ultrasound", "cbc", "thyroid", "liver", "kidney", "glucose", "hemoglobin",
                 "cholesterol", "bilirubin", "platelet", "wbc", "rbc", "pathology", "diagnostic",
-                "specimen", "result", "reference range", "normal", "abnormal", "high", "low"};
+                "specimen", "result", "reference range", "normal", "abnormal", "high", "low",
+                "hba1c", "lipid", "sugar", "blood pressure", "ecg", "eeg", "echo", "biopsy",
+                "screening", "profile", "panel", "complete blood", "count", "vitamin", "hormone"};
+        boolean hasMedicalCue = false;
         for (String kw : medicalKeywords) {
-            if (content.contains(kw)) return true;
+            if (name.contains(kw) || content.contains(kw)) {
+                hasMedicalCue = true;
+                break;
+            }
         }
-        return false;
+        return hasValidExtension && hasMedicalCue;
     }
 
     @SuppressWarnings("unchecked")

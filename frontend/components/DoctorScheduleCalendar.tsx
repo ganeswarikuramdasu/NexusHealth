@@ -73,7 +73,9 @@ export const DoctorScheduleCalendar: React.FC<DoctorScheduleCalendarProps> = ({
   };
 
   const [isTogglingActive, setIsTogglingActive] = useState(false);
-  const [activeDoctorStatus, setActiveDoctorStatus] = useState(doctor.activeStatus || doctor.availabilityStatus || "ACTIVE");
+  const [activeDoctorStatus, setActiveDoctorStatus] = useState(
+    doctor.activeStatus || doctor.availabilityStatus || (doctor.isActive ? "ACTIVE" : "INACTIVE")
+  );
   const [activeToggleMessage, setActiveToggleMessage] = useState<string | null>(null);
 
   // Status Scope & Emergency Absence State

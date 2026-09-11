@@ -1,7 +1,12 @@
 package com.nexushealth.entity;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 @Entity
 @Table(name = "complaints", indexes = {
@@ -66,6 +71,10 @@ public class Complaint {
     @Column(name = "resolved_by", length = 64)
     private String resolvedBy;
 
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "replies", columnDefinition = "JSON")
+    private List<Map<String, Object>> replies = new ArrayList<>();
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
@@ -124,6 +133,8 @@ public class Complaint {
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public LocalDateTime getResolvedAt() { return resolvedAt; }
     public void setResolvedAt(LocalDateTime resolvedAt) { this.resolvedAt = resolvedAt; }
+    public List<Map<String, Object>> getReplies() { return replies; }
+    public void setReplies(List<Map<String, Object>> replies) { this.replies = replies != null ? replies : new ArrayList<>(); }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 
@@ -146,6 +157,7 @@ public class Complaint {
         public Builder status(String v) { c.status = v; return this; }
         public Builder resolutionNote(String v) { c.resolutionNote = v; return this; }
         public Builder resolvedBy(String v) { c.resolvedBy = v; return this; }
+        public Builder replies(List<Map<String, Object>> v) { c.replies = v; return this; }
         public Complaint build() { return c; }
     }
 }

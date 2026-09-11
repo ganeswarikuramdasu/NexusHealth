@@ -64,6 +64,8 @@ import {
   FileSpreadsheet,
   CreditCard,
   XCircle,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 
 type PatientTabKey = "DASHBOARD" | "EMERGENCY_PROFILE" | "ACCESS_CARD" | "RECORDS" | "LAB_REPORTS" | "AI_ASSISTANT" | "VITALS_ANALYTICS" | "MEDICATIONS" | "CONSENTS" | "APPOINTMENTS" | "AUDIT_LOGS" | "ACCOUNT";
@@ -198,11 +200,11 @@ export const PatientView: React.FC<PatientViewProps> = ({
       };
       setAiResult(result);
       // Valid document -> auto-save with AI summary & flagged values
-      const saved = await saveValidatedLabReport(fileName, dataUrl, result);
-      setSaveSuccess(saved);
-      if (saved) {
+      const savedRecord = await saveValidatedLabReport(fileName, dataUrl, result);
+      setSaveSuccess(!!savedRecord);
+      if (savedRecord) {
         const savedReport = {
-          id: `manual_lab_${Date.now()}`,
+          id: savedRecord.id || `manual_lab_${Date.now()}`,
           title: result.report?.title || fileName,
           recordType: result.report?.recordType || "LAB_REPORT",
           labName: result.report?.labName || "Patient Uploaded Diagnostics",
@@ -226,7 +228,7 @@ export const PatientView: React.FC<PatientViewProps> = ({
     }
   };
 
-  const saveValidatedLabReport = async (fileName: string, dataUrl: string, result: any): Promise<boolean> => {
+  const saveValidatedLabReport = async (fileName: string, dataUrl: string, result: any): Promise<any> => {
     const parameters = result.report?.parameters?.length ? result.report.parameters : [];
     try {
       const res = await fetch("/api/patient/add-manual-record", {
@@ -257,10 +259,90 @@ export const PatientView: React.FC<PatientViewProps> = ({
         }),
       });
       const data = await parseResponseSafe<any>(res, { success: false });
-      return !!(data && data.success);
+      return (data && data.success && data.record) ? data.record : null;
     } catch (err) {
       console.warn("Lab report save failed:", err);
-      return false;
+      return null;
+    }
+  };
+
+  // Edit / Delete patient-uploaded lab reports
+  const [editingReport, setEditingReport] = useState<any>(null);
+  const [editForm, setEditForm] = useState({ title: "", labName: "", date: "", aiSummary: "", diagnosis: "" });
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  const openEditReport = (report: any) => {
+    setEditingReport(report);
+    setEditForm({
+      title: report.title || report.testName || "",
+      labName: report.labName || report.hospitalName || "",
+      date: report.date || new Date().toISOString().split("T")[0],
+      aiSummary: report.aiSummary || "",
+      diagnosis: report.diagnosis || "",
+    });
+  };
+
+  const saveEditReport = async () => {
+    if (!editingReport) return;
+    setSavingEdit(true);
+    try {
+      const body: any = {
+        recordId: editingReport.id,
+        title: editForm.title,
+        diagnosis: editForm.diagnosis,
+        doctorNotes: editForm.aiSummary,
+        hospitalName: editForm.labName,
+        date: editForm.date || new Date().toISOString().split("T")[0],
+      };
+      if (editForm.aiSummary) body.aiSummary = editForm.aiSummary;
+      const res = await fetch("/api/medical-records/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await parseResponseSafe<any>(res, { success: false });
+      if (!res.ok || !data || !data.success) {
+        alert(data?.message || "Failed to update the report. Please try again.");
+        return;
+      }
+      setPatientUploadedReports((prev) => prev.map((r) =>
+        r.id === editingReport.id
+          ? {
+              ...r,
+              title: editForm.title || r.title,
+              labName: editForm.labName || r.labName,
+              date: editForm.date || r.date,
+              diagnosis: editForm.diagnosis || r.diagnosis,
+              aiSummary: editForm.aiSummary || r.aiSummary,
+            }
+          : r
+      ));
+      setEditingReport(null);
+    } catch (err) {
+      console.warn("Failed to update report:", err);
+      alert("Could not reach the server. Please try again.");
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const deleteLabReport = async (report: any) => {
+    if (!window.confirm(`Delete "${report.title || report.testName || "this report"}"? This cannot be undone.`)) return;
+    try {
+      const res = await fetch("/api/medical-records/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recordId: report.id }),
+      });
+      const data = await parseResponseSafe<any>(res, { success: false });
+      if (!res.ok || !data || !data.success) {
+        alert(data?.message || "Failed to delete the report. Please try again.");
+        return;
+      }
+      setPatientUploadedReports((prev) => prev.filter((r) => r.id !== report.id));
+    } catch (err) {
+      console.warn("Failed to delete report:", err);
+      alert("Could not reach the server. Please try again.");
     }
   };
 
@@ -1177,7 +1259,7 @@ export const PatientView: React.FC<PatientViewProps> = ({
                       <p className="text-xs text-[#17C964] font-mono">Facility: {report.labName || report.hospitalName || "Diagnostic Pathology Lab"}</p>
                     </div>
 
-                    <div className="flex items-center space-x-2 shrink-0">
+                    <div className="flex items-center space-x-2 shrink-0 flex-wrap gap-y-2 justify-end">
                       <button
                         onClick={() => setSelectedReportForExplain(report)}
                         className="px-3.5 py-2 bg-[#E9FBF1] hover:bg-[#17C964]/20 border border-[#17C964]/40 text-[#17C964] font-bold rounded-xl text-xs transition flex items-center space-x-1.5"
@@ -1192,6 +1274,22 @@ export const PatientView: React.FC<PatientViewProps> = ({
                       >
                         <Download className="w-4 h-4" />
                         <span>Download Report</span>
+                      </button>
+
+                      <button
+                        onClick={() => openEditReport(report)}
+                        className="px-3.5 py-2 bg-[#0f172a] hover:bg-slate-700 text-white font-bold rounded-xl text-xs transition flex items-center space-x-1.5"
+                      >
+                        <Pencil className="w-4 h-4" />
+                        <span>Modify</span>
+                      </button>
+
+                      <button
+                        onClick={() => deleteLabReport(report)}
+                        className="px-3.5 py-2 bg-[#E23A2E] hover:bg-[#C9302A] text-white font-bold rounded-xl text-xs transition flex items-center space-x-1.5"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        <span>Delete</span>
                       </button>
                     </div>
                   </div>
@@ -2762,6 +2860,86 @@ className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl px-3 py-2.5 te
               ) : (
                 <embed src={viewAttachment.dataUrl} type="application/pdf" className="w-full h-[72vh]" />
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT REPORT MODAL */}
+      {editingReport && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
+          <div className="bg-[#FFFFFF] border border-slate-200 rounded-3xl w-full max-w-xl shadow-2xl relative overflow-hidden text-slate-900">
+            <div className="flex items-center justify-between px-5 py-3 border-b border-slate-200">
+              <h3 className="font-bold text-slate-900 text-sm flex items-center space-x-2">
+                <Pencil className="w-4 h-4 text-[#17C964]" />
+                <span>Modify Lab Report</span>
+              </h3>
+              <button onClick={() => setEditingReport(null)} className="p-2 rounded-xl bg-[#EDF1F5] hover:bg-slate-200 text-slate-700">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-5 space-y-4 max-h-[75vh] overflow-y-auto">
+              <div>
+                <label className="block text-slate-700 font-bold mb-1 text-xs">Report Title / Test Name</label>
+                <input
+                  value={editForm.title}
+                  onChange={(e) => setEditForm((f) => ({ ...f, title: e.target.value }))}
+                  className="w-full px-3 py-2.5 rounded-xl border border-slate-300 focus:border-[#17C964] focus:outline-none text-sm"
+                />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1 text-xs">Facility / Lab Name</label>
+                  <input
+                    value={editForm.labName}
+                    onChange={(e) => setEditForm((f) => ({ ...f, labName: e.target.value }))}
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-300 focus:border-[#17C964] focus:outline-none text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1 text-xs">Report Date</label>
+                  <input
+                    type="date"
+                    value={editForm.date}
+                    onChange={(e) => setEditForm((f) => ({ ...f, date: e.target.value }))}
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-300 focus:border-[#17C964] focus:outline-none text-sm"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-slate-700 font-bold mb-1 text-xs">Result / Clinical Summary</label>
+                <textarea
+                  value={editForm.diagnosis}
+                  onChange={(e) => setEditForm((f) => ({ ...f, diagnosis: e.target.value }))}
+                  rows={2}
+                  className="w-full px-3 py-2.5 rounded-xl border border-slate-300 focus:border-[#17C964] focus:outline-none text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-slate-700 font-bold mb-1 text-xs">AI Summary</label>
+                <textarea
+                  value={editForm.aiSummary}
+                  onChange={(e) => setEditForm((f) => ({ ...f, aiSummary: e.target.value }))}
+                  rows={3}
+                  className="w-full px-3 py-2.5 rounded-xl border border-slate-300 focus:border-[#17C964] focus:outline-none text-sm"
+                />
+              </div>
+              <div className="flex items-center justify-end space-x-3 pt-2">
+                <button
+                  onClick={() => setEditingReport(null)}
+                  className="px-4 py-2.5 bg-[#EDF1F5] hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition text-xs"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={saveEditReport}
+                  disabled={savingEdit}
+                  className="px-5 py-2.5 bg-[#17C964] hover:bg-[#0f172a] text-white font-bold rounded-xl transition text-xs disabled:opacity-60 flex items-center space-x-1.5"
+                >
+                  {savingEdit && <RefreshCw className="w-4 h-4 animate-spin" />}
+                  <span>{savingEdit ? "Saving..." : "Save Changes"}</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>

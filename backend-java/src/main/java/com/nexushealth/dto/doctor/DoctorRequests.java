@@ -69,6 +69,8 @@ public class DoctorRequests {
         private String doctorName;
         private String targetHealthId;
         private String patientHealthId;
+        private String accessMethod;
+        private String accessCardId;
         private Boolean emergencyBreakGlass;
         private String breakGlassReason;
         private String emergencyReason;
@@ -81,6 +83,10 @@ public class DoctorRequests {
         public void setTargetHealthId(String targetHealthId) { this.targetHealthId = targetHealthId; }
         public String getPatientHealthId() { return patientHealthId; }
         public void setPatientHealthId(String patientHealthId) { this.patientHealthId = patientHealthId; }
+        public String getAccessMethod() { return accessMethod; }
+        public void setAccessMethod(String accessMethod) { this.accessMethod = accessMethod; }
+        public String getAccessCardId() { return accessCardId; }
+        public void setAccessCardId(String accessCardId) { this.accessCardId = accessCardId; }
         public Boolean getEmergencyBreakGlass() { return emergencyBreakGlass; }
         public void setEmergencyBreakGlass(Boolean emergencyBreakGlass) { this.emergencyBreakGlass = emergencyBreakGlass; }
         public String getBreakGlassReason() { return breakGlassReason; }
