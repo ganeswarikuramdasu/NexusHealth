@@ -25,12 +25,14 @@ interface DoctorScheduleCalendarProps {
   doctor: DoctorProfile;
   appointments: Appointment[];
   onRefreshData?: () => void;
+  onDoctorUpdate?: (updated: DoctorProfile) => void;
 }
 
 export const DoctorScheduleCalendar: React.FC<DoctorScheduleCalendarProps> = ({
   doctor,
   appointments,
   onRefreshData,
+  onDoctorUpdate,
 }) => {
   const todayStr = new Date().toISOString().split("T")[0];
   const [selectedDate, setSelectedDate] = useState(todayStr);
@@ -120,6 +122,7 @@ export const DoctorScheduleCalendar: React.FC<DoctorScheduleCalendarProps> = ({
         setActiveToggleMessage(data.message);
         setShowStatusModal(false);
         fetchDateSlots(selectedDate);
+        if (data.doctor && onDoctorUpdate) onDoctorUpdate(data.doctor);
         if (onRefreshData) onRefreshData();
       } else {
         alert(data?.message || "Failed to update doctor active status.");
@@ -201,14 +204,53 @@ export const DoctorScheduleCalendar: React.FC<DoctorScheduleCalendarProps> = ({
 
   // Next 7 days schedule helper
   const getNext7Days = () => {
-    const days = [];
+    const days: Array<{ dateStr: string; dayName: string; active: boolean; daySched?: any }> = [];
     const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+    const overridesByDate: Record<string, boolean | undefined> = {};
+    for (const ov of Array.isArray(doctor.dateOverrides) ? doctor.dateOverrides : []) {
+      if (ov && ov.date) overridesByDate[ov.date] = ov.active;
+    }
+
+    const inactiveRanges: Array<{ startDate?: string; endDate?: string }> = Array.isArray(
+      (doctor as any).inactiveDateRanges
+    )
+      ? (doctor as any).inactiveDateRanges
+      : [];
+    const leaves = Array.isArray(doctor.leaves) ? doctor.leaves : [];
+    const emergencyAbsence =
+      doctor.emergencyAbsence && doctor.emergencyAbsence.active
+        ? { start: doctor.emergencyAbsence.startDate, end: doctor.emergencyAbsence.endDate }
+        : null;
+
     for (let i = 0; i < 7; i++) {
       const d = new Date(Date.now() + i * 86400000);
       const dStr = d.toISOString().split("T")[0];
       const dayName = daysOfWeek[d.getDay()];
       const daySched = (doctor.weeklySchedule || {})[dayName];
-      const active = daySched ? daySched.active : false;
+
+      let active = daySched ? !!daySched.active : false;
+
+      if (emergencyAbsence && dStr >= emergencyAbsence.start && dStr <= emergencyAbsence.end) {
+        active = false;
+      }
+
+      for (const lv of leaves) {
+        if (lv.status === "ACTIVE" && dStr >= lv.startDate && dStr <= (lv.endDate || lv.startDate)) {
+          active = false;
+        }
+      }
+
+      for (const rg of inactiveRanges) {
+        if (rg.startDate && rg.endDate && dStr >= rg.startDate && dStr <= rg.endDate) {
+          active = false;
+        }
+      }
+
+      if (overridesByDate[dStr] !== undefined) {
+        active = overridesByDate[dStr]!;
+      }
+
       days.push({ dateStr: dStr, dayName, active, daySched });
     }
     return days;

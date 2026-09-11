@@ -952,6 +952,7 @@ export const DoctorView: React.FC<DoctorViewProps> = ({
           <DoctorScheduleCalendar
             doctor={activeDoctorState}
             appointments={appointments}
+            onDoctorUpdate={(updated) => setActiveDoctorState(updated)}
           />
         )}
 
