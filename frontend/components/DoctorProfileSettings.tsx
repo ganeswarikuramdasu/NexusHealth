@@ -80,9 +80,14 @@ export const DoctorProfileSettings: React.FC<DoctorProfileSettingsProps> = ({
       });
       const dataProf = await parseResponseSafe<any>(resProf, { success: false, message: "Failed to save profile." });
 
+      if (!dataProf || !dataProf.success) {
+        setSaveStatus({ type: "error", message: dataProf?.message || "Failed to save profile." });
+        return;
+      }
+
       // 2. Save schedule settings if weekly schedule updated
       if (profileData.weeklySchedule) {
-        await fetch(`/api/doctors/${doctor.id}/schedule`, {
+        const resSched = await fetch(`/api/doctors/${doctor.id}/schedule`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -95,15 +100,19 @@ export const DoctorProfileSettings: React.FC<DoctorProfileSettingsProps> = ({
             bookingCutoffMins: profileData.bookingCutoffMins,
           }),
         });
+        const dataSched = await parseResponseSafe<any>(resSched, { success: false, message: "Failed to save schedule." });
+        if (!dataSched || !dataSched.success) {
+          setSaveStatus({ type: "error", message: dataSched?.message || "Failed to save schedule settings. Please retry." });
+          return;
+        }
+        // Prefer the schedule response doctor so the extra (weekly schedule) is refreshed too.
+        onUpdateDoctor(dataSched.doctor || dataProf.doctor);
+      } else if (dataProf.doctor) {
+        onUpdateDoctor(dataProf.doctor);
       }
 
-      if (dataProf && dataProf.success && dataProf.doctor) {
-        onUpdateDoctor(dataProf.doctor);
-        setHasUnsavedChanges(false);
-        setSaveStatus({ type: "success", message: "Doctor profile and schedule updated successfully." });
-      } else {
-        setSaveStatus({ type: "error", message: dataProf?.message || "Failed to save profile." });
-      }
+      setHasUnsavedChanges(false);
+      setSaveStatus({ type: "success", message: "Doctor profile and schedule updated successfully." });
     } catch (err: any) {
       setSaveStatus({ type: "error", message: err.message || "Network error saving profile." });
     } finally {

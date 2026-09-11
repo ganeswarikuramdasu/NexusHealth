@@ -360,6 +360,26 @@ export const DoctorView: React.FC<DoctorViewProps> = ({
                       : "A patient complaint has been confirmed against you. At 3 confirmed malpractices, your account will be automatically deleted and patient access will be blocked. Please review the Complaints section for details."
                     }
                   </p>
+                  {Array.isArray(doctor.malpracticeHistory) && doctor.malpracticeHistory.length > 0 && (
+                    <div className="mt-2 bg-white/70 border border-current/20 rounded-xl p-3 space-y-1.5">
+                      <p className={`text-[10px] font-mono font-bold uppercase tracking-wider ${
+                        (doctor.malpracticeCount ?? 0) >= 3 ? "text-red-600" : "text-amber-600"
+                      }`}>
+                        Recorded Reasons
+                      </p>
+                      {doctor.malpracticeHistory.slice(0, 6).map((h, hi) => (
+                        <div key={hi} className="flex items-start justify-between gap-2 text-[11px]">
+                          <div className="min-w-0">
+                            <p className="font-mono font-bold text-slate-800">{h.reason || "No reason recorded"}</p>
+                            <p className="text-slate-500 font-mono">
+                              {h.actorName || "Super Admin"} · {h.at ? new Date(h.at).toLocaleString() : ""}
+                            </p>
+                          </div>
+                          <span className="shrink-0 text-slate-600 font-mono font-bold">{h.count}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             )}

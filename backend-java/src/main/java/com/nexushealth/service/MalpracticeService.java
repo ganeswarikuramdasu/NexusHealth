@@ -8,6 +8,11 @@ import com.nexushealth.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -48,6 +53,7 @@ public class MalpracticeService {
     }
 
     @Transactional
+    @SuppressWarnings("unchecked")
     public User increment(String doctorIdOrUserId, String actorName, String targetPatientHealthId,
                           String actionLabel, String reason) {
         User user = findDoctorUser(doctorIdOrUserId)
@@ -58,6 +64,10 @@ public class MalpracticeService {
             user.setStatus("DELETED");
         }
         userRepository.save(user);
+
+        String effectiveReason = reason != null && !reason.isBlank()
+                ? reason : "Confirmed complaint (TAKEN_ACTION)";
+        appendHistory(user, newCount, actorName, effectiveReason, actionLabel, newCount >= 3);
 
         StringBuilder details = new StringBuilder("Doctor ").append(user.getName())
                 .append(" malpractice count ")
@@ -75,6 +85,7 @@ public class MalpracticeService {
     }
 
     @Transactional
+    @SuppressWarnings("unchecked")
     public User reset(String doctorIdOrUserId, String adminName) {
         User user = findDoctorUser(doctorIdOrUserId)
                 .orElseThrow(() -> ApiException.notFound("Doctor not found."));
@@ -84,8 +95,44 @@ public class MalpracticeService {
             user.setStatus("ACTIVE");
         }
         userRepository.save(user);
+        appendHistory(user, 0, adminName != null ? adminName : "Super Admin",
+                "Malpractice record manually cleared / account reactivated", "reset to 0", false);
         auditLogService.log(adminName, "SUPER_ADMIN", "MALPRACTICE_RESET", null,
                 "Doctor " + user.getName() + " malpractice count reset from " + prev + " to 0.");
         return user;
+    }
+
+    /**
+     * Persists a human-readable entry (count reached, reason, actor, timestamp)
+     * into the linked Doctor's extra JSON so hospital / doctor / patient modules
+     * can render the per-increment reason alongside the raw count.
+     */
+    @SuppressWarnings("unchecked")
+    private void appendHistory(User user, int count, String actorName, String reason,
+                               String actionLabel, boolean deleted) {
+        Doctor doctor = user.getId() != null
+                ? doctorRepository.findByUserId(user.getId()).orElse(null) : null;
+        if (doctor == null) return;
+        Map<String, Object> extra = new LinkedHashMap<>(doctor.getExtra());
+        List<Map<String, Object>> history = new ArrayList<>();
+        Object existing = extra.get("malpracticeHistory");
+        if (existing instanceof List<?> list) {
+            for (Object o : list) {
+                if (o instanceof Map<?, ?> m) {
+                    history.add(new LinkedHashMap<>((Map<String, Object>) m));
+                }
+            }
+        }
+        Map<String, Object> entry = new LinkedHashMap<>();
+        entry.put("count", count);
+        entry.put("reason", reason);
+        entry.put("actorName", actorName != null ? actorName : "Super Admin");
+        entry.put("details", actionLabel);
+        entry.put("deleted", deleted);
+        entry.put("at", LocalDateTime.now().toString());
+        history.add(0, entry);
+        extra.put("malpracticeHistory", history);
+        doctor.setExtra(extra);
+        doctorRepository.save(doctor);
     }
 }

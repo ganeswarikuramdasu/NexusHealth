@@ -27,6 +27,10 @@ public class DoctorService {
     private static final List<String> FIXED_PROFILE_KEYS = List.of(
             "name", "email", "specialization", "fee");
 
+    private static final Set<String> CORE_PUBLIC_KEYS = Set.of(
+            "id", "userId", "name", "email", "specialization", "licenseNumber",
+            "hospitalId", "hospitalName", "status", "fee", "isActive", "malpracticeCount");
+
     private final DoctorRepository doctorRepository;
     private final HospitalRepository hospitalRepository;
     private final UserRepository userRepository;
@@ -482,8 +486,7 @@ public class DoctorService {
         boolean effectiveEmergency = Boolean.TRUE.equals(req.getEmergencyBreakGlass())
                 || !isBlank(req.getEmergencyReason());
 
-        Doctor doctor = doctorRepository.findById(doctorId)
-                .orElseGet(() -> doctorRepository.findByUserId(doctorId).orElse(null));
+        Doctor doctor = resolveDoctor(doctorId).orElse(null);
 
         if (doctor != null && !"APPROVED".equals(doctor.getStatus())) {
             recordAccessLogService.add(
@@ -680,8 +683,7 @@ public class DoctorService {
             throw ApiException.badRequest("patientHealthId is required to start a patient access session.");
         }
 
-        Doctor doctor = doctorRepository.findById(doctorId)
-                .orElseGet(() -> doctorRepository.findByUserId(doctorId).orElse(null));
+        Doctor doctor = resolveDoctor(doctorId).orElse(null);
 
         if (doctor != null && !"APPROVED".equals(doctor.getStatus())) {
             recordAccessLogService.add(
@@ -885,7 +887,8 @@ public class DoctorService {
                 "Configured date-specific override for " + date + ".");
 
         return ApiResponse.ok("Date-specific override saved for " + date + ".")
-                .with("dateOverrides", overrides);
+                .with("dateOverrides", overrides)
+                .with("doctor", toPublic(doctor));
     }
 
     /** POST /{id}/leaves */
@@ -944,7 +947,8 @@ public class DoctorService {
                 .with("leave", leaveItem)
                 .with("leaves", leaves)
                 .with("affectedCount", affected.size())
-                .with("affectedAppointments", affectedMaps);
+                .with("affectedAppointments", affectedMaps)
+                .with("doctor", toPublic(doctor));
     }
 
     /** DELETE /{id}/leaves/{leaveId} */
@@ -973,7 +977,8 @@ public class DoctorService {
                 "Cancelled leave entry ID " + leaveId + ".");
 
         return ApiResponse.ok("Leave cancelled successfully.")
-                .with("leaves", leaves);
+                .with("leaves", leaves)
+                .with("doctor", toPublic(doctor));
     }
 
     /** POST /{id}/emergency-unavailability */
@@ -1062,8 +1067,7 @@ public class DoctorService {
     @Transactional
     public ApiResponse toggleActiveGlobal(ToggleActiveRequest req) {
         String doctorId = req.getDoctorId();
-        Doctor doctor = doctorRepository.findById(doctorId)
-                .orElseGet(() -> doctorRepository.findByUserId(doctorId).orElse(null));
+        Doctor doctor = resolveDoctor(doctorId).orElse(null);
         if (doctor == null) {
             throw ApiException.notFound("Doctor not found.");
         }
@@ -1316,7 +1320,8 @@ public class DoctorService {
 
         return ApiResponse.ok("Custom preferred slot added successfully.")
                 .with("slot", newSlot)
-                .with("customPreferredSlots", slots);
+                .with("customPreferredSlots", slots)
+                .with("doctor", toPublic(doctor));
     }
 
     /** DELETE /{id}/custom-slots/{slotId} */
@@ -1345,7 +1350,8 @@ public class DoctorService {
                 "Deleted custom preferred slot " + slotId + ".");
 
         return ApiResponse.ok("Custom preferred slot deleted.")
-                .with("customPreferredSlots", slots);
+                .with("customPreferredSlots", slots)
+                .with("doctor", toPublic(doctor));
     }
 
     /** GET /{id}/availability-summary */
@@ -1445,13 +1451,11 @@ public class DoctorService {
     @SuppressWarnings("unchecked")
     public List<Map<String, Object>> getDoctorRecords(String callerDocId, String targetDocId, String search) {
         // Resolve doctor
-        Doctor doctor = doctorRepository.findById(targetDocId)
-                .orElseGet(() -> doctorRepository.findByUserId(targetDocId).orElse(null));
+        Doctor doctor = resolveDoctor(targetDocId).orElse(null);
 
         // FEARLESS isolation check
         if (!isBlank(callerDocId) && !"SUPER_ADMIN".equals(callerDocId)) {
-            Doctor callerDoc = doctorRepository.findById(callerDocId)
-                    .orElseGet(() -> doctorRepository.findByUserId(callerDocId).orElse(null));
+            Doctor callerDoc = resolveDoctor(callerDocId).orElse(null);
             if (callerDoc == null || doctor == null || !callerDoc.getId().equals(doctor.getId())) {
                 throw new ApiException(HttpStatus.FORBIDDEN,
                         "Forbidden: Doctor is strictly restricted to accessing records of their own authorized patients.");
@@ -1487,10 +1491,30 @@ public class DoctorService {
     // PRIVATE HELPERS
     // ========================================================================
 
-    private Doctor findByIdOrUserId(String id) {
+    /**
+     * Resolves a Doctor using any identifier the caller has on hand:
+     * the Doctor entity id (doc_...), the linked User id (u_doc_...),
+     * or the linked User's email as a final fallback. Returns empty when
+     * no doctor can be linked to the given identifier.
+     */
+    private Optional<Doctor> resolveDoctor(String id) {
+        if (id == null || id.isBlank()) return Optional.empty();
         Doctor doctor = doctorRepository.findById(id).orElse(null);
         if (doctor == null) doctor = doctorRepository.findByUserId(id).orElse(null);
-        if (doctor == null) throw ApiException.notFound("Doctor profile not found.");
+        if (doctor == null) {
+            User user = userRepository.findById(id).orElse(null);
+            if (user != null && !isBlank(user.getEmail())) {
+                doctor = doctorRepository.findFirstByEmailIgnoreCase(user.getEmail()).orElse(null);
+            }
+        }
+        return Optional.ofNullable(doctor);
+    }
+
+    private Doctor findByIdOrUserId(String id) {
+        Doctor doctor = resolveDoctor(id).orElse(null);
+        if (doctor == null) {
+            throw ApiException.notFound("Doctor profile not found for the given account. Please contact support if the problem persists.");
+        }
         return doctor;
     }
 
@@ -1513,7 +1537,12 @@ public class DoctorService {
         } else {
             out.put("malpracticeCount", 0);
         }
-        if (d.getExtra() != null) out.putAll(d.getExtra());
+        if (d.getExtra() != null) {
+            for (Map.Entry<String, Object> e : d.getExtra().entrySet()) {
+                if (CORE_PUBLIC_KEYS.contains(e.getKey())) continue;
+                out.put(e.getKey(), e.getValue());
+            }
+        }
         if (!out.containsKey("availabilityStatus")) {
             out.put("availabilityStatus", Boolean.TRUE.equals(d.getIsActive()) ? "AVAILABLE" : "INACTIVE");
         }

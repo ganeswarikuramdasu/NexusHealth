@@ -108,10 +108,29 @@ export default function App() {
         patientsPromise,
       ]);
 
+      let loadedDoctors = Array.isArray(doc) ? doc : [];
+
+      if (
+        userToLoad?.role === "DOCTOR" &&
+        !loadedDoctors.some(
+          (d) => d.email === userToLoad.email || d.userId === userToLoad.id || d.id === userToLoad.id
+        )
+      ) {
+        try {
+          const profRes = await safeFetchJson<any>(`/api/doctors/${userToLoad.id}/profile`, undefined, null);
+          const profDoc = profRes && profRes.success && profRes.doctor ? (profRes.doctor as DoctorProfile) : null;
+          if (profDoc && profDoc.id && !loadedDoctors.some((d) => d.id === profDoc.id)) {
+            loadedDoctors = [profDoc, ...loadedDoctors];
+          }
+        } catch {
+          // The backend's resolveDoctor fallback plus activeDoctor fallback keep the workspace functional.
+        }
+      }
+
       if (prof) setPatientProfile(prof);
       if (Array.isArray(rec)) setRecords(rec);
       if (Array.isArray(con)) setConsents(con);
-      if (Array.isArray(doc)) setDoctors(doc);
+      setDoctors(loadedDoctors);
       if (Array.isArray(hosp)) setHospitals(hosp);
       if (Array.isArray(apt)) setAppointments(apt);
       if (Array.isArray(aud)) setAuditLogs(aud);

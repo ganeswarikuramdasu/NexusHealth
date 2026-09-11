@@ -132,6 +132,10 @@ export const SuperAdminView: React.FC<SuperAdminViewProps> = ({
 
   const handleIncrementMalpractice = async (doctorUserId: string) => {
     setIncrementStatus(null);
+    if (!incrementReason.trim()) {
+      setIncrementStatus({ type: "error", msg: "Please provide a reason for this malpractice increment before confirming." });
+      return;
+    }
     try {
       const res = await fetch("/api/admin/malpractice-increment", {
         method: "POST",
@@ -139,7 +143,7 @@ export const SuperAdminView: React.FC<SuperAdminViewProps> = ({
         body: JSON.stringify({
           doctorUserId,
           adminName: appUser?.name || "Super Admin",
-          reason: incrementReason.trim() || undefined,
+          reason: incrementReason.trim(),
         }),
       });
       const data = await parseResponseSafe<any>(res, { success: false });
@@ -880,13 +884,14 @@ export const SuperAdminView: React.FC<SuperAdminViewProps> = ({
                           <input
                             value={incrementReason}
                             onChange={(e) => setIncrementReason(e.target.value)}
-                            placeholder="Reason for malpractice (optional)..."
-                            className="flex-1 bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs outline-none"
+                            placeholder="Reason for malpractice (required)..."
+                            className="flex-1 bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs outline-none focus:border-[#E23A2E]"
                             onKeyDown={(e) => { if (e.key === "Enter") handleIncrementMalpractice(doc.userId || doc.id); }}
                           />
                           <button
                             onClick={() => handleIncrementMalpractice(doc.userId || doc.id)}
-                            className="px-3 py-1.5 bg-[#E23A2E] hover:bg-red-700 text-white font-bold rounded-lg text-[10px]"
+                            disabled={!incrementReason.trim()}
+                            className="px-3 py-1.5 bg-[#E23A2E] hover:bg-red-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white font-bold rounded-lg text-[10px]"
                           >
                             Confirm +1
                           </button>
@@ -916,6 +921,31 @@ export const SuperAdminView: React.FC<SuperAdminViewProps> = ({
                         </>
                       )}
                     </div>
+                    {Array.isArray(doc.malpracticeHistory) && doc.malpracticeHistory.length > 0 && (
+                      <div className="mt-3 bg-slate-50 border border-slate-200/70 rounded-xl p-3 space-y-2">
+                        <p className="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-wider">Increment History</p>
+                        {doc.malpracticeHistory.slice(0, 8).map((h, hi) => (
+                          <div key={hi} className="flex items-start justify-between gap-2 text-[10px]">
+                            <div className="min-w-0">
+                              <p className="font-mono font-bold text-slate-800">
+                                {h.details || (h.deleted ? "Deleted" : "Increment")} → {h.count}
+                              </p>
+                              <p className="text-slate-500 line-clamp-3">{h.reason || "No reason recorded"}</p>
+                              <p className="text-slate-400 font-mono">
+                                {h.actorName || "Super Admin"} · {h.at ? new Date(h.at).toLocaleString() : ""}
+                              </p>
+                            </div>
+                            <span
+                              className={`shrink-0 px-2 py-0.5 rounded-full font-bold ${
+                                h.deleted ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"
+                              }`}
+                            >
+                              {h.deleted ? "DELETED" : h.count}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

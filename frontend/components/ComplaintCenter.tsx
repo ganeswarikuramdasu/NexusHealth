@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { MessageSquareWarning, Plus, Send, CheckCircle2, AlertTriangle } from "lucide-react";
+import { MessageSquareWarning, Plus, Send, CheckCircle2, AlertTriangle, Trash2 } from "lucide-react";
 import { safeFetchJson, parseResponseSafe } from "../utils/api";
 
 export interface LinkedAccessEvent {
@@ -81,6 +81,7 @@ export const ComplaintCenter: React.FC<ComplaintCenterProps> = ({
   const [resolutionNote, setResolutionNote] = useState<string>("");
   const [replyingToId, setReplyingToId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState<string>("");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const isSuperAdmin = appUser.role === "SUPER_ADMIN";
   const isDoctor = appUser.role === "DOCTOR";
@@ -212,6 +213,27 @@ export const ComplaintCenter: React.FC<ComplaintCenterProps> = ({
       }
     } catch (err) {
       setMsg({ type: "error", text: "Server error posting reply." });
+    }
+  };
+
+  const handleDelete = async (complaintId: string) => {
+    if (!window.confirm("Delete this complaint permanently? This cannot be undone.")) return;
+    setDeletingId(complaintId);
+    try {
+      const res = await fetch(`/api/complaints/${complaintId}?role=${appUser.role}&userId=${appUser.id}`, {
+        method: "DELETE",
+      });
+      const data = await parseResponseSafe<any>(res, { success: false });
+      if (data?.success) {
+        setMsg({ type: "success", text: "Complaint deleted." });
+        setComplaints((prev) => prev.filter((c) => c.id !== complaintId));
+      } else {
+        setMsg({ type: "error", text: data?.message || "Failed to delete complaint." });
+      }
+    } catch (err) {
+      setMsg({ type: "error", text: "Server error deleting complaint." });
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -444,6 +466,16 @@ export const ComplaintCenter: React.FC<ComplaintCenterProps> = ({
                       </button>
                     )}
                   </>
+)}
+                {(isSuperAdmin || isHospitalAdmin || c.complainantUserId === appUser.id) && (
+                  <button
+                    onClick={() => handleDelete(c.id)}
+                    disabled={deletingId === c.id}
+                    className="px-3 py-1.5 bg-[#FDECE8]/40 hover:bg-[#FDECE8] text-[#E23A2E] font-bold rounded-lg text-[10px] border border-[#F2603C]/30 flex items-center space-x-1 disabled:opacity-50"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    <span>{deletingId === c.id ? "Deleting..." : "Delete"}</span>
+                  </button>
                 )}
               </span>
             </div>

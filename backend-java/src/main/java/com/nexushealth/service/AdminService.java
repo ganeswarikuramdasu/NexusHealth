@@ -358,6 +358,10 @@ public class AdminService {
 
     @Transactional
     public ApiResponse incrementMalpractice(String doctorUserId, String adminName, String reason) {
+        if (reason == null || reason.isBlank()) {
+            throw ApiException.badRequest(
+                    "A reason is mandatory for every malpractice increment. Please describe the confirmed violation and the source complaint (if any).");
+        }
         User user = malpracticeService.increment(doctorUserId, adminName, null, "manually incremented", reason);
         int newCount = user.getMalpracticeCount();
 
@@ -367,8 +371,10 @@ public class AdminService {
         out.put("previousCount", newCount - 1);
         out.put("newCount", newCount);
         out.put("deleted", newCount >= 3);
+        out.put("reason", reason);
         return ApiResponse.ok("Malpractice count incremented to " + newCount
-                + (newCount >= 3 ? ". Account has been deleted (3+ malpractices)." : "."))
+                + (newCount >= 3 ? ". Account has been deleted (3+ malpractices)." : ".")
+                + " Reason recorded: " + reason)
                 .with("details", out);
     }
 

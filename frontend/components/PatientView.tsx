@@ -357,6 +357,13 @@ export const PatientView: React.FC<PatientViewProps> = ({
     (!selectedHospId || d.hospitalId === selectedHospId || !d.hospitalId)
   );
 
+  const patientDoctorIds = Array.from(new Set((records || []).map((r) => r.doctorId).filter(Boolean)));
+  const patientDoctors = patientDoctorIds
+    .map((id) => (doctors || []).find((d) => d.id === id || d.userId === id))
+    .filter((d): d is DoctorProfile => Boolean(d));
+  const flaggedPatientDoctors = patientDoctors.filter((d) => (d.malpracticeCount ?? 0) > 0);
+  const patientMalpracticeTotal = flaggedPatientDoctors.length;
+
   const [selectedDocId, setSelectedDocId] = useState("");
   const [aptDate, setAptDate] = useState(new Date().toISOString().split("T")[0]);
   const [aptSlot, setAptSlot] = useState("");
@@ -949,6 +956,58 @@ export const PatientView: React.FC<PatientViewProps> = ({
                 <div className="text-[10px] text-[#17C964] font-mono font-bold">Granted Doctor Access</div>
               </div>
 
+            </div>
+
+            {/* Conduct & Compliance Radar */}
+            <div className="bg-[#FFFFFF] border border-slate-200/90 rounded-2xl p-4 space-y-2 shadow-md">
+              <div className="flex justify-between items-start">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Conduct & Compliance</span>
+                <span
+                  className={`px-2.5 py-1 rounded-full text-[10px] font-mono font-bold border ${
+                    patientMalpracticeTotal > 0
+                      ? "bg-red-50 text-red-700 border-red-300"
+                      : "bg-[#E9FBF1] text-[#0EA653] border-[#17C964]/40"
+                  }`}
+                >
+                  {patientMalpracticeTotal > 0 ? `${patientMalpracticeTotal} FLAGGED` : "CLEAN RECORD"}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500">
+                {patientName}, the physicians who treated you are screened against the national malpractice registry.
+              </p>
+              {patientMalpracticeTotal > 0 ? (
+                <div className="space-y-1.5">
+                  {flaggedPatientDoctors.map((d) => (
+                    <div key={d.id} className="bg-slate-50 border border-slate-200 rounded-lg p-2 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <p className="text-[11px] font-bold text-slate-800">{d.name} <span className="text-slate-400 font-mono font-normal">({d.specialization})</span></p>
+                        <span className="shrink-0 px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-[9px] font-mono font-bold border border-red-200">
+                          {(d.malpracticeCount ?? 0)} MALPRACTICE{(d.malpracticeCount ?? 0) !== 1 ? "S" : ""}
+                        </span>
+                      </div>
+                      {Array.isArray(d.malpracticeHistory) && d.malpracticeHistory.length > 0 && (
+                        <div className="space-y-1">
+                          {d.malpracticeHistory.slice(0, 3).map((h, hi) => (
+                            <div key={hi} className="flex items-start justify-between gap-2 text-[10px]">
+                              <p className="text-slate-600 line-clamp-2">
+                                <span className="font-bold text-slate-800">{h.reason || "Confirmed violation"}</span>
+                                {" · "}
+                                <span className="text-slate-400">{h.actorName || "Super Admin"} · {h.at ? new Date(h.at).toLocaleDateString() : ""}</span>
+                              </p>
+                              <span className="shrink-0 text-slate-500 font-mono font-bold">{h.count}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex items-center space-x-2 text-[#0EA653] text-xs font-bold">
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>No confirmed malpractices recorded against your healthcare providers.</span>
+                </div>
+              )}
             </div>
 
             {/* Main Grid: Left Chart + Right Precision Shortcuts */}

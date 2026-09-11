@@ -121,8 +121,11 @@ public class ComplaintService {
 
         if ("TAKEN_ACTION".equals(newStatus) && complaint.getRelatedDoctorId() != null) {
             String actorName = req.getResolvedByName() != null ? req.getResolvedByName() : "Super Admin";
+            String reason = req.getResolutionNote() != null && !req.getResolutionNote().isBlank()
+                    ? req.getResolutionNote()
+                    : "Complaint #" + complaintId + " confirmed with action taken (TAKEN_ACTION).";
             malpracticeService.increment(complaint.getRelatedDoctorId(), actorName,
-                    complaint.getRelatedPatientHealthId(), "now", null);
+                    complaint.getRelatedPatientHealthId(), "now", reason);
         }
 
         auditLogService.log(req.getResolvedByName() != null ? req.getResolvedByName() : "Super Admin", "SUPER_ADMIN",
@@ -169,6 +172,22 @@ public class ComplaintService {
 
         return ApiResponse.ok("Reply posted successfully.")
                 .with("complaint", toPublic(complaint));
+    }
+
+    @Transactional
+    public ApiResponse delete(String complaintId, String role, String userId) {
+        Complaint complaint = complaintRepository.findById(complaintId)
+                .orElseThrow(() -> ApiException.notFound("Complaint not found."));
+        boolean isAdmin = "SUPER_ADMIN".equals(role) || "HOSPITAL_ADMIN".equals(role);
+        boolean isOwner = userId != null && userId.equals(complaint.getComplainantUserId());
+        if (!isAdmin && !isOwner) {
+            throw ApiException.forbidden("You are not authorized to delete this complaint.");
+        }
+        complaintRepository.delete(complaint);
+        auditLogService.log(userId != null ? userId : role, role != null ? role : "SYSTEM",
+                "COMPLAINT_DELETED", complaint.getRelatedPatientHealthId(),
+                "Complaint #" + complaintId + " deleted by " + (isAdmin ? "an admin" : "the complainant") + ".");
+        return ApiResponse.ok("Complaint deleted successfully.");
     }
 
     public Map<String, Object> stats() {

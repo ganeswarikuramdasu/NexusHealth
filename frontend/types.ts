@@ -169,6 +169,14 @@ export interface DoctorProfile {
   morningShiftCapacity?: number;
   afternoonShiftCapacity?: number;
   malpracticeCount?: number;
+  malpracticeHistory?: Array<{
+    count: number;
+    reason?: string;
+    actorName?: string;
+    details?: string;
+    at: string;
+    deleted?: boolean;
+  }>;
 }
 
 export interface AvailableSlot {

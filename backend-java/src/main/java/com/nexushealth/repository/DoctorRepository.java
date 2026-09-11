@@ -10,4 +10,5 @@ public interface DoctorRepository extends JpaRepository<Doctor, String> {
     List<Doctor> findAllByOrderByCreatedAtDesc();
     Optional<Doctor> findByUserId(String userId);
     List<Doctor> findByHospitalId(String hospitalId);
+    Optional<Doctor> findFirstByEmailIgnoreCase(String email);
 }

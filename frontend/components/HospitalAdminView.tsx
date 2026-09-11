@@ -12,7 +12,8 @@ import {
   AlertTriangle,
   Check,
   X,
-  ShieldCheck,
+ShieldCheck,
+  ShieldAlert,
   Edit3,
   Layers,
   PhoneCall,
@@ -377,6 +378,8 @@ export const HospitalAdminView: React.FC<HospitalAdminViewProps> = ({
   const pendingApprovals = doctors.filter(
     (d) => (d.hospitalId === hospital.id || d.hospitalName === hospital.name) && d.status === "PENDING_APPROVAL"
   );
+  const malpracticeDocs = affiliatedDoctors.filter((d) => (d.malpracticeCount ?? 0) > 0);
+  const malpracticeDocCount = malpracticeDocs.reduce((sum, d) => sum + (d.malpracticeCount ?? 0), 0);
 
   const navTabs = [
     { key: "DASHBOARD", label: "Dashboard", icon: LayoutDashboard },
@@ -492,6 +495,69 @@ export const HospitalAdminView: React.FC<HospitalAdminViewProps> = ({
                 <p className="text-3xl font-black text-slate-900">{affiliatedDoctors.filter((d) => d.status === "APPROVED").length}</p>
                 <p className="text-[10px] text-slate-400 font-mono">APPROVED & ACTIVE</p>
               </div>
+            </div>
+
+            {/* Conduct & Compliance Malpractice Radar */}
+            <div className="bg-[#FFFFFF] border border-slate-200 rounded-2xl p-5 space-y-3 shadow-md">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <ShieldAlert className="w-5 h-5 text-[#E23A2E]" />
+                  <h3 className="font-bold text-slate-900 text-sm">Conduct & Compliance (Malpractice Radar)</h3>
+                </div>
+                <span
+                  className={`px-3 py-1 rounded-full text-[10px] font-mono font-bold border ${
+                    malpracticeDocs.length > 0
+                      ? "bg-red-50 text-red-700 border-red-300"
+                      : "bg-[#E9FBF1] text-[#0EA653] border-[#17C964]/40"
+                  }`}
+                >
+                  {(malpracticeDocs || []).filter((d) => (d.malpracticeCount ?? 0) >= 3).length} ACCOUNTS DELETED ·{" "}
+                  {malpracticeDocCount} TOTAL CONFIRMED
+                </span>
+              </div>
+              {malpracticeDocs.length > 0 ? (
+                <div className="space-y-2">
+                  {malpracticeDocs.map((doc) => (
+                    <div key={doc.id} className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <Stethoscope className="w-3.5 h-3.5 text-[#E23A2E]" />
+                          <span className="text-xs font-bold text-slate-800">{doc.name}</span>
+                          <span className="text-[10px] text-slate-500 font-mono">{doc.specialization}</span>
+                        </div>
+                        <span
+                          className={`text-[9px] px-2 py-1 rounded-full font-mono font-bold border ${
+                            (doc.malpracticeCount ?? 0) >= 3
+                              ? "bg-red-100 text-red-700 border-red-300"
+                              : "bg-amber-100 text-amber-700 border-amber-300"
+                          }`}
+                        >
+                          {(doc.malpracticeCount ?? 0)} MALPRACTICE{(doc.malpracticeCount ?? 0) !== 1 ? "S" : ""}
+                        </span>
+                      </div>
+                      {Array.isArray(doc.malpracticeHistory) && doc.malpracticeHistory.length > 0 && (
+                        <div className="space-y-1">
+                          {doc.malpracticeHistory.slice(0, 4).map((h, hi) => (
+                            <div key={hi} className="flex items-start justify-between gap-2 text-[10px]">
+                              <p className="text-slate-600 line-clamp-2">
+                                <span className="font-bold text-slate-800">{h.reason || "Confirmed violation"}</span>
+                                {" · "}
+                                <span className="text-slate-400">{h.actorName || "Super Admin"} · {h.at ? new Date(h.at).toLocaleDateString() : ""}</span>
+                              </p>
+                              <span className="shrink-0 text-slate-500 font-mono font-bold">{h.count}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex items-center space-x-2 text-[#0EA653] text-xs font-bold py-1">
+                  <Check className="w-4 h-4" />
+                  <span>No confirmed malpractice cases among affiliated physicians.</span>
+                </div>
+              )}
             </div>
 
             {/* Pending Approvals Quick Action */}

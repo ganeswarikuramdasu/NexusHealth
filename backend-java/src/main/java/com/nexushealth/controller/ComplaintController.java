@@ -44,4 +44,11 @@ public class ComplaintController {
     public ApiResponse reply(@PathVariable String complaintId, @RequestBody ResolveComplaintRequest req) {
         return complaintService.reply(complaintId, req);
     }
+
+    @DeleteMapping("/{complaintId}")
+    public ApiResponse delete(@PathVariable String complaintId,
+                              @RequestParam String role,
+                              @RequestParam(required = false) String userId) {
+        return complaintService.delete(complaintId, role, userId);
+    }
 }
