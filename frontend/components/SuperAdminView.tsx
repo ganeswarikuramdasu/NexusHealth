@@ -38,6 +38,7 @@ interface SuperAdminViewProps {
   records?: MedicalRecord[];
   patientProfiles?: PatientProfile[];
   onDeleteHospital: (hospitalId: string) => void;
+  onRefreshData?: () => void;
   appUser?: {
     id: string;
     name: string;
@@ -56,6 +57,7 @@ export const SuperAdminView: React.FC<SuperAdminViewProps> = ({
   records = [],
   patientProfiles = [],
   onDeleteHospital,
+  onRefreshData,
   appUser,
   onLogout,
   onGoToHome,
@@ -113,29 +115,20 @@ export const SuperAdminView: React.FC<SuperAdminViewProps> = ({
   const [addHospStatus, setAddHospStatus] = useState<{ type: "success" | "error"; msg: string } | null>(null);
 
   // Malpractice Tracker State
-  const [malpracticeDoctors, setMalpracticeDoctors] = useState<any[]>([]);
-  const [malpracticeLoading, setMalpracticeLoading] = useState(false);
-  const [malpracticeError, setMalpracticeError] = useState<string | null>(null);
+  const [malpracticeSearch, setMalpracticeSearch] = useState("");
   const [incrementTarget, setIncrementTarget] = useState<string | null>(null);
   const [incrementReason, setIncrementReason] = useState("");
   const [incrementStatus, setIncrementStatus] = useState<{ type: "success" | "error"; msg: string } | null>(null);
 
-  const fetchMalpracticeDoctors = async () => {
-    setMalpracticeLoading(true);
-    setMalpracticeError(null);
-    try {
-      const data = await safeFetchJson<any[]>("/api/admin/malpractice-doctors", undefined, []);
-      setMalpracticeDoctors(Array.isArray(data) ? data : []);
-    } catch (err) {
-      setMalpracticeError("Failed to load malpractice data.");
-    } finally {
-      setMalpracticeLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (activeTab === "MALPRACTICES") fetchMalpracticeDoctors();
-  }, [activeTab]);
+  const malpracticeQuery = malpracticeSearch.trim().toLowerCase();
+  const flaggedDoctors = (doctors || []).filter((d) => (d.malpracticeCount ?? 0) > 0);
+  const malpracticeVisibleDoctors = malpracticeQuery
+    ? (doctors || []).filter((d) =>
+        [d.name, d.email, d.id, d.userId, d.hospitalName, d.specialization, d.licenseNumber, d.status]
+          .some((v) => !!v && v.toLowerCase().includes(malpracticeQuery))
+      )
+    : flaggedDoctors;
+  malpracticeVisibleDoctors.sort((a, b) => (b.malpracticeCount ?? 0) - (a.malpracticeCount ?? 0));
 
   const handleIncrementMalpractice = async (doctorUserId: string) => {
     setIncrementStatus(null);
@@ -154,7 +147,7 @@ export const SuperAdminView: React.FC<SuperAdminViewProps> = ({
         setIncrementStatus({ type: "success", msg: data.message || "Malpractice count incremented." });
         setIncrementTarget(null);
         setIncrementReason("");
-        fetchMalpracticeDoctors();
+        if (onRefreshData) onRefreshData();
       } else {
         setIncrementStatus({ type: "error", msg: data?.message || "Failed to increment malpractice." });
       }
@@ -177,7 +170,7 @@ export const SuperAdminView: React.FC<SuperAdminViewProps> = ({
       const data = await parseResponseSafe<any>(res, { success: false });
       if (data?.success) {
         setIncrementStatus({ type: "success", msg: data.message || "Malpractice count reset." });
-        fetchMalpracticeDoctors();
+        if (onRefreshData) onRefreshData();
       } else {
         setIncrementStatus({ type: "error", msg: data?.message || "Failed to reset malpractice." });
       }
@@ -793,7 +786,10 @@ export const SuperAdminView: React.FC<SuperAdminViewProps> = ({
                 <AlertTriangle className="w-5 h-5 text-[#E23A2E]" />
                 <span>Malpractice Tracker</span>
               </h2>
-              <p className="text-xs text-slate-500">Doctors with confirmed patient complaints. At 3 malpractices, accounts are automatically deleted.</p>
+              <p className="text-xs text-slate-500">
+                Search any doctor by name, user ID, doctor ID, email, hospital, or specialization to flag or clear malpractice.
+                At 3 malpractices, accounts are automatically deleted.
+              </p>
             </div>
 
             {incrementStatus && (
@@ -806,43 +802,71 @@ export const SuperAdminView: React.FC<SuperAdminViewProps> = ({
               </div>
             )}
 
-            {malpracticeLoading ? (
-              <div className="p-8 text-center text-slate-500 text-sm">Loading malpractice data...</div>
-            ) : malpracticeError ? (
-              <div className="p-8 text-center text-[#E23A2E] text-sm">{malpracticeError}</div>
-            ) : malpracticeDoctors.length === 0 ? (
+            {/* Search Any Doctor */}
+            <div className="bg-[#FFFFFF] border border-slate-200 rounded-2xl p-4 space-y-2">
+              <div className="relative">
+                <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
+                <input
+                  type="text"
+                  value={malpracticeSearch}
+                  onChange={(e) => setMalpracticeSearch(e.target.value)}
+                  placeholder="Search all doctors by name, email, user ID, doctor ID, hospital, or specialization..."
+                  className="w-full bg-[#EDF1F5] border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-900 placeholder-slate-500 focus:outline-none focus:border-[#E23A2E]"
+                />
+              </div>
+              <p className="text-[10px] font-mono text-slate-500">
+                {malpracticeQuery
+                  ? `${malpracticeVisibleDoctors.length} doctor(s) match your search.`
+                  : flaggedDoctors.length > 0
+                  ? `Showing ${flaggedDoctors.length} flagged doctor(s). Use search above to select any other physician.`
+                  : "No doctors currently have malpractice counts. Use search above to flag one."}
+              </p>
+            </div>
+
+            {malpracticeVisibleDoctors.length === 0 ? (
               <div className="p-8 bg-[#FFFFFF] border border-slate-200 rounded-2xl text-center">
-                <CheckCircle className="w-12 h-12 text-[#17C964] mx-auto mb-3" />
-                <p className="text-slate-900 font-bold">No Malpractice Records</p>
-                <p className="text-xs text-slate-500">No doctors currently have malpractice counts. All physicians are in good standing.</p>
+                {malpracticeQuery ? (
+                  <>
+                    <Search className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                    <p className="text-slate-900 font-bold">No Doctors Match "{malpracticeSearch}"</p>
+                    <p className="text-xs text-slate-500">Try a different name, ID, hospital, or specialization.</p>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="w-12 h-12 text-[#17C964] mx-auto mb-3" />
+                    <p className="text-slate-900 font-bold">No Malpractice Records</p>
+                    <p className="text-xs text-slate-500">No doctors currently have malpractice counts. All physicians are in good standing.</p>
+                  </>
+                )}
               </div>
             ) : (
               <div className="space-y-3">
-                {malpracticeDoctors.map((doc) => (
+                {malpracticeVisibleDoctors.map((doc) => (
                   <div key={doc.id} className={`bg-[#FFFFFF] border rounded-2xl p-5 space-y-3 shadow-md transition ${
-                    doc.status === "DELETED"
+                    doc.status === "DELETED" || (doc.malpracticeCount ?? 0) >= 3
                       ? "border-red-300 bg-red-50/30"
-                      : doc.malpracticeCount >= 2
+                      : (doc.malpracticeCount ?? 0) >= 2
                       ? "border-amber-300 bg-amber-50/30"
                       : "border-slate-200"
                   }`}>
                     <div className="flex justify-between items-start">
-                      <div>
+                      <div className="min-w-0">
                         <h3 className="font-bold text-slate-900 text-base">{doc.name}</h3>
-                        <p className="text-xs text-slate-500">{doc.email}</p>
-                        <p className="text-xs text-[#17C964] font-mono">{doc.specialization} at {doc.hospitalName}</p>
+                        <p className="text-xs text-slate-500 truncate">{doc.email}</p>
+                        <p className="text-xs text-[#17C964] font-mono">{doc.specialization || "General Medicine"}{doc.hospitalName ? ` at ${doc.hospitalName}` : ""}</p>
+                        <p className="text-[10px] text-slate-400 font-mono mt-1">UserID: {doc.userId || doc.id}</p>
                       </div>
-                      <div className="text-right">
+                      <div className="text-right shrink-0">
                         <div className={`px-3 py-1 rounded-xl text-sm font-bold border ${
-                          doc.malpracticeCount >= 3
+                          (doc.malpracticeCount ?? 0) >= 3
                             ? "bg-red-100 text-red-700 border-red-300"
-                            : doc.malpracticeCount >= 2
+                            : (doc.malpracticeCount ?? 0) >= 2
                             ? "bg-amber-100 text-amber-700 border-amber-300"
                             : "bg-orange-100 text-orange-700 border-orange-300"
                         }`}>
-                          {doc.malpracticeCount} Malpractice{doc.malpracticeCount !== 1 ? "s" : ""}
+                          {(doc.malpracticeCount ?? 0)} Malpractice{(doc.malpracticeCount ?? 0) !== 1 ? "s" : ""}
                         </div>
-                        {doc.status === "DELETED" && (
+                        {(doc.malpracticeCount ?? 0) >= 3 && (
                           <span className="mt-1 inline-block px-2 py-0.5 bg-red-100 text-red-700 border border-red-300 rounded text-[9px] font-bold">
                             ACCOUNT DELETED
                           </span>
@@ -858,10 +882,10 @@ export const SuperAdminView: React.FC<SuperAdminViewProps> = ({
                             onChange={(e) => setIncrementReason(e.target.value)}
                             placeholder="Reason for malpractice (optional)..."
                             className="flex-1 bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs outline-none"
-                            onKeyDown={(e) => { if (e.key === "Enter") handleIncrementMalpractice(doc.id); }}
+                            onKeyDown={(e) => { if (e.key === "Enter") handleIncrementMalpractice(doc.userId || doc.id); }}
                           />
                           <button
-                            onClick={() => handleIncrementMalpractice(doc.id)}
+                            onClick={() => handleIncrementMalpractice(doc.userId || doc.id)}
                             className="px-3 py-1.5 bg-[#E23A2E] hover:bg-red-700 text-white font-bold rounded-lg text-[10px]"
                           >
                             Confirm +1
@@ -875,17 +899,15 @@ export const SuperAdminView: React.FC<SuperAdminViewProps> = ({
                         </span>
                       ) : (
                         <>
-                          {doc.status !== "DELETED" && (
+                          <button
+                            onClick={() => { setIncrementTarget(doc.id); setIncrementReason(""); }}
+                            className="px-3 py-1.5 bg-[#FDECE8] hover:bg-[#FBE0DA] border border-[#F2603C]/40 text-[#E23A2E] text-xs font-bold rounded-xl transition"
+                          >
+                            +1 Malpractice
+                          </button>
+                          {(doc.malpracticeCount ?? 0) > 0 && (
                             <button
-                              onClick={() => { setIncrementTarget(doc.id); setIncrementReason(""); }}
-                              className="px-3 py-1.5 bg-[#FDECE8] hover:bg-[#FBE0DA] border border-[#F2603C]/40 text-[#E23A2E] text-xs font-bold rounded-xl transition"
-                            >
-                              +1 Malpractice
-                            </button>
-                          )}
-                          {doc.malpracticeCount > 0 && (
-                            <button
-                              onClick={() => handleResetMalpractice(doc.id)}
+                              onClick={() => handleResetMalpractice(doc.userId || doc.id)}
                               className="px-3 py-1.5 bg-[#E9FBF1] hover:bg-[#D7F6E5] border border-[#17C964]/40 text-[#0EA653] text-xs font-bold rounded-xl transition"
                             >
                               Reset to 0{doc.status === "DELETED" ? " & Reactivate" : ""}

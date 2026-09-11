@@ -273,6 +273,7 @@ export interface MedicalRecord {
   diagnosis: string;
   symptoms: string[];
   patientName?: string;
+  uploadedBy?: string;
   vitals?: {
     bp?: string;
     heartRate?: string;

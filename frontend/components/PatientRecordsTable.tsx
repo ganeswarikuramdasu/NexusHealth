@@ -32,6 +32,11 @@ export const PatientRecordsTable: React.FC<PatientRecordsTableProps> = ({
     return match?.name || rec.patientHealthId || "Patient";
   };
 
+  const attendingLabel = (rec: MedicalRecord): string =>
+    rec.uploadedBy === "Self"
+      ? "Self (Patient Upload)"
+      : rec.uploadedBy || rec.doctorName || "—";
+
   const filteredRecords = records.filter((r) => {
     const q = searchQuery.toLowerCase().trim();
     const docF = doctorFilter.toLowerCase().trim();
@@ -44,10 +49,11 @@ export const PatientRecordsTable: React.FC<PatientRecordsTableProps> = ({
       (r.patientName || "").toLowerCase().includes(q) ||
       (r.diagnosis || "").toLowerCase().includes(q) ||
       (r.doctorName || "").toLowerCase().includes(q) ||
+      (r.uploadedBy || "").toLowerCase().includes(q) ||
       (r.hospitalName || "").toLowerCase().includes(q) ||
       (r.notes || "").toLowerCase().includes(q);
 
-    const matchesDoctor = !docF || (r.doctorName || "").toLowerCase().includes(docF);
+    const matchesDoctor = !docF || (r.doctorName || "").toLowerCase().includes(docF) || (r.uploadedBy || "").toLowerCase().includes(docF);
     const matchesHospital = !hospF || (r.hospitalName || "").toLowerCase().includes(hospF);
     const matchesPatient =
       !patF ||
@@ -174,7 +180,10 @@ export const PatientRecordsTable: React.FC<PatientRecordsTableProps> = ({
                     </span>
                   </td>
                   <td className="py-3 px-3 max-w-xs truncate font-medium text-slate-800">{rec.diagnosis}</td>
-                  <td className="py-3 px-3 text-slate-700">{rec.doctorName} ({rec.hospitalName || "Clinic"})</td>
+                  <td className="py-3 px-3 text-slate-700">
+                    {attendingLabel(rec)}
+                    {rec.uploadedBy === "Self" ? "" : ` (${rec.hospitalName || "Clinic"})`}
+                  </td>
                   <td className="py-3 px-3 text-right">
                     <button
                       onClick={() => {
@@ -224,9 +233,9 @@ export const PatientRecordsTable: React.FC<PatientRecordsTableProps> = ({
             <div className="space-y-4 text-xs">
               <div className="grid grid-cols-2 gap-3 bg-[#EDF1F5] p-3.5 border border-slate-200 rounded-2xl font-mono">
                 <div>Date: <strong className="text-slate-900">{selectedRecordDetail.date}</strong></div>
-                <div>Attending Doctor: <strong className="text-slate-900">{selectedRecordDetail.doctorName}</strong></div>
-                <div>Facility: <strong className="text-slate-900">{selectedRecordDetail.hospitalName || "Central Hospital"}</strong></div>
-                <div>Digital Signature: <strong className="text-[#17C964]">{selectedRecordDetail.doctorSignature || "VERIFIED CLINICAL SIGN"}</strong></div>
+                <div>Attending Doctor: <strong className="text-slate-900">{attendingLabel(selectedRecordDetail)}</strong></div>
+                <div>Facility: <strong className="text-slate-900">{selectedRecordDetail.uploadedBy === "Self" ? "Self-Submitted Document" : (selectedRecordDetail.hospitalName || "Central Hospital")}</strong></div>
+                <div>Digital Signature: <strong className="text-[#17C964]">{selectedRecordDetail.uploadedBy === "Self" ? "PATIENT SELF UPLOAD" : (selectedRecordDetail.doctorSignature || "VERIFIED CLINICAL SIGN")}</strong></div>
               </div>
 
               <div className="space-y-1">

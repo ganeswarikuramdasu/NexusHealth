@@ -478,6 +478,7 @@ public class MedicalRecordService {
 
         shape.put("doctorName", extra.get("doctorName"));
         shape.put("hospitalName", extra.get("hospitalName"));
+        shape.put("uploadedBy", resolveUploader(r, extra));
         shape.put("category", extra.get("category"));
         shape.put("symptoms", extra.get("symptoms"));
         shape.put("vitals", extra.get("vitals"));
@@ -498,6 +499,19 @@ public class MedicalRecordService {
         shape.put("createdAt", r.getCreatedAt() != null ? r.getCreatedAt().toString() : null);
 
         return shape;
+    }
+
+    /**
+     * Determines who authored a record: the treating/uploading physician name when a
+     * doctor created it, or "Self" when the patient uploaded their own document.
+     */
+    private String resolveUploader(MedicalRecord r, Map<String, Object> extra) {
+        boolean hasDoctor = r.getDoctorId() != null && !r.getDoctorId().isBlank();
+        if (!hasDoctor) {
+            return "Self";
+        }
+        Object dn = extra.get("doctorName");
+        return dn != null && !String.valueOf(dn).isBlank() ? String.valueOf(dn) : "Physician";
     }
 
     @Transactional

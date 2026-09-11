@@ -475,6 +475,7 @@ export default function App() {
           records={records}
           patientProfiles={allPatients.length > 0 ? allPatients : (patientProfile ? [patientProfile] : [])}
           onDeleteHospital={handleDeleteHospital}
+          onRefreshData={refreshData}
           appUser={currentUser}
           onLogout={() => {
             setCurrentUser(null);
