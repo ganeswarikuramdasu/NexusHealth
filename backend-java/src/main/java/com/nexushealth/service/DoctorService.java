@@ -509,7 +509,8 @@ public class DoctorService {
         }
 
         if (doctor != null) {
-            User doctorUser = userRepository.findById(doctor.getUserId()).orElse(null);
+            User doctorUser = doctor.getUserId() != null
+                    ? userRepository.findById(doctor.getUserId()).orElse(null) : null;
             if (doctorUser != null && doctorUser.getMalpracticeCount() >= 3) {
                 recordAccessLogService.add(
                         doctor.getId(), doctorName != null ? doctorName : doctor.getName(),
@@ -725,7 +726,8 @@ public class DoctorService {
         }
 
         if (doctor != null) {
-            User doctorUser = userRepository.findById(doctor.getUserId()).orElse(null);
+            User doctorUser = doctor.getUserId() != null
+                    ? userRepository.findById(doctor.getUserId()).orElse(null) : null;
             if (doctorUser != null && doctorUser.getMalpracticeCount() >= 3) {
                 recordAccessLogService.add(
                         doctor.getId(), doctor.getName(),
