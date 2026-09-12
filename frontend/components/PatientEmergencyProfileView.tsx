@@ -214,8 +214,8 @@ export const PatientEmergencyProfileView: React.FC<PatientEmergencyProfileViewPr
 
       {/* MAIN CONTENT GRID */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* LEFT 7 COLS: EDIT EMERGENCY PROFILE & CONTACTS */}
-        <div className="lg:col-span-7 space-y-6">
+        {/* FULL WIDTH: EDIT EMERGENCY PROFILE & CONTACTS */}
+        <div className="lg:col-span-12 space-y-6">
           <form onSubmit={handleSaveProfile} className="bg-[#FFFFFF] border border-slate-200 rounded-3xl p-6 space-y-6 shadow-xl text-xs">
             <h3 className="font-bold text-slate-900 text-sm flex items-center space-x-2 border-b border-slate-200 pb-3">
               <Heart className="w-4 h-4 text-[#F2603C]" />
@@ -375,45 +375,7 @@ export const PatientEmergencyProfileView: React.FC<PatientEmergencyProfileViewPr
           </form>
         </div>
 
-        {/* RIGHT 5 COLS: EMERGENCY ACCESS AUDIT LOGS */}
-        <div className="lg:col-span-5 space-y-6">
-          <div className="bg-[#FFFFFF] border border-slate-200 rounded-3xl p-6 space-y-4 shadow-xl text-xs">
-            <h3 className="font-bold text-slate-900 text-sm flex items-center space-x-2 border-b border-slate-200 pb-3">
-              <Clock className="w-4 h-4 text-[#17C964]" />
-              <span>Emergency Access Audit History</span>
-            </h3>
-
-            <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
-              {emergencySessions.map((s) => (
-                <div key={s.id} className="bg-[#EDF1F5] p-4 rounded-2xl border border-slate-200 space-y-2">
-                  <div className="flex justify-between items-start">
-                    <span className="font-mono font-bold text-[#17C964]">{s.id}</span>
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${
-                      s.status === "ACTIVE" ? "bg-[#E9FBF1] text-[#17C964] border border-[#17C964]/40" : "bg-slate-100 text-slate-500"
-                    }`}>
-                      {s.status}
-                    </span>
-                  </div>
-
-                  <p className="text-slate-900 font-bold">{s.doctorName}</p>
-                  <p className="text-slate-500">{s.hospitalName}</p>
-                  <p className="text-slate-700 text-[11px]"><strong>Reason:</strong> {s.emergencyReason}</p>
-                  <div className="pt-1 text-[10px] text-slate-500 flex justify-between font-mono">
-                    <span>Method: {s.identificationMethod}</span>
-                    <span>{new Date(s.startedAt).toLocaleString()}</span>
-                  </div>
-                </div>
-              ))}
-
-              {emergencySessions.length === 0 && (
-                <div className="text-center py-8 text-slate-500">
-                  <ShieldCheck className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                  <p>No emergency access sessions logged for your account.</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+        {/* FULL WIDTH SINGLE COLUMN: EDIT EMERGENCY PROFILE & CONTACTS */}
       </div>
     </div>
   );
