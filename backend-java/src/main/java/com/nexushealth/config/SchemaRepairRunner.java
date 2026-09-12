@@ -40,7 +40,7 @@ import org.springframework.stereotype.Component;
 @Order(1)
 public class SchemaRepairRunner implements CommandLineRunner {
 
-    private static final Logger log = LoggerFactory.getLogger(SchemaRepairRunner.classonse_reads_log);
+    private static final Logger log = LoggerFactory.getLogger(SchemaRepairRunner.class);
 
     private static final String DEAD_COLUMN = "preferred_language";
 
