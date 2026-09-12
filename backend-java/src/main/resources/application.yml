@@ -38,7 +38,16 @@ spring:
         dialect: org.hibernate.dialect.MySQLDialect
 
   flyway:
-    enabled: false
+    enabled: true
+    # Existing Render DB has Hibernate-created tables but NO flyway_schema_history.
+    # baseline-on-migrate lets Flyway adopt the current schema as V1 (no destructive
+    # validation vs Hibernate) and then apply V2 onwards. V2 drops the dead
+    # NOT NULL `preferred_language` column that 500s patient registration
+    # (ddl-auto: update can never drop columns).
+    baseline-on-migrate: true
+    baseline-version: 1
+    locations: classpath:db/migration
+    out-of-order: false
 
   jackson:
     default-property-inclusion: non_null
