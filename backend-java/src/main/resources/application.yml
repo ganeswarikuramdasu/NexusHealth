@@ -52,6 +52,14 @@ spring:
       add-mappings: false
 
 nexushealth:
+  demo:
+    # One-tap demo launchers only RESET the password of the 4 ORIGINAL demo
+    # accounts (by email) to the known demo plaintext; they never create any
+    # account/record/consent/access-card/appointment. Everything after a demo
+    # login is a normal system action persisted by the real /api/auth/login
+    # flow. Default OFF so the seeder is inert in normal operation.
+    seed:
+      enabled: ${DEMO_SEED_ENABLED:false}
   super-admin:
     email: ${SUPER_ADMIN_EMAIL:ganeswarikuramdasu@gmail.com}
     password: ${SUPER_ADMIN_PASSWORD:Admin@Nexus2026!}

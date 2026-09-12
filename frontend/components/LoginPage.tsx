@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { UserRole, HospitalProfile } from "../types";
-import { Activity, User, Stethoscope, Building2, ShieldCheck, Mail, Lock, ShieldAlert, CheckCircle2, ArrowRight, Eye, EyeOff, Inbox, Fingerprint, HeartPulse, FileText } from "lucide-react";
+import { Activity, User, Stethoscope, Building2, ShieldCheck, Mail, Lock, ShieldAlert, CheckCircle2, ArrowRight, Eye, EyeOff, Inbox, Fingerprint, HeartPulse, FileText, Zap } from "lucide-react";
 import { checkPasswordStrength } from "../utils/validation";
 import { parseResponseSafe } from "../utils/api";
 
@@ -86,33 +86,60 @@ export const LoginPage: React.FC<LoginPageProps> = ({
   };
 
   // Direct Login
-  const handleLoginSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!loginEmail.trim() || !loginPassword.trim()) {
-      setStatusMessage({ type: "error", text: "Please enter both your registered email address and password." });
-      return;
-    }
-
+  // Shared real login (used by BOTH the original form and the one-tap demo
+  // buttons, so the path is byte-identical: same /api/auth/login, same
+  // persisted session/audit/consent/record/break-glass actions).
+  const performLogin = async (email: string, password: string, role: UserRole) => {
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: loginEmail.trim(),
-          password: loginPassword.trim(),
-          role: selectedRole
-        }),
+        body: JSON.stringify({ email: email.trim(), password: password.trim(), role }),
       });
       const data = await parseResponseSafe<any>(res, { success: false, message: "Authentication service unavailable." });
       if (!res.ok || !data || data.success === false) {
         setStatusMessage({ type: "error", text: data?.message || "Authentication failed. Invalid email or password." });
         return;
       }
-      onLoginSuccess(data.user, selectedRole);
+      onLoginSuccess(data.user, role);
     } catch (err) {
       setStatusMessage({ type: "error", text: "Login service error. Please try again." });
     }
+  };
+
+  const handleLoginSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!loginEmail.trim() || !loginPassword.trim()) {
+      setStatusMessage({ type: "error", text: "Please enter both your registered email address and password." });
+      return;
+    }
+    await performLogin(loginEmail, loginPassword, selectedRole);
+  };
+
+  // One-tap DEMO launchers. These are the 4 ORIGINAL pre-existing demo
+  // accounts (same email+role the DemoAccountsSeeder bound on the backend);
+  // they authenticate through performLogin (the real login handler), never
+  // create accounts/consents/records/cards/appointments. Every action after
+  // the tap is a normal, DB-persisted system action.
+  // One-tap DEMO launchers — symbol-only buttons. These are the 4 ORIGINAL
+  // pre-provisioned demo accounts (same email+role the DemoAccountsSeeder
+  // binds on the backend); they authenticate through the REAL performLogin
+  // handler (byte-identical to the form's /api/auth/login), never create
+  // accounts/consents/records/access-cards/appointments. Everything after a
+  // tap is a normal, DB-persisted system action.
+  const demoAccounts: { role: UserRole; email: string; password: string; label: string; symbol: string }[] = [
+    { role: "PATIENT", email: "kamalakuramdasu1@gmail.com", password: "Kamala@2006", label: "Patient", symbol: "P" },
+    { role: "DOCTOR", email: "divya@gmail.com", password: "Divya@2006", label: "Doctor", symbol: "D" },
+    { role: "HOSPITAL_ADMIN", email: "demo@gmail.com", password: "Ganeswari@2006", label: "Hospital", symbol: "H" },
+    { role: "SUPER_ADMIN", email: "ganeswarikuramdasu@gmail.com", password: "Admin@Nexus2026!", label: "Super Admin", symbol: "S" },
+  ];
+
+  const handleDemoLogin = async (role: UserRole, email: string, password: string) => {
+    setSelectedRole(role);
+    setLoginEmail(email);
+    setLoginPassword(password);
+    setStatusMessage({ type: "success", text: `Signing in as ${role === "PATIENT" ? "Patient" : role === "DOCTOR" ? "Doctor" : role === "HOSPITAL_ADMIN" ? "Hospital Admin" : "Super Admin"} (${email})…` });
+    await performLogin(email, password, role);
   };
 
   // Send OTP for Patient Registration
@@ -434,6 +461,50 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                     );
                   })}
                 </div>
+
+                {/* ONE-TAP DEMO LAUNCHERS - symbol only.
+                    Each button signs into one of the 4 ORIGINAL pre-provisioned
+                    demo accounts through the normal /api/auth/login handler
+                    (same code path as the form above). A demo login is a real
+                    authenticated session: every action after it (access sessions,
+                    consent grants, record reads, appointments, break-glass,
+                    audit + access logs) is a genuine system action saved to the
+                    database - never a sandbox or fake data. */}
+                {!isRegisterMode && (
+                  <div className="mb-5">
+                    <label className="block text-xs font-semibold text-slate-600 mb-2">
+                      <span className="inline-flex items-center gap-1.5">
+                        <Zap className="w-3.5 h-3.5" style={{ color: C.neonDeep }} />
+                        Quick Demo
+                      </span>
+                    </label>
+                    <div className="grid grid-cols-4 gap-2">
+                      {demoAccounts.map((item) => {
+                        const Icon =
+                          item.role === "PATIENT" ? User :
+                          item.role === "DOCTOR" ? Stethoscope :
+                          item.role === "HOSPITAL_ADMIN" ? Building2 : ShieldCheck;
+                        return (
+                          <button
+                            key={item.role}
+                            type="button"
+                            title={`One-tap sign in — ${item.label} demo account (${item.email})`}
+                            aria-label={`One-tap demo sign in as ${item.label}`}
+                            onClick={() => handleDemoLogin(item.role, item.email, item.password)}
+                            className="flex flex-col items-center justify-center gap-1.5 py-3 rounded-lg text-white font-black transition hover:brightness-105 active:scale-95"
+                            style={{ backgroundColor: C.neon, boxShadow: `0 6px 16px ${C.neon}44` }}
+                          >
+                            <Icon className="w-4.5 h-4.5" style={{ color: "#06130B" }} />
+                            <span className="text-[13px] leading-none">{item.symbol}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <p className="mt-1.5 text-[10.5px] text-slate-400">
+                      One tap signs into the original demo account — everything after is a real, saved system action.
+                    </p>
+                  </div>
+                )}
                 {selectedRole !== "PATIENT" && !isRegisterMode && (
                   <p className="mt-2 text-[11px] text-slate-400 flex items-center gap-1">
                     <Lock className="w-3 h-3" style={{ color: C.neon }} />
