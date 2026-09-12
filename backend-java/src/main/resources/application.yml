@@ -48,7 +48,6 @@ spring:
     # 500'ing patient registration (ddl-auto: update can never drop columns).
     baseline-on-migrate: true
     baseline-version: 1
-    ignore-migration-patterns: "*:failed"
     locations: classpath:db/migration
     out-of-order: false
     # Render's flyway_schema_history carries a FAILED V1 record from an earlier
