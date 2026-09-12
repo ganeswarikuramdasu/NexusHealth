@@ -38,9 +38,6 @@ public class User {
     @Column(length = 16, nullable = false)
     private String status = "ACTIVE";
 
-    @Column(name = "preferred_language", length = 10, nullable = false)
-    private String preferredLanguage = "en";
-
     @Column(name = "malpractice_count", nullable = false)
     private int malpracticeCount = 0;
 
@@ -103,14 +100,6 @@ public class User {
     public void setDateOfBirth(LocalDate dateOfBirth) { this.dateOfBirth = dateOfBirth; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
-
-    public String getPreferredLanguage() {
-        return preferredLanguage == null || preferredLanguage.isBlank() ? "en" : preferredLanguage;
-    }
-
-    public void setPreferredLanguage(String preferredLanguage) {
-        this.preferredLanguage = preferredLanguage;
-    }
     public int getMalpracticeCount() { return malpracticeCount; }
     public void setMalpracticeCount(int malpracticeCount) { this.malpracticeCount = malpracticeCount; }
     public LocalDateTime getCreatedAt() { return createdAt; }
@@ -145,10 +134,6 @@ public class User {
         public Builder gender(String gender) { user.gender = gender; return this; }
         public Builder dateOfBirth(LocalDate dateOfBirth) { user.dateOfBirth = dateOfBirth; return this; }
         public Builder status(String status) { user.status = status; return this; }
-        public Builder preferredLanguage(String preferredLanguage) {
-            user.preferredLanguage = preferredLanguage;
-            return this;
-        }
         public User build() { return user; }
     }
 }

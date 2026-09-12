@@ -437,8 +437,6 @@ public class AuthService {
         out.put("phone", user.getPhone());
         out.put("role", user.getRole());
         out.put("isVerified", true);
-        String lang = user.getPreferredLanguage();
-        out.put("preferredLanguage", lang != null && !lang.isBlank() ? lang : "en");
         return out;
     }
 
