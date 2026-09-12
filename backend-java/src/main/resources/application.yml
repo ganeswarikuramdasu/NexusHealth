@@ -38,24 +38,21 @@ spring:
         dialect: org.hibernate.dialect.MySQLDialect
 
   flyway:
-    enabled: true
-    # Render DB already has Hibernate-created tables plus a flyway_schema_history
-    # row with a HALF-COMPLETED/failed V1 from an earlier deploy
-    # ("Detected failed migration to version 1"). baseline-on-migrate adopts the
-    # current schema; ignore-migration-patterns lets Flyway proceed past the stale
-    # failed V1 record (equivalent to `flyway repair`) instead of hard-failing boot;
-    # V2 then runs and drops the dead NOT NULL `preferred_language` column that was
-    # 500'ing patient registration (ddl-auto: update can never drop columns).
-    baseline-on-migrate: true
-    baseline-version: 1
+    # DISABLED: Render's flyway_schema_history carries stale FAILED V1 rows from
+    # earlier half-completed deploys. Flyway 10 cannot repair them declaratively
+    # (`ignore-migration-patterns: "*:failed"` is REJECTED on boot:
+    #   Invalid migration state 'failed'. Valid states are: [*, missing, pending,
+    #   ignored, future]
+    # and baseline-on-migrate does NOT skip a FAILED row -> every boot hard-fails).
+    # The Render DB schema (and any fresh DB) works fine WITHOUT Flyway because
+    # Hibernate's ddl-auto: update builds all other tables/columns; the only thing
+    # it can never do is DROP columns. That single leftover dead column
+    # (`users.preferred_language` NOT NULL, no default) is dropped at boot by
+    # SchemaRepairRunner (idempotent, information_schema-guarded, never throws),
+    # so registration's INSERT no longer 500s. This removes Flyway as a boot
+    # dependency entirely - no schema-history state to go stale again.
+    enabled: false
     locations: classpath:db/migration
-    out-of-order: false
-    # Render's flyway_schema_history carries a FAILED V1 record from an earlier
-    # half-completed deploy ("Detected failed migration to version 1... run repair").
-    # ignore-migration-patterns:<failed> is the declarative `flyway repair`:
-    # Flyway skips the broken history row and proceeds to apply V2 onward instead
-    # of hard-failing boot with the ValidateException from the Render log above.
-    ignore-migration-patterns: "*:failed"
 
   jackson:
     default-property-inclusion: non_null
