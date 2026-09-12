@@ -5,8 +5,9 @@ import com.nexushealth.repository.AuditLogRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
 public class AuditLogService {
@@ -14,9 +15,13 @@ public class AuditLogService {
     private static final Logger LOG = LoggerFactory.getLogger(AuditLogService.class);
 
     private final AuditLogRepository auditLogRepository;
+    private final TransactionTemplate txTemplate;
 
-    public AuditLogService(AuditLogRepository auditLogRepository) {
+    public AuditLogService(AuditLogRepository auditLogRepository,
+                           PlatformTransactionManager transactionManager) {
         this.auditLogRepository = auditLogRepository;
+        this.txTemplate = new TransactionTemplate(transactionManager);
+        this.txTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
 
     private static String cut(String s, int max) {
@@ -25,11 +30,11 @@ public class AuditLogService {
     }
 
     /**
-     * Best-effort, side-effect-free audit write. REQUIRES_NEW keeps this save
-     * in its own transaction so a persistence failure can never poison the
-     * caller's outer transaction into an unrelated 500 at commit time.
+     * Best-effort, side-effect-free audit write. The save runs in its own
+     * REQUIRES_NEW transaction (via TransactionTemplate) so a persistence
+     * failure can never poison the caller's outer transaction into an
+     * unrelated 500 at commit time. Failures are rolled back and swallowed.
      */
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void log(String actorName, String actorRole, String action, String targetPatientHealthId, String details) {
         try {
             AuditLog entry = AuditLog.builder()
@@ -41,7 +46,10 @@ public class AuditLogService {
                     .details(cut(details, 1000))
                     .ipAddress("127.0.0.1")
                     .build();
-            auditLogRepository.save(entry);
+            txTemplate.execute(status -> {
+                auditLogRepository.saveAndFlush(entry);
+                return null;
+            });
         } catch (Exception e) {
             LOG.warn("audit log could not be persisted (best-effort): {}", e.getMessage());
         }

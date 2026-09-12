@@ -246,22 +246,19 @@ public class CardService {
         String token = req.getScannedCode().trim();
         if (token.contains("NEXUSHEALTH_CARD_TOKEN:")) {
             token = token.replace("NEXUSHEALTH_CARD_TOKEN:", "").trim();
-        } else if (token.contains("NEXUSHEALTH:")) {
-            String[] parts = token.split(":");
-            if (parts.length > 1) {
-                String healthId = parts[1];
-                AccessCard byHealthId = accessCardRepository.findForPatient(healthId, healthId).stream()
-                        .filter(c -> "ACTIVE".equals(c.getStatus())).findFirst().orElse(null);
-                if (byHealthId != null) token = byHealthId.getSecureToken();
-            }
         }
 
-        List<AccessCard> identifierMatches = accessCardRepository.findAllByAnyIdentifier(token);
+        // Card-credential lookup: ONLY true access-card identifiers (card id /
+        // cardIdentifier / secureToken) may authorize a scan. A raw patient ID
+        // or Global Health ID is never accepted as a card credential.
+        List<AccessCard> identifierMatches = accessCardRepository.findAllByCardIdentifier(token);
         final String lookupToken = token;
         AccessCard card = identifierMatches.stream()
-                .filter(c -> lookupToken.equals(c.getSecureToken()) || lookupToken.equals(c.getCardIdentifier()))
+                .filter(c -> lookupToken.equals(c.getId())
+                        || lookupToken.equals(c.getSecureToken())
+                        || lookupToken.equals(c.getCardIdentifier()))
                 .findFirst()
-                .orElse(identifierMatches.isEmpty() ? null : identifierMatches.get(0));
+                .orElse(null);
         if (card == null) {
             ApiResponse resp = ApiResponse.fail("Unrecognized or Invalid NexusHealth Access Card Token. Ensure valid NexusHealth card.");
             resp.put("code", "CARD_NOT_FOUND");
@@ -384,7 +381,7 @@ public class CardService {
                 .build();
         consentRepository.save(consent);
 
-        cardAccessLogRepository.save(com.nexushealth.entity.CardAccessLog.builder()
+        cardAccessLogService.record(com.nexushealth.entity.CardAccessLog.builder()
                 .id("calog_" + System.currentTimeMillis())
                 .cardId(card != null ? card.getId() : "card_1001").patientId(targetUserId).patientHealthId(targetHealthId)
                 .patientName(patientName).actorId(consent.getDoctorId())

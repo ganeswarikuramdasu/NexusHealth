@@ -486,6 +486,10 @@ public class DoctorService {
         boolean effectiveEmergency = Boolean.TRUE.equals(req.getEmergencyBreakGlass())
                 || !isBlank(req.getEmergencyReason());
 
+        if (isBlank(doctorId)) {
+            throw ApiException.badRequest("doctorId is required to look up patient records.");
+        }
+
         Doctor doctor = resolveDoctor(doctorId).orElse(null);
         String effectiveDoctorId = doctor != null ? doctor.getId() : doctorId;
 
@@ -597,7 +601,7 @@ public class DoctorService {
         Appointment activeApt = null;
         List<Appointment> apts = appointmentRepository.search(patientUserId, effectiveHealthId, effectiveDoctorId, null);
         for (Appointment a : apts) {
-            if ("ACCEPTED".equals(a.getStatus()) && effectiveDoctorId.equals(a.getDoctorId())) {
+            if ("ACCEPTED".equals(a.getStatus()) && effectiveDoctorId != null && effectiveDoctorId.equals(a.getDoctorId())) {
                 hasAppointment = true;
                 activeApt = a;
                 break;
@@ -813,7 +817,7 @@ public class DoctorService {
 
         boolean hasAppointment = false;
         for (Appointment a : appointmentRepository.search(patientUserId, patientGlobalId, effectiveDoctorId, null)) {
-            if ("ACCEPTED".equals(a.getStatus()) && effectiveDoctorId.equals(a.getDoctorId())) {
+            if ("ACCEPTED".equals(a.getStatus()) && effectiveDoctorId != null && effectiveDoctorId.equals(a.getDoctorId())) {
                 hasAppointment = true;
                 break;
             }

@@ -5,8 +5,9 @@ import com.nexushealth.repository.RecordAccessLogRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -22,9 +23,13 @@ public class RecordAccessLogService {
     private static final Logger LOG = LoggerFactory.getLogger(RecordAccessLogService.class);
 
     private final RecordAccessLogRepository repository;
+    private final TransactionTemplate txTemplate;
 
-    public RecordAccessLogService(RecordAccessLogRepository repository) {
+    public RecordAccessLogService(RecordAccessLogRepository repository,
+                                  PlatformTransactionManager transactionManager) {
         this.repository = repository;
+        this.txTemplate = new TransactionTemplate(transactionManager);
+        this.txTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
 
     private static String cut(String s, int max) {
@@ -33,12 +38,13 @@ public class RecordAccessLogService {
     }
 
     /**
-     * Best-effort, side-effect-free log write. REQUIRES_NEW keeps this save in
-     * its own transaction so a persistence failure can never mark the caller's
-     * (outer) transaction rollback-only - which would surface as an unrelated
-     * 500 "unexpected server error" at commit time.
+     * Best-effort, side-effect-free log write. The save runs in its own
+     * REQUIRES_NEW transaction (via TransactionTemplate) so a persistence
+     * failure can never mark the caller's outer transaction rollback-only -
+     * which would surface as an unrelated 500 "unexpected server error" at
+     * commit time. When the save fails, the template rolls the inner
+     * transaction back cleanly and the failure is swallowed here.
      */
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
     @SuppressWarnings("unchecked")
     public RecordAccessLog add(
             String doctorId, String doctorName,
@@ -69,7 +75,10 @@ public class RecordAccessLogService {
                 .denialReason(cut(denialReason, 64))
                 .build();
         try {
-            return repository.save(log);
+            return txTemplate.execute(status -> {
+                repository.saveAndFlush(log);
+                return log;
+            });
         } catch (Exception e) {
             LOG.warn("record access log could not be persisted (best-effort): {}", e.getMessage());
             return log;
